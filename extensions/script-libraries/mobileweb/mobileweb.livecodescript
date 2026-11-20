@@ -1153,6 +1153,14 @@ as a video does; the stack gets resizeStack (when <mwStart> fills the
 screen with it) and is laid out for the new size. The user can leave
 with the phone's back gesture.
 
+On an iPad, the browser (Safari, or another on Safari's engine) ends
+full screen when a text input has the focus, so a stack in full screen
+has two limits there: the keys of a keyboard attached to the iPad do
+not reach the stack while the page is full screen, and tapping a field
+brings up the keyboard and ends full screen. Asked for while a field is
+being typed in, full screen ends again at once, as it always has there:
+the keyboard stays up.
+
 Call it from a tap: a browser gives the whole screen only then. The
 result is "not supported" where the browser cannot, such as on an iPhone
 (an iPad can) and on a desktop outside a browser, and "not from a tap"

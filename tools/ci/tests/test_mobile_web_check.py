@@ -617,5 +617,45 @@ class Helpers(unittest.TestCase):
         self.assertIn('got == not_from_a_tap_expected(whole)', check)
 
 
+
+class FullScreenOnAnIPad(unittest.TestCase):
+    """An iPad's browser ends full screen when a text input has the focus
+    (WebKit's rule), so the engine's hidden input gives the focus up while
+    the page is full screen (#563), and a stack in full screen there has
+    two limits: no keys from an attached keyboard, and a field tapped
+    brings the keyboard and ends full screen; asked for while a field is
+    being typed in, full screen ends at once, as before. The README's
+    Known issues said so; mwFullScreen's dictionary entry and the guide
+    did not (after 0.2.8-dp.2)."""
+
+    def entry(self):
+        library = read(*LIBRARY[len(REPO) + 1:].split(os.sep))
+        return ' '.join(re.search(r'/\*\*((?:(?!\*/).)*?)\*/\s*command mwFullScreen\b', library, re.S)
+                        .group(1).split())
+
+    def test_the_dictionary_entry_says_both_limits(self):
+        entry = self.entry()
+        self.assertIn('On an iPad, the browser (Safari, or another on Safari\'s engine) ends full screen when a '
+                      'text input has the focus', entry)
+        self.assertIn('the keys of a keyboard attached to the iPad do not reach the stack while the page is full '
+                      'screen', entry)
+        self.assertIn('tapping a field brings up the keyboard and ends full screen', entry)
+        self.assertIn('Asked for while a field is being typed in, full screen ends again at once', entry)
+
+    def test_the_guide_says_them_too(self):
+        guide = ' '.join(read('ide', 'Documentation', 'guides', 'Stacks for Phones.md').split())
+        self.assertIn('On an iPad, the browser ends full screen when a text input has the focus, so a stack in '
+                      'full screen gets no keys from a keyboard attached to the iPad, and tapping a field brings '
+                      'up the keyboard and ends full screen.', guide)
+
+    def test_as_the_engine_does_it(self):
+        # (what the entry says is what em-event.js does: the input held
+        # back while the page is full screen, unless a field is typed in)
+        events = read('engine', 'src', 'em-event.js')
+        held = re.search(r'_inputHeld: function\(\) \{(.*?)\n\t\t\}', events, re.S).group(1)
+        self.assertIn('LiveCodeEvents._isIOS && !LiveCodeEvents._textInput', held)
+        self.assertIn('_pageIsFullScreen()', held)
+
+
 if __name__ == '__main__':
     unittest.main()
