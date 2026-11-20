@@ -2002,7 +2002,8 @@ class Workflow(unittest.TestCase):
         # the device and tests jobs download the latest release's IDE to
         # run the builder in; nothing is written to a release, a package or
         # the repository
-        self.assertEqual(self.wf['permissions'], {'contents': 'read'})
+        # (actions: read, for the tests to take an earlier run's engine)
+        self.assertEqual(self.wf['permissions'], {'contents': 'read', 'actions': 'read'})
         for job in self.wf['jobs'].values():
             self.assertNotIn('permissions', job)
         self.assertNotRegex(self.text, r':\s*write\b')
@@ -2013,16 +2014,27 @@ class Workflow(unittest.TestCase):
                                              'actions/download-artifact', 'actions/upload-artifact'])
 
     def test_what_starts_it(self):
+        # the workflow starts for any change but a few folders'; its gate
+        # (android_runs.py) says whether the engine is built, from the
+        # files that ENGINE_PATHS takes
+        import android_runs
         on = self.wf[True]
         paths = on['pull_request']['paths']
         self.assertEqual(paths, on['push']['paths'])
+        self.assertEqual(paths[0], '**')
+        self.assertIn('.github/workflows/android-engine.yml', paths)
+        engine = android_runs.ENGINE_PATHS
         for name in ('.github/workflows/android-engine.yml', 'tools/ci/build-android.sh', 'tools/ci/android_engine.py',
                      'tools/ci/android_java.py'):
-            self.assertIn(name, paths)
-        self.assertEqual(paths[0], '**')
+            self.assertIn(name, engine)
+            self.assertTrue(android_runs.matches(name, engine), name)
+        self.assertEqual(engine[0], '**')
         # the files the build runs, outside the folders it builds from
         for name in re.findall(r"'\.\./tools/([\w.-]+\.sh)'", read('config', 'java.gypi')):
-            self.assertIn('tools/' + name, paths)
+            self.assertIn('tools/' + name, engine)
+            self.assertTrue(android_runs.matches('tools/' + name, engine), name)
+        self.assertEqual(self.job['needs'], 'gate')
+        self.assertEqual(self.job['if'], "needs.gate.outputs.engine == 'true'")
 
     def test_the_device_job(self):
         """The engine built here runs: the device job takes the four build
@@ -2153,7 +2165,7 @@ class Workflow(unittest.TestCase):
         for wf in ('build-linux.yml', 'build-macos.yml', 'build-windows.yml'):
             ignore = yaml.safe_load(read('.github', 'workflows', wf))[True]['push']['paths-ignore']
             for name in ('.github/workflows/android-engine.yml', 'tools/ci/build-android.sh',
-                         'tools/ci/android_engine.py', 'config/android-ndk-version'):
+                         'tools/ci/android_engine.py', 'tools/ci/android_runs.py', 'config/android-ndk-version'):
                 self.assertIn(name, ignore, wf)
 
 
