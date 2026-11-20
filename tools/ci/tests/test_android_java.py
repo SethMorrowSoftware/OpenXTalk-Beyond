@@ -40,6 +40,12 @@ sys.path.insert(0, CI)
 import android_check as ac  # noqa: E402
 import android_java as aj  # noqa: E402
 
+# oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes, the first released jar
+# with the edge to edge layouts and the engine finishing what it drew
+DP1_CLASSES = '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe'
+# oxt-runtimes-0.2.8-dp.2's: dp.1's code with getDNSServers added
+DP2_CLASSES = '763a89804b090c24e4916f3fb753e36c2b49e2fa1971d47f01a9e233f0f81e54'
+
 
 def read(*path):
     with open(os.path.join(REPO, *path), encoding='utf-8') as f:
@@ -487,15 +493,30 @@ class Compare(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn('PROBLEM: the code of a/A.m:()Ljava/lang/Object; differs', out)
 
-    def test_dp_classes_differ_only_in_whether_a_permission_exists(self):
+    def test_dp_classes_differ_in_whether_a_permission_exists_and_the_keyboard(self):
         # the released dp.1 and dp.2 runtimes' Classes (android-java.yml
         # compares against the one external-assets.json pins, dp.2's): each
-        # differs from a build only in checkPermissionExists (the
-        # dnsServers' Java method, new since dp.1, is an addition), and no
-        # jar is in both lists
-        for sha in (DP1_CLASSES, DP2_CLASSES):
-            self.assertEqual(aj.EXPECTED[sha], aj.PERMISSION_EXISTS, sha)
+        # differs from a build in checkPermissionExists and in the keyboard
+        # read from the window's insets (the dnsServers' Java method, new
+        # since dp.1, is an addition), with their reasons, and no jar is in
+        # both lists
+        dp1 = DP1_CLASSES
+        self.assertNotIn(dp1, aj.ADDITIONS_ONLY)
+        self.assertEqual(set(aj.EXPECTED[dp1]), {
+            'code com/runrev/android/Engine.checkPermissionExists:(Ljava/lang/String;)Z',
+            'code com/runrev/android/Engine.keyboardIsVisible:()Z',
+            'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V',
+            'code com/runrev/android/LiveCodeActivity.drawEdgeToEdge:()V'})
+        for key, reason in aj.PERMISSION_EXISTS.items():
+            self.assertEqual(aj.EXPECTED[dp1][key], reason)
+        # dp.2's (the runtimes asset pinned now) differs from dp.1's only by
+        # getDNSServers, so the same changes are expected of it
+        self.assertEqual(aj.EXPECTED[DP2_CLASSES], aj.EXPECTED[dp1])
         self.assertFalse(set(aj.ADDITIONS_ONLY) & set(aj.EXPECTED))
+        # every released jar has the keyboard change named, as each had
+        # keyboardIsVisible
+        for sha, entries in aj.EXPECTED.items():
+            self.assertIn('code com/runrev/android/Engine.keyboardIsVisible:()Z', entries, sha)
 
 
 # ---------------------------------------------------------------------------
@@ -2091,8 +2112,13 @@ class OneSystem(unittest.TestCase):
         # the first Classes built here differs in nothing else, bar the
         # engine finishing what it drew (test_the_engine_finishes_drawing_first)
         # and a stack drawn edge to edge (test_edge_to_edge_when_the_app_asks)
+        # and the keyboard read from the insets
+        # (test_keyboard_from_the_insets_where_the_stack_is_laid_out_by_them)
         self.assertEqual(aj.EXPECTED['e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'],
-                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS, **{
+                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS,
+                              **aj.KEYBOARD_BY_INSETS, **{
+                             'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V':
+                                 aj.KEYBOARD_BY_INSETS_KEEP_OUT,
                              'code com/runrev/android/LiveCodeActivity.onDestroy:()V':
                                  aj.FINISH_DRAWING_ON_DESTROY,
                              'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V':
@@ -2174,10 +2200,13 @@ class OneSystem(unittest.TestCase):
             for key in aj.FINISH_DRAWING:
                 self.assertEqual(entries[key], aj.FINISH_DRAWING[key], (sha, key))
             self.assertIn(aj.FINISH_DRAWING_ON_DESTROY, entries['code com/runrev/android/LiveCodeActivity.onDestroy:()V'])
-        # rc.6.19's (the runtimes asset pinned now) differs in nothing else,
-        # bar a stack drawn edge to edge (test_edge_to_edge_when_the_app_asks)
+        # rc.6.19's differs in nothing else, bar a stack drawn edge to edge
+        # (test_edge_to_edge_when_the_app_asks) and the keyboard read from
+        # the insets (test_keyboard_from_the_insets_where_the_stack_is_laid_out_by_them)
         self.assertEqual(aj.EXPECTED['328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d'],
-                         dict(aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS, **{
+                         dict(aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS, **aj.KEYBOARD_BY_INSETS, **{
+                             'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V':
+                                 aj.KEYBOARD_BY_INSETS_KEEP_OUT,
                              'code com/runrev/android/LiveCodeActivity.onDestroy:()V': aj.FINISH_DRAWING_ON_DESTROY,
                              'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V':
                                  aj.EDGE_TO_EDGE_ON_CREATE,
@@ -2218,6 +2247,57 @@ class OneSystem(unittest.TestCase):
                                  r'LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
         self.assertRegex(activity, r's_main_layout \. addView\(s_main_view,\s*new FrameLayout\.LayoutParams\('
                                    r'FrameLayout\.LayoutParams\.MATCH_PARENT,\s*FrameLayout\.LayoutParams\.MATCH_PARENT\)\);')
+
+    def test_keyboard_from_the_insets_where_the_stack_is_laid_out_by_them(self):
+        # Android 15 draws an app that targets API 35 or newer under the
+        # navigation bar and counts it in the default display's metrics, so
+        # the old sum (screen height less the visible frame, the status bar
+        # and the soft buttons' bar from those metrics) took the navigation
+        # bar for a keyboard: the stack was told the keyboard showed at
+        # launch, and getWorkarea fell back to the whole screen below the
+        # status bar (a stack rect 0,51,412,967 in a screenRect
+        # 0,0,412,915), the bottom of a showAll stack under the bar. Where
+        # the activity lays the stack out by the insets, the insets say;
+        # anywhere else the sum is as before
+        activity = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'LiveCodeActivity.java')
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        # set by both layouts by the insets, and by nothing else
+        keep = re.search(r'(?s)protected void keepOutOfSystemBars\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertEqual(keep.split(), (
+            's_lays_out_by_insets = true; '
+            's_main_layout.setOnApplyWindowInsetsListener(new SystemBarsPadding(this));').split())
+        draw = re.search(r'(?s)protected void drawEdgeToEdge\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertIn('s_lays_out_by_insets = true;', draw)
+        self.assertEqual(activity.count('s_lays_out_by_insets = '), 2)
+        self.assertIn('protected static boolean s_lays_out_by_insets;\n', activity)
+        asks = re.search(r'(?s)public static boolean laysOutByInsets\(\)\n    {\n(.*?)\n    }\n', activity).group(1)
+        self.assertEqual(asks.split(), 'return s_lays_out_by_insets;'.split())
+        # the engine's view asks first, on Android 11 and newer only (the
+        # insets' ime type and isVisible are Android 11's), and does not
+        # fall through to the sum there
+        body = re.search(r'(?s)boolean keyboardIsVisible\(\)\n    {\n(.*?)\n    }\n', engine).group(1)
+        code = '\n'.join(x for x in body.split('\n') if not x.strip().startswith('//'))
+        first = ('if (Build.VERSION.SDK_INT >= 30 && LiveCodeActivity.laysOutByInsets()) { '
+                 'WindowInsets t_insets = getRootWindowInsets(); '
+                 'return t_insets != null && t_insets.isVisible(WindowInsets.Type.ime()); }').split()
+        self.assertEqual(code.split()[:len(first)], first)
+        # the sum below it is LiveCode's, unchanged, for every other window
+        rest = code.split('}', 1)[1]
+        self.assertEqual(rest.split(), (
+            'int t_status_bar_height = 0; '
+            'int t_resource_id = getResources().getIdentifier("status_bar_height", "dimen", "android"); '
+            'if (t_resource_id > 0) { '
+            't_status_bar_height = getResources().getDimensionPixelSize(t_resource_id); } '
+            'Rect t_app_rect = new Rect(); '
+            'getActivity().getWindow().getDecorView().getWindowVisibleDisplayFrame(t_app_rect); '
+            'int t_screen_height = ((LiveCodeActivity)getContext()).s_main_layout.getRootView().getHeight(); '
+            'int t_keyboard_height = t_screen_height - (t_app_rect.height() + t_status_bar_height) - '
+            'getSoftbuttonsbarHeight(); '
+            'return t_keyboard_height > 0;').split())
+        self.assertEqual(engine.count('laysOutByInsets()'), 1)
+        # named, with its reason, against every released jar
+        for sha, entries in aj.EXPECTED.items():
+            self.assertIn('Engine.keyboardIsVisible:()Z', ' '.join(entries), sha)
 
     def test_edge_to_edge_when_the_app_asks(self):
         # a stack can ask to be drawn edge to edge (the Android card's "Edge
@@ -2264,6 +2344,7 @@ class OneSystem(unittest.TestCase):
             't_attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS; '
             't_window.setAttributes(t_attributes); '
             's_edge_to_edge = new EdgeToEdge(this); '
+            's_lays_out_by_insets = true; '
             's_main_layout.setOnApplyWindowInsetsListener(s_edge_to_edge); '
             'showBarsForAppearance(getResources().getConfiguration());').split())
         self.assertEqual(activity.count('s_edge_to_edge = '), 1)
