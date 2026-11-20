@@ -247,6 +247,10 @@ A browser keeps some of these for the user's own choice:
   supported`, `not available`), and the stack goes on: an iPhone cannot
   buzz or hide Safari's bars, for one. Called other than from a tap, the
   camera, the share sheet and the full screen say `not from a tap`.
+* On an iPad, the browser ends full screen when a text input has the
+  focus, so a stack in full screen gets no keys from a keyboard attached
+  to the iPad, and tapping a field brings up the keyboard and ends full
+  screen.
 * A stack for phones needs iOS 15 or later on an iPhone or an iPad (an
   iPhone 6s or newer), and WebAssembly: Lockdown Mode turns it off, and
   the page says so.
