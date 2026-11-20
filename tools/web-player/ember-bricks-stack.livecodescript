@@ -7373,6 +7373,11 @@ command ebTestSet pName, pValue
       case "pointer"
          put pValue into sPointer
          break
+      case "platform"
+         -- (a test of what a phone or a tablet does, on a desktop or a
+         -- page: "desktop", "web" or "mobile", given back by the test)
+         put pValue into sPlatform
+         break
       case "mouse"
          put pValue into sFakeMouse
          break
