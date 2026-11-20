@@ -2,7 +2,7 @@ Name: is not strictly
 
 Type: operator
 
-Syntax: <value> is not strictly { nothing | a boolean | an integer | a real | a string | a binary string | an array }
+Syntax: <value> is not strictly { nothing | a boolean | an integer | a real | a string | a binary string | an array | a sequence | a dictionary }
 
 Summary:
 Evaluates to true if the actual type of <value> is not the specified

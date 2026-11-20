@@ -4,7 +4,7 @@ Synonyms: is an
 
 Type: operator
 
-Syntax: <value> is a[n] {array | boolean | color | date | integer | number | point | rect | ASCII string }
+Syntax: <value> is a[n] {array | boolean | color | date | integer | number | point | rect | ASCII string | sequence | dictionary | numeric sequence }
 
 Summary:
 <evaluate|Evaluates> to true if a <value> is of the specified type,
@@ -36,6 +36,12 @@ put tArray is an array -- evaluates to true
 Example:
 numToChar(128) is an ASCII string -- evaluates to false
 
+Example:
+[10, 20, 30] is a sequence -- evaluates to true
+
+Example:
+{"name": "Ada"} is a dictionary -- evaluates to true
+
 Parameters:
 value:
 Any source of <value>.
@@ -65,6 +71,15 @@ A <value> is a(n):
 * <rectangle|rect> if it consists of four numbers separated by commas
 * <ASCII> string if it does not contain any characters greater than
   charToNum(127) 
+* sequence if it is an <array(keyword)> whose <keys> are the whole
+  numbers 1 to N, with none missing, or an empty array marked as a
+  sequence (`[]`, `empty as a sequence`)
+* dictionary if it is an <array(keyword)> with elements, whatever its
+  keys, or an empty array marked as a sequence or a dictionary (`{}`)
+* numeric sequence if it is an <array(keyword)> whose <keys> are whole
+  numbers with none missing between the smallest and the largest, which
+  can be any whole number (0 to N, -3 to 3), or an empty array marked
+  as a sequence
 
 
 All the types other than boolean can also include leading or trailing
@@ -84,8 +99,19 @@ date operator will return false for dates before 1/1/1970 on Windows.
 The <is a> <operator> is the <logical> <inverse> of the <is not a>
 <operator>. When one is true, the other is false.
 
+`sequence`, `dictionary` and `numeric sequence` are LiveCode 11's kinds
+of <array(keyword)>. They ask what the array's keys are, so an array
+built element by element is a sequence when its keys are 1 to N. Use
+<is strictly> to ask also whether it was marked as a sequence or a
+dictionary, and <as> to mark it. None of these words is reserved: a
+<variable> or <handler> named `sequence` or `dictionary` works as it
+always has.
+
 Changes:
 The <is an> <array(keyword)> form was added in version 2.9
+
+The sequence, dictionary and numeric sequence forms were added in
+OXT-Beyond 0.2.8-dp.3, from LiveCode 11.
 
 References: convert (command), colorNames (function), date (function),
 isNumber (function), keys (function), time (function), array (glossary),
@@ -93,7 +119,8 @@ ASCII (glossary), boolean (glossary), color reference (glossary),
 evaluate (glossary), integer (glossary), inverse (glossary),
 logical (glossary), operator (glossary), string (glossary),
 validate (glossary), value (glossary), array (keyword), integer (keyword),
-point (keyword), rectangle (keyword), is not a (operator)
+point (keyword), rectangle (keyword), is not a (operator),
+is strictly (operator), as (operator)
 
 Tags: math
 
