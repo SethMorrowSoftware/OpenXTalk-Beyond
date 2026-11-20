@@ -440,6 +440,8 @@ private command rnBuild
          empty, 13, lkColor("soft"), empty) into tObj
    set the textHeight of tObj to 19
    set the vScrollbar of tObj to true
+   -- (the last line of a long page comes wholly into view)
+   lkPageEnd tObj
    if lkDark() then
       lkScroller "pageThumb", tObj, "148,163,184", 45, empty
    else
