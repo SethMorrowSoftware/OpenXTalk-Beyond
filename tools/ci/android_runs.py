@@ -163,14 +163,24 @@ def matches(path, patterns):
 def tests_inputs(repo=REPO):
     """The patterns of what the script tests read of the checkout: tests/,
     the checkout's files and IDE folders that they read
-    (android_tests.copy_files), the Android builder the tests' standalone
-    is built with (android_check.OVERLAY), and the scripts that build and
-    run it."""
+    (android_tests.copy_files), and each path they name that is not there
+    (android_tests.named_paths: a change that deletes or moves one is a
+    change to what they read; #595's review), the Android builder the
+    tests' standalone is built with (android_check.OVERLAY), and the
+    scripts that build and run it."""
     import android_check
     import android_tests
     patterns = ['tests/**']
     for path in android_tests.copy_files(repo, None)[3]:
-        patterns.append(path + '**' if path.endswith('/') else path)
+        # a folder (copied whole), or a file. A folder a test names a file
+        # of as it runs ("/Toolset/palettes/" & pFile, in
+        # tests/lcs/replicate/padlocks) is ide/Toolset/palettes//: the
+        # pattern is the folder's
+        patterns.append(path.rstrip('/') + '/**' if path.endswith('/') else path)
+    for path in android_tests.named_paths(repo):
+        if not os.path.exists(os.path.join(repo, path)):
+            # gone: a file, or a folder
+            patterns += [path.rstrip('/'), path.rstrip('/') + '/**']
     patterns += list(android_check.OVERLAY)
     patterns += list(TESTS_SCRIPTS)
     return patterns

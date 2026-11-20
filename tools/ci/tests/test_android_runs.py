@@ -111,9 +111,45 @@ class Deciding(unittest.TestCase):
         self.assertNotIn('docs/x.lcdoc', why[0])
 
     def test_nothing_else_runs_anything(self):
-        for path in ('docs/dictionary/command/go.lcdoc', 'ide/Toolset/palettes/web home/revwebhome.livecodescript',
+        for path in ('docs/dictionary/command/go.lcdoc', 'ide/Toolset/home.livecodescript',
+                     'ide/Toolset/libraries/revbackscriptlibrary.livecodescript',
+                     'tools/web-player/ember-bricks/sounds/hit.wav',
                      'tools/ci/web_ide_soak.py', 'README.md', 'changelog/1.md'):
             self.assertEqual(ar.decide([path])[:2], (False, False), path)
+
+    def test_a_folder_a_test_names_a_file_of_as_it_runs_is_read_whole(self):
+        # tests/lcs/replicate/padlocks reads "/Toolset/palettes/" & pFile
+        # (replicate.oxtstack, revreplicate.rev), and the copy files take
+        # ide/Toolset/palettes whole; the pattern was
+        # ide/Toolset/palettes//**, which took nothing
+        for path in ('ide/Toolset/palettes/revreplicate.rev', 'ide/Toolset/palettes/replicate.oxtstack',
+                     'ide/Toolset/palettes/web home/revwebhome.livecodescript'):
+            self.assertEqual(ar.decide([path])[:2], (False, True), path)
+        self.assertNotIn('ide/Toolset/palettes//**', ar.tests_inputs())
+
+    def test_a_file_the_tests_read_that_the_change_deletes_runs_them(self):
+        # (#595's review: the tests' inputs were the files there, so a
+        # change that deleted or moved one of them ran nothing, and the
+        # tests that read it failed on main)
+        with tempfile.TemporaryDirectory() as repo:
+            os.makedirs(os.path.join(repo, 'tests', 'lcs', 'x'))
+            os.makedirs(os.path.join(repo, 'ide-support'))
+            with open(os.path.join(repo, 'tests', 'lcs', 'x', 'x.livecodescript'), 'w') as f:
+                f.write('on TestX\n'
+                        '   get TestGetEngineRepositoryPath() & "/ide-support/kept.livecodescript"\n'
+                        '   get TestGetEngineRepositoryPath() & "/ide-support/gone.livecodescript"\n'
+                        '   get TestGetIDERepositoryPath() & "/Extensions/org.x.gone"\n'
+                        '   get TestGetIDERepositoryPath() & "/Toolset/gone/"\n'
+                        'end TestX\n')
+            with open(os.path.join(repo, 'ide-support', 'kept.livecodescript'), 'w') as f:
+                f.write('')
+            for path in ('ide-support/kept.livecodescript', 'ide-support/gone.livecodescript',
+                         'ide/Extensions/org.x.gone', 'ide/Extensions/org.x.gone/x.livecodescript',
+                         'ide/Toolset/gone/x.rev'):
+                engine, tests, why = ar.decide([path], repo=repo)
+                self.assertEqual((engine, tests), (False, True), path)
+                self.assertIn(path, why[0])
+            self.assertEqual(ar.decide(['ide-support/other.livecodescript'], repo=repo)[:2], (False, False))
 
     def test_the_tests_inputs_are_found_in_the_tests(self):
         # (not a list kept by hand: android_tests finds them)

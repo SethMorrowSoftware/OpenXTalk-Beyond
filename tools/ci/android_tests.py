@@ -222,6 +222,24 @@ def revsblibrary_is_font(path):
     return path.endswith(('.ttf', '.ttc', '.otf'))
 
 
+# How a test names a file of the checkout (engine, IDE): the path after it
+ENGINE_PATH = re.compile(r'TestGetEngineRepositoryPath\(\)\s*&\s*"/([^"]+)"')
+IDE_PATH = re.compile(r'TestGetIDERepositoryPath\(\)\s*&\s*"/([^"]+)"')
+
+
+def named_paths(repo):
+    """Every path of the checkout that the tests name, whether it is there
+    or not (a change that deletes or moves one changes what they read:
+    #595's review), as copy_files would take it: a font file is left out,
+    an IDE path is under ide/, and one that ends in / is a folder that a
+    test names a file of as it runs."""
+    paths = set()
+    for text in tests_text(os.path.join(repo, 'tests', 'lcs')):
+        paths.update(p for p in ENGINE_PATH.findall(text) if not revsblibrary_is_font(p))
+        paths.update('ide/' + p for p in IDE_PATH.findall(text))
+    return sorted(paths)
+
+
 def copy_files(repo, extensions_folder):
     """(files, extensions, missing, repo files): the copy files, as (path
     under --work, source) pairs, the names of the extensions among them, of
@@ -233,7 +251,7 @@ def copy_files(repo, extensions_folder):
     texts = list(tests_text(os.path.join(repo, 'tests', 'lcs')))
     repo_files = set(ERROR_FILES)
     for text in texts:
-        for path in re.findall(r'TestGetEngineRepositoryPath\(\)\s*&\s*"/([^"]+)"', text):
+        for path in ENGINE_PATH.findall(text):
             # not a font file: the Android builder takes those out of the
             # copy files into assets/fonts/ (revsaveasandroidstandalone,
             # "Custom fonts"), and the app then could not find it in
@@ -248,7 +266,7 @@ def copy_files(repo, extensions_folder):
     # what tests read from the IDE's folder of the checkout (the plugins
     # whose scripts they test): a folder whole
     for path in sorted(set(p for text in texts
-                           for p in re.findall(r'TestGetIDERepositoryPath\(\)\s*&\s*"/([^"]+)"', text))):
+                           for p in IDE_PATH.findall(text))):
         source = os.path.join(repo, 'ide', path)
         if os.path.isdir(source):
             files += tree_files(source, '%s/ide/%s/' % (TESTS_FOLDER, path))
