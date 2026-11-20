@@ -1,0 +1,324 @@
+/*
+Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond.
+
+OXT-Beyond is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
+
+-- Android gives an app a document as a content address
+-- ("content://..."), not as a file: from its own "Open document" screen,
+-- and when the user opens a file with the app from a file manager, a mail
+-- app or a browser (the app's urlWakeUp message and mobileGetLaunchUrl()
+-- then have the address). The engine's file commands read no such
+-- address. This library asks Android for one, says the document's name,
+-- and copies the document into a file that the app can read as any
+-- other.
+--
+-- It is all new handlers, of a library, which come after every other
+-- handler in the message path: no script that runs today meets them
+-- unless it calls a handler nobody answered before. It needs no
+-- permission: Android lends the app the document the user chose.
+
+/**
+Documents from Android's own "Open document" screen and from other apps.
+
+Description:
+Android hands an app a document as a content address, a string that
+begins with `content://`, where a desktop gives a file path. This library
+lets the user choose a document (<androidPickDocument>), says a
+document's name (<androidDocumentName>) and copies a document into a file
+(<androidCopyDocument>), which the app then reads as any other file. An
+app that Android starts to open a document (the standalone settings'
+`android,documentTypes`) gets its address in the `urlWakeUp` message and
+from `mobileGetLaunchUrl()`.
+
+None of it needs a permission.
+*/
+library org.openxtalk.library.androiddocuments
+
+use com.livecode.foreign
+use com.livecode.java
+
+metadata version is "1.0.0"
+metadata author is "OXT-Beyond contributors"
+metadata title is "Android Documents Library"
+metadata os is "android"
+
+--==============================================================================
+-- Foreign handlers
+--==============================================================================
+
+__safe foreign handler _JNI_GetAndroidEngine() returns JObject \
+	binds to "java:com.runrev.android.Engine>getEngine()Lcom/runrev/android/Engine;!static"
+__safe foreign handler _JNI_GetEngineContext(in pEngine as JObject) returns JObject \
+	binds to "java:android.view.View>getContext()Landroid/content/Context;"
+__safe foreign handler _JNI_GetContentResolver(in pContext as JObject) returns JObject \
+	binds to "java:android.content.Context>getContentResolver()Landroid/content/ContentResolver;"
+
+__safe foreign handler _JNI_UriParse(in pString as JString) returns optional JObject \
+	binds to "java:android.net.Uri>parse(Ljava/lang/String;)Landroid/net/Uri;!static"
+__safe foreign handler _JNI_ObjectToString(in pObject as JObject) returns JString \
+	binds to "java:java.lang.Object>toString()Ljava/lang/String;"
+__safe foreign handler _JNI_IntegerValue(in pInteger as JObject) returns JInt \
+	binds to "java:java.lang.Integer>intValue()I"
+
+__safe foreign handler _JNI_IntentNew(in pAction as JString) returns JObject \
+	binds to "java:android.content.Intent>new(Ljava/lang/String;)"
+__safe foreign handler _JNI_IntentAddCategory(in pIntent as JObject, in pCategory as JString) returns JObject \
+	binds to "java:android.content.Intent>addCategory(Ljava/lang/String;)Landroid/content/Intent;"
+__safe foreign handler _JNI_IntentSetType(in pIntent as JObject, in pType as JString) returns JObject \
+	binds to "java:android.content.Intent>setType(Ljava/lang/String;)Landroid/content/Intent;"
+__safe foreign handler _JNI_IntentGetData(in pIntent as JObject) returns optional JObject \
+	binds to "java:android.content.Intent>getData()Landroid/net/Uri;"
+
+handler type ActivityResultCallback(in pResultCode as JObject, in pData as optional JObject) returns nothing
+__safe foreign handler _JNI_ActivityResultCallback(in pHandler as ActivityResultCallback) returns JObject \
+	binds to "java:com.runrev.android.EngineApi$ActivityResultCallback>interface()"
+__safe foreign handler _JNI_EngineRunActivity(in pEngine as JObject, in pIntent as JObject, in pCallback as JObject) returns nothing \
+	binds to "java:com.runrev.android.Engine>runActivity(Landroid/content/Intent;Lcom/runrev/android/EngineApi$ActivityResultCallback;)V"
+
+__safe foreign handler _JNI_ResolverOpenInputStream(in pResolver as JObject, in pUri as JObject) returns optional JObject \
+	binds to "java:android.content.ContentResolver>openInputStream(Landroid/net/Uri;)Ljava/io/InputStream;"
+__safe foreign handler _JNI_ResolverQuery(in pResolver as JObject, in pUri as JObject, in pProjection as optional JObject, in pSelection as optional JObject, in pArguments as optional JObject, in pOrder as optional JObject) returns optional JObject \
+	binds to "java:android.content.ContentResolver>query(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;"
+
+__safe foreign handler _JNI_CursorMoveToFirst(in pCursor as JObject) returns JBoolean \
+	binds to "java:android.database.Cursor>moveToFirst()Z"
+__safe foreign handler _JNI_CursorGetColumnIndex(in pCursor as JObject, in pName as JString) returns JInt \
+	binds to "java:android.database.Cursor>getColumnIndex(Ljava/lang/String;)I"
+__safe foreign handler _JNI_CursorGetString(in pCursor as JObject, in pColumn as JInt) returns optional JString \
+	binds to "java:android.database.Cursor>getString(I)Ljava/lang/String;"
+__safe foreign handler _JNI_CursorClose(in pCursor as JObject) returns nothing \
+	binds to "java:android.database.Cursor>close()V"
+
+__safe foreign handler _JNI_InputStreamRead(in pStream as JObject, in pBuffer as JByteArray) returns JInt \
+	binds to "java:java.io.InputStream>read([B)I"
+__safe foreign handler _JNI_InputStreamClose(in pStream as JObject) returns nothing \
+	binds to "java:java.io.InputStream>close()V"
+__safe foreign handler _JNI_FileOutputStreamNew(in pPath as JString) returns JObject \
+	binds to "java:java.io.FileOutputStream>new(Ljava/lang/String;)"
+__safe foreign handler _JNI_OutputStreamWrite(in pStream as JObject, in pBuffer as JByteArray, in pOffset as JInt, in pCount as JInt) returns nothing \
+	binds to "java:java.io.OutputStream>write([BII)V"
+__safe foreign handler _JNI_OutputStreamClose(in pStream as JObject) returns nothing \
+	binds to "java:java.io.OutputStream>close()V"
+
+--==============================================================================
+-- Private state and handlers
+--==============================================================================
+
+-- Android's RESULT_OK
+constant kResultOK is -1
+-- The bytes copied in one step
+constant kCopyBuffer is 65536
+
+-- What the "Open document" screen answered: the document's address, or
+-- the empty string when the user chose none
+private variable mPicked as String
+
+private handler OnlyOnAndroid() returns nothing
+	if the operating system is not "android" then
+		throw "not available on this platform"
+	end if
+end handler
+
+private handler Resolver() returns JObject
+	return _JNI_GetContentResolver(_JNI_GetEngineContext(_JNI_GetAndroidEngine()))
+end handler
+
+-- The Uri of an address; throws when Android cannot read it as one
+private handler UriOf(in pAddress as String) returns JObject
+	variable tUri as optional JObject
+	put _JNI_UriParse(StringToJString(pAddress)) into tUri
+	if tUri is nothing then
+		throw "not a document address"
+	end if
+	return tUri
+end handler
+
+private handler OnPicked(in pResultCode as JObject, in pData as optional JObject) returns nothing
+	put "" into mPicked
+	if pData is nothing then
+		return
+	end if
+	if _JNI_IntegerValue(pResultCode) is not kResultOK then
+		return
+	end if
+	variable tUri as optional JObject
+	put _JNI_IntentGetData(pData) into tUri
+	if tUri is not nothing then
+		put StringFromJString(_JNI_ObjectToString(tUri)) into mPicked
+	end if
+end handler
+
+--==============================================================================
+-- Public handlers
+--==============================================================================
+
+/**
+Summary: Lets the user choose a document on Android's "Open document" screen.
+
+Parameters:
+pType: The kind of document to offer, as a MIME type ("image/png", or "application/zip"), or empty for any document.
+
+Returns: The document's address (it begins with "content://"), or empty when the user chose none.
+
+Example:
+local tAddress
+put androidPickDocument(empty) into tAddress
+if tAddress is not empty then
+   androidCopyDocument tAddress, specialFolderPath("documents") & "/" & androidDocumentName(tAddress)
+end if
+
+Description:
+<androidPickDocument> shows Android's own screen for opening a document,
+which reaches the device's folders, an SD card and the storage of other
+apps (Google Drive, for example), and waits until the user has chosen a
+document or gone back. It asks for no permission.
+
+The address is for <androidDocumentName> and <androidCopyDocument>.
+Android lends the app the document while the app runs, so copy it before
+the app closes.
+
+References: androidCopyDocument (handler), androidDocumentName (handler)
+*/
+public handler androidPickDocument(in pType as String) returns String
+	OnlyOnAndroid()
+
+	variable tType as String
+	put pType into tType
+	if tType is "" then
+		put "*/*" into tType
+	end if
+
+	variable tIntent as JObject
+	put _JNI_IntentNew(StringToJString("android.intent.action.OPEN_DOCUMENT")) into tIntent
+	_JNI_IntentAddCategory(tIntent, StringToJString("android.intent.category.OPENABLE"))
+	_JNI_IntentSetType(tIntent, StringToJString(tType))
+
+	put "" into mPicked
+	-- runActivity comes back when the screen has closed, and has called
+	-- OnPicked by then
+	_JNI_EngineRunActivity(_JNI_GetAndroidEngine(), tIntent, _JNI_ActivityResultCallback(OnPicked))
+	return mPicked
+end handler
+
+/**
+Summary: The name of a document that Android gave the app by its address.
+
+Parameters:
+pAddress: The document's address, as <androidPickDocument>, the urlWakeUp message or mobileGetLaunchUrl() gave it.
+
+Returns: The document's name with its extension ("My Stack.oxtstack"), or empty when its owner says none.
+
+Example:
+on urlWakeUp pAddress
+   if pAddress begins with "content://" then
+      answer "Opening" && androidDocumentName(pAddress)
+   end if
+end urlWakeUp
+
+Description:
+A content address seldom ends with the document's name, so ask for it
+with <androidDocumentName>. The name is what the app that owns the
+document says: treat it as you would any text from outside, and take only
+its last path item before making a file name of it.
+
+References: androidPickDocument (handler), androidCopyDocument (handler)
+*/
+public handler androidDocumentName(in pAddress as String) returns String
+	OnlyOnAndroid()
+
+	variable tCursor as optional JObject
+	put _JNI_ResolverQuery(Resolver(), UriOf(pAddress), nothing, nothing, nothing, nothing) into tCursor
+	if tCursor is nothing then
+		return ""
+	end if
+
+	variable tName as String
+	put "" into tName
+	if _JNI_CursorMoveToFirst(tCursor) then
+		variable tColumn as Number
+		put _JNI_CursorGetColumnIndex(tCursor, StringToJString("_display_name")) into tColumn
+		if tColumn >= 0 then
+			variable tValue as optional JString
+			put _JNI_CursorGetString(tCursor, tColumn) into tValue
+			if tValue is not nothing then
+				put StringFromJString(tValue) into tName
+			end if
+		end if
+	end if
+	_JNI_CursorClose(tCursor)
+	return tName
+end handler
+
+/**
+Summary: Copies a document that Android gave the app by its address into a file.
+
+Parameters:
+pAddress: The document's address, as <androidPickDocument>, the urlWakeUp message or mobileGetLaunchUrl() gave it.
+pFile: The path of the file to write, in a folder the app can write to (specialFolderPath("documents"), for example). A file already there is replaced.
+
+Example:
+local tAddress, tFile
+put androidPickDocument(empty) into tAddress
+if tAddress is not empty then
+   put specialFolderPath("documents") & "/picked.dat" into tFile
+   androidCopyDocument tAddress, tFile
+   put the number of bytes in url ("binfile:" & tFile)
+end if
+
+Description:
+<androidCopyDocument> reads the whole document and writes it to <pFile>.
+It throws an error when the document cannot be opened (its owner took it
+away, or the address is not one Android lent this app) or the file cannot
+be written.
+
+References: androidPickDocument (handler), androidDocumentName (handler)
+*/
+public handler androidCopyDocument(in pAddress as String, in pFile as String) returns nothing
+	OnlyOnAndroid()
+
+	variable tIn as optional JObject
+	put _JNI_ResolverOpenInputStream(Resolver(), UriOf(pAddress)) into tIn
+	if tIn is nothing then
+		throw "the document cannot be opened"
+	end if
+
+	variable tOut as JObject
+	put _JNI_FileOutputStreamNew(StringToJString(pFile)) into tOut
+
+	-- one buffer, filled and written until the document ends
+	variable tBlank as Data
+	variable tBuffer as JByteArray
+	put the empty data into tBlank
+	repeat kCopyBuffer times
+		put the byte with code 0 after tBlank
+	end repeat
+	put DataToJByteArray(tBlank) into tBuffer
+
+	variable tCount as Number
+	repeat forever
+		put _JNI_InputStreamRead(tIn, tBuffer) into tCount
+		if tCount < 0 then
+			exit repeat
+		end if
+		if tCount > 0 then
+			_JNI_OutputStreamWrite(tOut, tBuffer, 0, tCount)
+		end if
+	end repeat
+
+	_JNI_OutputStreamClose(tOut)
+	_JNI_InputStreamClose(tIn)
+end handler
+
+end library
