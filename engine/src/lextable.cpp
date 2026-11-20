@@ -1621,6 +1621,9 @@ const LT factor_table[] =
         {"sentences", TT_CLASS, CT_SENTENCE},
         {"serialcontrolstring", TT_PROPERTY, P_SERIAL_CONTROL_STRING},
 		{"sessioncookiename", TT_PROPERTY, P_SESSION_COOKIE_NAME},
+		// OXT-Beyond: the session cookie's SameSite and Secure attributes
+		{"sessioncookiesamesite", TT_PROPERTY, P_SESSION_COOKIE_SAME_SITE},
+		{"sessioncookiesecure", TT_PROPERTY, P_SESSION_COOKIE_SECURE},
 		{"sessionid", TT_PROPERTY, P_SESSION_ID},
 		{"sessionlifetime", TT_PROPERTY, P_SESSION_LIFETIME},
 		{"sessionsavepath", TT_PROPERTY, P_SESSION_SAVE_PATH},

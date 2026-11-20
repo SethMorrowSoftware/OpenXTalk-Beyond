@@ -96,7 +96,9 @@ jobs:
           LCC_SERVER_SHA256: ${{ vars.LCC_SERVER_SHA256 }}
         run: |
           zip="$RUNNER_TEMP/lcc-server.zip"
-          curl -sSfL --retry 3 -o "$zip" "$LCC_SERVER_URL"
+          # (--retry-all-errors: --retry alone does not try again after a
+          # reset connection; tools/ci/tests/test_curl_retries.py)
+          curl -sSfL --retry 3 --retry-all-errors -o "$zip" "$LCC_SERVER_URL"
           sha256sum "$zip"
           if [ -n "$LCC_SERVER_SHA256" ]; then
             echo "$LCC_SERVER_SHA256  $zip" | sha256sum -c -

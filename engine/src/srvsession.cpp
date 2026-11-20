@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "sysdefs.h"
@@ -43,7 +47,10 @@ typedef struct
 ////////////////////////////////////////////////////////////////////////////////
 
 extern bool MCSystemLockFile(IO_handle p_file, bool p_shared, bool p_wait);
-bool MCServerSetCookie(MCStringRef p_name, MCStringRef p_value, uint32_t p_expires, MCStringRef p_path, MCStringRef p_domain, bool p_secure, bool p_http_only);
+bool MCServerSetSessionCookie(MCStringRef p_name, MCStringRef p_value, uint32_t p_expires);
+// OXT-Beyond: lets the file's owner alone read and write it, where the
+// system has file modes
+extern void MCSystemMakeFilePrivate(IO_handle p_file);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -90,6 +97,12 @@ bool MCSessionOpenIndex(MCSessionIndexRef &r_index)
 	// open file
 	if (t_success)
 		t_success = NULL != (t_index->file = MCsystem->OpenFile(*t_path_string, kMCOpenFileModeUpdate, false));
+
+	// OXT-Beyond: the index names every session and the address it came
+	// from, and it was made readable by every user of the machine. It is
+	// written after this, so nothing is in it while it can still be read.
+	if (t_success)
+		MCSystemMakeFilePrivate(t_index->file);
 
 	// lock file
 	if (t_success)
@@ -336,6 +349,34 @@ bool MCSessionReadSession(MCSession *p_session)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: a session's file is named "<address>_<ID>" in the session
+// folder, and the ID is whatever the browser's cookie says. An ID with a
+// folder separator in it named a file somewhere else: on Windows, where
+// "..\" needs no folder to exist, "start session" made or rewrote that file
+// and the clean-up after the session expired deleted it. (On other systems
+// the path did not open, and "start session" failed.) A backslash is a
+// separator on Windows only and a legal character of a name elsewhere, where
+// it stays allowed.
+static bool MCSessionNameIsFileName(const char *p_name)
+{
+	for (; *p_name != '\0'; p_name++)
+	{
+		if (*p_name == '/')
+			return false;
+#ifdef _WINDOWS_SERVER
+		if (*p_name == '\\')
+			return false;
+#endif
+	}
+	return true;
+}
+
+static bool MCSessionIdIsFileName(MCStringRef p_session_id)
+{
+	MCAutoStringRefAsCString t_chars;
+	return t_chars.Lock(p_session_id) && MCSessionNameIsFileName(*t_chars);
+}
+
 static MCAutoStringRef
 MCSessionGetRemoteAddress()
 {
@@ -375,6 +416,10 @@ bool MCSessionOpenSession(MCSessionIndexRef p_index, MCSession *p_session)
 	
 	if (t_success)
 		t_success = NULL != (p_session->filehandle = MCsystem->OpenFile(*t_path_string, kMCOpenFileModeUpdate, false));
+	
+	// OXT-Beyond: $_SESSION is this site's alone (see MCSessionOpenIndex)
+	if (t_success)
+		MCSystemMakeFilePrivate(p_session->filehandle);
 	
 	if (t_success)
 		t_success = MCSystemLockFile(p_session->filehandle, false, true);
@@ -520,6 +565,12 @@ bool MCSessionStart(MCStringRef p_session_id, MCSessionRef &r_session)
 	MCSession *t_session = NULL;
 	MCSession *t_index_session = NULL;
 	
+	// OXT-Beyond: an ID that could not be a file's name is not looked up and
+	// not taken: the session gets a new ID, as if none had been sent (see
+	// MCSessionNameIsFileName)
+	if (p_session_id != NULL && !MCSessionIdIsFileName(p_session_id))
+		p_session_id = NULL;
+	
 	t_success = MCSessionOpenIndex(t_index);
 	
 	if (t_success)
@@ -541,7 +592,7 @@ bool MCSessionStart(MCStringRef p_session_id, MCSessionRef &r_session)
 		{
 			MCAutoStringRef t_session_id_str;
 			/* UNCHECKED */ MCStringCreateWithCString(t_session->id, &t_session_id_str);
-			t_success = MCServerSetCookie(*t_session_name, *t_session_id_str, 0, nil, nil, false, true);
+			t_success = MCServerSetSessionCookie(*t_session_name, *t_session_id_str, 0);
 		}
 		
 		if (t_success)
@@ -598,7 +649,7 @@ bool MCSessionExpireCookie()
 	MCAutoStringRef t_session_name;
 	/* UNCHECKED */ MCS_get_session_name(&t_session_name);
 	
-	return MCServerSetCookie(*t_session_name, MCSTR("EXPIRE"), MCS_time() - 60 * 60 * 24, nil, nil, false, true);
+	return MCServerSetSessionCookie(*t_session_name, MCSTR("EXPIRE"), MCS_time() - 60 * 60 * 24);
 }
 
 bool MCSessionExpire(MCStringRef p_id)
@@ -624,7 +675,12 @@ bool MCSessionCleanup(void)
 			// check file not locked
 			MCSystemFileHandle *t_file;
 			MCAutoStringRef t_full_path_string;
-            if (MCStringFormat(&t_full_path_string, "%@/%s", t_index->save_path, t_index->session[i]->filename)  && MCS_exists(*t_full_path_string, True))
+            // OXT-Beyond: an entry an older engine wrote for an ID that names
+            // a file outside the session folder is dropped, and that file
+            // left alone
+            if (!MCSessionNameIsFileName(t_index->session[i]->filename))
+                t_deleted = true;
+            else if (MCStringFormat(&t_full_path_string, "%@/%s", t_index->save_path, t_index->session[i]->filename)  && MCS_exists(*t_full_path_string, True))
 			{
 				t_file = MCsystem->OpenFile(*t_full_path_string, kMCOpenFileModeRead, false);
 				if (t_file != NULL)

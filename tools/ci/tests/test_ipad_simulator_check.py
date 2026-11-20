@@ -296,9 +296,16 @@ class FakeIPad:
     SCALE, LEFT, TOP, BAR = 0.5, 100, 60, 40
     SPEED = 20
 
-    def __init__(self, record, commands, fixed=True, rule=True, refuse=False, smaller_bar=False):
+    def __init__(self, record, commands, fixed=True, rule=True, refuse=False, smaller_bar=False,
+                 long_presses=0, no_activation=False):
         self.record, self.commands = record, commands
         self.fixed, self.rule_on, self.refuse, self.smaller_bar = fixed, rule, refuse, smaller_bar
+        # long_presses: how many taps on the Full button the Simulator
+        # holds as a busy Mac did (20 Nov 2026, iOS 26: 874 ms), which the
+        # browser takes as a long press, giving no user activation; the
+        # page then asks nothing (mobileweb's noTap()). no_activation: a
+        # quick tap that gives none either
+        self.long_presses, self.no_activation = long_presses, no_activation
         self.card, self.full, self.focus, self.unfixed = 'Home', False, 'body', False
         self.lock = threading.RLock()
         self.later = []
@@ -361,11 +368,18 @@ class FakeIPad:
             # one not while the page is full screen
             if not (self.fixed and self.full) or self.unfixed:
                 self.set_focus('engine-input')
-            self.post('touchstart', x=round(x), y=round(y), trusted=True, focus=self.focus)
-            self.post('touchend', x=round(x), y=round(y), trusted=True, focus=self.focus)
+            on_full = self.card == 'Phone' and self.FULL[0] <= x <= self.FULL[2] and self.FULL[1] <= y <= self.FULL[3]
+            self.post('touchstart', x=round(x), y=round(y), trusted=True, focus=self.focus, active=False)
+            if on_full and self.long_presses:
+                self.long_presses -= 1
+                self.after(900, lambda: self.post('touchend', x=round(x), y=round(y), trusted=True,
+                                                  focus=self.focus, active=False))
+                return
+            active = not (on_full and self.no_activation)
+            self.post('touchend', x=round(x), y=round(y), trusted=True, focus=self.focus, active=active)
             if y >= self.TABS_TOP:
                 self.card = isc.TABS[int(x // (self.W / len(isc.TABS)))]
-            elif self.card == 'Phone' and self.FULL[0] <= x <= self.FULL[2] and self.FULL[1] <= y <= self.FULL[3]:
+            elif on_full and active:
                 self.ask()
 
     def screenshot(self, path):
@@ -403,6 +417,78 @@ class FakeIPad:
     def rule(self):
         if self.rule_on and self.full and self.focus == 'engine-input':
             self.after(1300, lambda: self.set_full(False))
+
+
+class Pictures(unittest.TestCase):
+    def test_a_screenshot_simctl_does_not_take_is_left_out(self):
+        # the iOS 26 run on main of 20 Nov 2026 stopped at its first
+        # screenshot ("timed out after 60 seconds"), though nothing the
+        # check judges had failed: a picture is for the people who read
+        # the run, not a step of the check
+        said, asked = [], []
+
+        def hang(cmd, **kwargs):
+            asked.append(cmd)
+            raise subprocess.TimeoutExpired(cmd, kwargs.get('timeout'))
+
+        run, log = isc.subprocess.run, isc.log
+        isc.subprocess.run, isc.log = hang, said.append
+        try:
+            isc.Simulator('UDID').screenshot('/nowhere/1-home.png')
+        finally:
+            isc.subprocess.run, isc.log = run, log
+        self.assertEqual(asked, [['xcrun', 'simctl', 'io', 'UDID', 'screenshot', '/nowhere/1-home.png']])
+        self.assertEqual(said, ['  no screenshot 1-home.png: simctl did not take it within 60 s'])
+
+
+class Opening(unittest.TestCase):
+    def simulate(self, run):
+        said = []
+        was_run, was_log = isc.subprocess.run, isc.log
+        isc.subprocess.run, isc.log = run, said.append
+        try:
+            isc.Simulator('UDID').open_url('http://localhost:8765/PhoneStarter.html')
+        finally:
+            isc.subprocess.run, isc.log = was_run, was_log
+        return said
+
+    def test_an_openurl_that_does_not_answer_leaves_it_to_the_page(self):
+        # the iOS 18.5 run of #603 (20 Nov 2026): simctl openurl did not
+        # answer in 120 s on a newly booted iPad, where green runs had the
+        # page loaded 31 to 64 s after asking; whether the page opened is
+        # the page's to say (it posts "loaded"), not simctl's
+        asked = []
+
+        def hang(cmd, **kwargs):
+            asked.append((cmd, kwargs.get('timeout')))
+            raise subprocess.TimeoutExpired(cmd, kwargs.get('timeout'))
+
+        said = self.simulate(hang)
+        self.assertEqual(asked, [(['xcrun', 'simctl', 'openurl', 'UDID', 'http://localhost:8765/PhoneStarter.html'],
+                                  isc.OPEN_WAIT)])
+        self.assertEqual(said, ['  simctl openurl did not answer within %d s: the page has %d s more to say it '
+                                'opened' % (isc.OPEN_WAIT, isc.LOAD_WAIT)])
+
+    def test_an_openurl_that_fails_fails(self):
+        def refuse(cmd, **kwargs):
+            return subprocess.CompletedProcess(cmd, 1, 'An error was encountered', '')
+
+        with self.assertRaisesRegex(isc.CheckError, 'simctl openurl failed: An error was encountered'):
+            self.simulate(refuse)
+
+    def test_a_page_that_never_says_it_opened_fails(self):
+        class Silent(FakeIPad):
+            def open_url(self, url):
+                pass
+
+        record, commands = isc.Record(), isc.Commands()
+        was = isc.LOAD_WAIT
+        isc.LOAD_WAIT = 0.2
+        try:
+            with self.assertRaisesRegex(isc.CheckError, r'the page posted nothing within 0\.2 s of opening'):
+                isc.check(Silent(record, commands), record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            isc.LOAD_WAIT = was
 
 
 class Driving(unittest.TestCase):
@@ -454,6 +540,51 @@ class Driving(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertTrue(FakeIPad.FULL[1] <= ipad.clicks[-1][1] <= FakeIPad.FULL[3], ipad.clicks)
 
+    def test_a_tap_the_simulator_held_as_a_long_press_is_tapped_again(self):
+        # the iOS 26 run of #597 (20 Nov 2026): the tap on Full screen
+        # came to the page 874 ms after its touchstart, with no user
+        # activation, and the page asked nothing
+        problems, ipad, record = self.drive(long_presses=2)
+        self.assertEqual(problems, [])
+        full = [c for c in ipad.clicks if FakeIPad.FULL[1] <= c[1] <= FakeIPad.FULL[3]]
+        self.assertEqual(len(full), 4, ipad.clicks)
+
+    def test_a_tap_held_every_time_fails_as_such(self):
+        problems, ipad, record = self.drive(long_presses=10)
+        self.assertIn('the tap on Full screen is a tap to the browser, not a long press (3 tries)', problems)
+        full = [c for c in ipad.clicks if FakeIPad.FULL[1] <= c[1] <= FakeIPad.FULL[3]]
+        self.assertEqual(len(full), 3, ipad.clicks)
+
+    def test_a_quick_tap_without_activation_is_not_tapped_again(self):
+        # only a long press is the Simulator's: a tap that gives the page
+        # no activation is the page's own failure
+        problems, ipad, record = self.drive(no_activation=True)
+        self.assertIn('the page asks for full screen, with the engine\'s input without the focus', problems)
+        self.assertNotIn('the tap on Full screen is a tap to the browser, not a long press (3 tries)', problems)
+        full = [c for c in ipad.clicks if FakeIPad.FULL[1] <= c[1] <= FakeIPad.FULL[3]]
+        self.assertEqual(len(full), 1, ipad.clicks)
+
+    def test_the_control_tap_is_tapped_again_too(self):
+        # the tap of step 6 also needs the browser's activation
+        record, commands = isc.Record(), isc.Commands()
+
+        class HeldLast(FakeIPad):
+            def click(self, point):
+                # the first click after the page is unfixed is the
+                # control's tap on Full screen
+                with self.lock:
+                    if self.unfixed and not getattr(self, 'held_once', False):
+                        self.held_once = True
+                        self.long_presses = 1
+                FakeIPad.click(self, point)
+
+        ipad = HeldLast(record, commands)
+        try:
+            problems = isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            ipad.stopped = True
+        self.assertEqual(problems, [])
+
     def test_a_refusal_fails(self):
         problems, ipad, record = self.drive(refuse=True)
         self.assertEqual(problems, ['the page goes full screen'])
@@ -461,15 +592,69 @@ class Driving(unittest.TestCase):
     def test_a_click_that_reaches_nothing_fails(self):
         class Deaf(FakeIPad):
             def click(self, point):
-                pass
+                self.clicks.append(point)
 
         record, commands = isc.Record(), isc.Commands()
         ipad = Deaf(record, commands)
+        said = []
+        isc.TOUCH_WAIT, isc.log = 0.3, said.append
         try:
-            with self.assertRaisesRegex(isc.CheckError, 'reached the page as no touch'):
+            with self.assertRaisesRegex(isc.CheckError, r'reached the page as no touch \(3 clicks; the page '
+                                                        r'posted \d+ events meanwhile, the last state\)'):
                 isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
         finally:
             ipad.stopped = True
+            isc.TOUCH_WAIT = 6
+        self.assertEqual(len(ipad.clicks), isc.TAP_TRIES)
+        # each time the Simulator is brought to the front again
+        self.assertEqual(sum('clicking again' in s for s in said), isc.TAP_TRIES - 1)
+
+    def test_a_click_the_simulator_did_not_pass_on_is_made_again(self):
+        # the iOS 18.5 run of #603 (20 Nov 2026): the run's first click on
+        # the Simulator's window, where the three green runs before it had
+        # clicked, reached the page as no touch within 6 s
+        class LosesFirst(FakeIPad):
+            lost, windows = 1, 0
+
+            def window(self):
+                self.windows += 1
+                return FakeIPad.window(self)
+
+            def click(self, point):
+                if self.lost:
+                    self.lost -= 1
+                    self.clicks.append(None)
+                    return
+                FakeIPad.click(self, point)
+
+        record, commands = isc.Record(), isc.Commands()
+        ipad = LosesFirst(record, commands)
+        isc.TOUCH_WAIT = 0.3
+        try:
+            problems = isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            ipad.stopped = True
+            isc.TOUCH_WAIT = 6
+        self.assertEqual(problems, [])
+        self.assertEqual(ipad.clicks[0], None)
+        self.assertEqual(len(ipad.clicks), 8)
+        # the first, and again before the click made again
+        self.assertEqual(ipad.windows, 2)
+
+    def test_a_page_that_posts_nothing_is_said_so(self):
+        class Deaf(FakeIPad):
+            def click(self, point):
+                self.stopped = True
+
+        record, commands = isc.Record(), isc.Commands()
+        ipad = Deaf(record, commands)
+        isc.TOUCH_WAIT, isc.TAP_TRIES = 0.3, 1
+        try:
+            with self.assertRaisesRegex(isc.CheckError, r'\(1 click; the page posted nothing meanwhile\)'):
+                isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            ipad.stopped = True
+            isc.TOUCH_WAIT, isc.TAP_TRIES = 6, 3
 
 
 # ----------------------------------------------------------------- reporter
