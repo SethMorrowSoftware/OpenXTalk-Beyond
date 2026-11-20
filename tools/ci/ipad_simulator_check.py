@@ -49,7 +49,8 @@ what the page does to this script's server, and takes its commands.
         1. the page opens and the stack fills the window; two clicks on
            its Home card give where a click on the window lands in the
            page (each axis: the window's points = a * the page's CSS
-           pixels + b)
+           pixels + b); a click that reaches the page as no touch is
+           made again, TAP_TRIES times in all (TOUCH_WAIT)
         2. a tap on the Phone tab goes to Phone
         3. a tap on "Full screen": a touch the browser made reaches the
            page, the page asks for full screen with something else than
@@ -123,6 +124,17 @@ PAUSES = {'click': 0.8, 'effect': 0.9, 'settle': 1.0}
 # A quick tap without activation is not tapped again: that is the page's.
 LONG_PRESS = 500
 TAP_TRIES = 3
+
+# Seconds of the wall clock a click has to reach the page as a touch. A
+# calibration click that reaches it as none is made again, TAP_TRIES
+# times in all, with the Simulator brought to the front again before
+# each: in the iOS 18.5 run of #603 (20 Nov 2026) the run's first click,
+# at the point of the Simulator's window where the three green runs
+# before it had clicked, reached the page as no touch. What the page
+# posted meanwhile is said: a page still posting its states (every 2 s)
+# had a click the Simulator did not pass on; one posting nothing had
+# stopped, and no click will help.
+TOUCH_WAIT = 6
 
 # Where the calibration clicks go, as fractions of the Simulator's window:
 # inside the iPad's screen, on the Home card's text (or its Buzz button,
@@ -591,10 +603,18 @@ def check(sim, record, commands, url, out=None):
         s = record.state()
         return 'the page said %s' % json.dumps({k: s.get(k) for k in ('card', 'full', 'focus', 'labels', 'rect')})
 
-    def tap(point, kind='touchstart', seconds=6):
+    def tap(point, kind='touchstart', seconds=None):
         i = record.mark()
         sim.click(point)
-        return i, record.wait(lambda e: e.get('kind') == kind, seconds, since=i)
+        return i, record.wait(lambda e: e.get('kind') == kind, TOUCH_WAIT if seconds is None else seconds,
+                              since=i)
+
+    def meanwhile(i):
+        """What the page posted since the mark (see TOUCH_WAIT)"""
+        since = record.since(i)
+        if not since:
+            return 'the page posted nothing meanwhile'
+        return 'the page posted %d events meanwhile, the last %s' % (len(since), since[-1].get('kind'))
 
     def tap_to_activate(point, what):
         """(mark, touchend, held): a tap that must give the page the
@@ -624,13 +644,21 @@ def check(sim, record, commands, url, out=None):
         return problems
     time.sleep(PAUSES['settle'])
     shot('1-home')
-    left, top, width, height = sim.window()
+    window = sim.window()
     pairs = []
     for fx, fy in CALIBRATION:
-        point = int(round(left + width * fx)), int(round(top + height * fy))
-        i, touch = tap(point)
-        if touch is None or touch.get('x') is None:
-            raise CheckError('a click on the Simulator\'s window at %s reached the page as no touch' % (point,))
+        for attempt in range(1, TAP_TRIES + 1):
+            left, top, width, height = window
+            point = int(round(left + width * fx)), int(round(top + height * fy))
+            i, touch = tap(point)
+            if touch is not None and touch.get('x') is not None:
+                break
+            if attempt == TAP_TRIES:
+                raise CheckError('a click on the Simulator\'s window at %s reached the page as no touch (%d %s; %s)'
+                                 % (point, attempt, 'click' if attempt == 1 else 'clicks', meanwhile(i)))
+            log('  a click at %s reached the page as no touch within %s s; %s: bringing the Simulator to the '
+                'front and clicking again' % (point, TOUCH_WAIT, meanwhile(i)))
+            window = sim.window()
         log('  a click at %s landed at %s, %s in the page' % (point, touch['x'], touch['y']))
         pairs.append(((touch['x'], touch['y']), point))
         time.sleep(PAUSES['click'])

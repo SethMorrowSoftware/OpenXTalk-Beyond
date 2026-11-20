@@ -542,15 +542,69 @@ class Driving(unittest.TestCase):
     def test_a_click_that_reaches_nothing_fails(self):
         class Deaf(FakeIPad):
             def click(self, point):
-                pass
+                self.clicks.append(point)
 
         record, commands = isc.Record(), isc.Commands()
         ipad = Deaf(record, commands)
+        said = []
+        isc.TOUCH_WAIT, isc.log = 0.3, said.append
         try:
-            with self.assertRaisesRegex(isc.CheckError, 'reached the page as no touch'):
+            with self.assertRaisesRegex(isc.CheckError, r'reached the page as no touch \(3 clicks; the page '
+                                                        r'posted \d+ events meanwhile, the last state\)'):
                 isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
         finally:
             ipad.stopped = True
+            isc.TOUCH_WAIT = 6
+        self.assertEqual(len(ipad.clicks), isc.TAP_TRIES)
+        # each time the Simulator is brought to the front again
+        self.assertEqual(sum('clicking again' in s for s in said), isc.TAP_TRIES - 1)
+
+    def test_a_click_the_simulator_did_not_pass_on_is_made_again(self):
+        # the iOS 18.5 run of #603 (20 Nov 2026): the run's first click on
+        # the Simulator's window, where the three green runs before it had
+        # clicked, reached the page as no touch within 6 s
+        class LosesFirst(FakeIPad):
+            lost, windows = 1, 0
+
+            def window(self):
+                self.windows += 1
+                return FakeIPad.window(self)
+
+            def click(self, point):
+                if self.lost:
+                    self.lost -= 1
+                    self.clicks.append(None)
+                    return
+                FakeIPad.click(self, point)
+
+        record, commands = isc.Record(), isc.Commands()
+        ipad = LosesFirst(record, commands)
+        isc.TOUCH_WAIT = 0.3
+        try:
+            problems = isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            ipad.stopped = True
+            isc.TOUCH_WAIT = 6
+        self.assertEqual(problems, [])
+        self.assertEqual(ipad.clicks[0], None)
+        self.assertEqual(len(ipad.clicks), 8)
+        # the first, and again before the click made again
+        self.assertEqual(ipad.windows, 2)
+
+    def test_a_page_that_posts_nothing_is_said_so(self):
+        class Deaf(FakeIPad):
+            def click(self, point):
+                self.stopped = True
+
+        record, commands = isc.Record(), isc.Commands()
+        ipad = Deaf(record, commands)
+        isc.TOUCH_WAIT, isc.TAP_TRIES = 0.3, 1
+        try:
+            with self.assertRaisesRegex(isc.CheckError, r'\(1 click; the page posted nothing meanwhile\)'):
+                isc.check(ipad, record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            ipad.stopped = True
+            isc.TOUCH_WAIT, isc.TAP_TRIES = 6, 3
 
 
 # ----------------------------------------------------------------- reporter
