@@ -43,7 +43,8 @@ blank page, with the song rendered offline and measured sample by sample:
      or a missing one
   7. live: started, the steps it books follow one another a step apart on
      the audio clock, the step it says is sounding moves, and stopped it
-     says -1
+     says -1; Stop silences a long note still sounding, and a step booked
+     ahead never sounds
 
 The stack in a Stack Player (with --player, a built player's folder; or
 from build_player.py --check, check_player): it opens without a script
@@ -277,6 +278,24 @@ async (src) => {
   B.stop();
   out.stopped = B.now();
   B.log = null;
+
+  // Stop silences a note still sounding: a synth held for 32 steps at 40
+  // beats a minute is twelve seconds long
+  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  B.set({bpm: 40, swing: 0, steps: 32, ch: [[16, 100, 0, 0, 0, 100, 0, 0, 0]],
+         pats: [{steps: 32, rows: [''], notes: [[[0, 32, 60, 9]]]}]});
+  B.start();
+  await wait(400);
+  out.heldPlaying = B.levels();
+  B.stop();
+  await wait(300);
+  out.heldStopped = B.levels();
+  // and what it booked ahead of the clock never sounds
+  B.set({bpm: 120, swing: 0, steps: 16, ch: [ch(0)], rows: ['9999999999999999']});
+  B.start();
+  B.stop();
+  await wait(150);
+  out.bookedStopped = B.levels();
   return out;
 }
 """
@@ -401,6 +420,9 @@ def check_core(p, browser_name, expect):
         moved = [s for s in m['seen'] if s >= 0]
         expect('live-playhead-moves', len(set(moved)) >= 3 and all(0 <= s < 16 for s in moved), '%s' % m['seen'])
         expect('live-stops', m['stopped'] == -1, '%s' % m['stopped'])
+        expect('stop-silences-a-held-note', m['heldPlaying'][0] > 40 and m['heldStopped'] == [0, 0],
+               'playing %s, stopped %s' % (m['heldPlaying'], m['heldStopped']))
+        expect('stop-cancels-what-was-booked', m['bookedStopped'] == [0, 0], '%s' % m['bookedStopped'])
         lv = m['levels']
         expect('meters', len(lv) == 2 and lv[0] > 40 and lv[1] > 40, '%s' % lv)
         step_now, _, levels = m['poll'].partition('|')

@@ -275,7 +275,7 @@
   }
 
   // One synth note into `out`: it sounds from `when` for `dur` seconds,
-  // then its release.
+  // then its release. Answers its oscillators and when they stop.
   function synth(ctx, P, midi, when, dur, out) {
     var f = hz(midi), amp = ctx.createGain(), filt = ctx.createBiquadFilter();
     var hold = Math.max(dur, 0.01), end = when + hold, stop = end + P.r + 0.05;
@@ -296,6 +296,7 @@
     amp.gain.linearRampToValueAtTime(0, end + P.r);
     filt.connect(amp);
     amp.connect(out);
+    var nodes = [];
     for (var k = 0; k < P.osc.length; k++) {
       var o = P.osc[k], x = ctx.createOscillator(), g = ctx.createGain();
       x.type = o[0];
@@ -306,7 +307,9 @@
       g.connect(filt);
       x.start(when);
       x.stop(stop);
+      nodes.push(x);
     }
+    return {nodes: nodes, end: stop};
   }
 
   // ---- the song ------------------------------------------------------
@@ -528,14 +531,16 @@
 
   // One sound of channel i: a sample (at its pitch for C4, MIDI 60) or a
   // synth note held for `dur` seconds. `pitch` is null for a step: then a
-  // sample plays as it is and a synth plays its own note.
-  function voice(m, song, i, pitch, vel, when, dur, user, direct) {
+  // sample plays as it is and a synth plays its own note. With `held`, a
+  // list, the voice goes into it, so that Stop can silence it.
+  function voice(m, song, i, pitch, vel, when, dur, user, direct, held) {
     var ctx = m.ctx, c = song.ch[i], sound = c[0], g = ctx.createGain();
     g.gain.value = vel / 9;
     g.connect(direct || strip(m, i).input);
     if (sound >= FIRST_SYNTH && sound < FIRST_USER) {
       var P = PRESETS[sound - FIRST_SYNTH];
-      synth(ctx, P, (pitch === null ? P.base : pitch) + c[8], when, dur, g);
+      var note = synth(ctx, P, (pitch === null ? P.base : pitch) + c[8], when, dur, g);
+      if (held) held.push({gain: g, nodes: note.nodes, end: note.end});
       return true;
     }
     var buf = sound < FIRST_SYNTH ? m.kit[sound] : (user || [])[sound - FIRST_USER];
@@ -545,22 +550,24 @@
     src.playbackRate.value = Math.pow(2, ((pitch === null ? 60 : pitch) - 60 + c[8]) / 12);
     src.connect(g);
     src.start(when);
+    if (held) held.push({gain: g, nodes: [src], end: when + buf.duration / src.playbackRate.value});
     return true;
   }
 
-  // Every sound of one step of the timeline, at `when`.
-  function playStep(m, song, entries, step, when, user, log) {
+  // Every sound of one step of the timeline, at `when` (into `held`, as
+  // voice does, when it is given).
+  function playStep(m, song, entries, step, when, user, log, held) {
     var len = stepLength(song);
     for (var e = 0; e < entries.length; e++) {
       var pat = song.pats[entries[e][0]], s = entries[e][1];
       for (var i = 0; i < song.ch.length; i++) {
         if (!audible(song, i)) continue;
         var vel = pat.rows[i].charCodeAt(s) - 48;
-        if (vel > 0 && vel <= 9 && voice(m, song, i, null, vel, when, len, user) && log) log.push([i, step, when, null]);
+        if (vel > 0 && vel <= 9 && voice(m, song, i, null, vel, when, len, user, null, held) && log) log.push([i, step, when, null]);
         var notes = pat.notes[i];
         for (var n = 0; n < notes.length; n++) {
           var x = notes[n];
-          if (x[0] === s && voice(m, song, i, x[2], x[3], when, x[1] * len, user) && log) log.push([i, step, when, x[2]]);
+          if (x[0] === s && voice(m, song, i, x[2], x[3], when, x[1] * len, user, null, held) && log) log.push([i, step, when, x[2]]);
         }
       }
     }
@@ -594,7 +601,7 @@
   var B = w.beyondBeats = {
     kit: KIT, synths: SYNTHS, userSlots: USER_SLOTS,
     ctx: null, mixer: null, song: cleanSong({}), at: null, user: [],
-    playing: false, step: 0, next: 0, queue: [], shown: -1, log: null,
+    playing: false, step: 0, next: 0, queue: [], shown: -1, log: null, held: [],
     exporting: '', lastExport: null,
 
     // The page can make sound only after a click or a key: the context is
@@ -626,6 +633,7 @@
       B.unlock();
       if (!B.ctx) return 'none';
       if (!B.at) B.at = timeline(B.song);
+      B.silence();
       B.playing = true; B.queue = []; B.shown = -1;
       B.step = B.song.mode === 'song' ? Math.min(B.song.from, B.at.length - 1) : 0;
       B.next = B.ctx.currentTime + 0.06;
@@ -633,7 +641,26 @@
       return 'ok';
     },
 
-    stop: function () { B.playing = false; B.queue = []; B.shown = -1; return 'ok'; },
+    stop: function () { B.playing = false; B.queue = []; B.shown = -1; B.silence(); return 'ok'; },
+
+    // What the transport booked and is sounding or still to sound (a long
+    // note, a step booked ahead) fades out in a few milliseconds, and what
+    // has not started never does. Reverb and delay ring on, as they would.
+    silence: function () {
+      var held = B.held;
+      B.held = [];
+      if (!B.ctx) return;
+      var now = B.ctx.currentTime;
+      for (var k = 0; k < held.length; k++) {
+        var v = held[k];
+        if (v.end <= now) continue;
+        v.gain.gain.cancelScheduledValues(now);
+        v.gain.gain.setTargetAtTime(0, now, 0.005);
+        for (var j = 0; j < v.nodes.length; j++) {
+          try { v.nodes[j].stop(now + 0.05); } catch (e) { /* already stopped */ }
+        }
+      }
+    },
 
     // The step sounding now (counted from 0: of the pattern, or of the
     // song), or -1 when stopped.
@@ -679,10 +706,12 @@
     // Books every step that starts before the clock is LOOKAHEAD ahead.
     book: function () {
       if (!B.playing || !B.ctx) return;
-      var ahead = B.ctx.currentTime + LOOKAHEAD, song = B.song, at = B.at;
+      var now = B.ctx.currentTime, ahead = now + LOOKAHEAD, song = B.song, at = B.at;
+      // (the voices that have ended are let go)
+      if (B.held.length > 200) B.held = B.held.filter(function (v) { return v.end > now; });
       while (B.next < ahead) {
         var when = B.next + swingDelay(song, B.step);
-        playStep(B.mixer, song, at[B.step], B.step, when, B.user, B.log);
+        playStep(B.mixer, song, at[B.step], B.step, when, B.user, B.log, B.held);
         B.queue.push([B.step, when]);
         B.next += stepLength(song);
         B.step = (B.step + 1) % at.length;
