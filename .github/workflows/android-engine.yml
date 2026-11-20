@@ -404,9 +404,10 @@ jobs:
       # The IDE's runtime libraries and Xvfb, as android.yml installs them
       - name: Install Xvfb and the runtime libraries
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -415,7 +416,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # As android.yml's: the JDK, the platform the builder targets with
       # this Java layer (API 36), build-tools, platform-tools, the
@@ -641,9 +642,10 @@ jobs:
 
       - name: Install Xvfb and the runtime libraries
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -652,7 +654,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # As the device job's, with the Android 13 image only
       - name: Set up the JDK and the Android SDK
