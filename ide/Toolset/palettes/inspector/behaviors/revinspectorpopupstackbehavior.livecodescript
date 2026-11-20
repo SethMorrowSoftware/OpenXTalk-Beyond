@@ -183,3 +183,9 @@ end mouseUp
 setProp editorTarget pTarget
    put pTarget into sTarget
 end editorTarget
+
+-- OXT-Beyond: the editor this popup reports to, so that the inspector it
+-- is in can close its own popups when it closes
+getProp editorTarget
+   return sTarget
+end editorTarget
