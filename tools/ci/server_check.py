@@ -145,6 +145,25 @@ PAGES = collections.OrderedDict([
                    'put "incoming=" & $_COOKIE["LCSESSION"] & ";" & return\n'
                    'stop session\n'
                    '?>'),
+    # The session cookie's opt-in attributes (0.2.8): off until a script
+    # sets them, read back as set, and a value that is none of SameSite's
+    # refused
+    ('cookieattrs.lc', '<?lc\n'
+                       'set the sessionSavePath to "{sessions}"\n'
+                       'put "defaults=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return\n'
+                       'set the sessionCookieSecure to true\n'
+                       'set the sessionCookieSameSite to "Lax"\n'
+                       'put "set=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return\n'
+                       'try\n'
+                       '  set the sessionCookieSameSite to "sideways"\n'
+                       '  put "bad=taken;" & return\n'
+                       'catch tError\n'
+                       '  put "bad=refused;" & return\n'
+                       'end try\n'
+                       'put "after=" & the sessionCookieSameSite & ";" & return\n'
+                       'start session\n'
+                       'stop session\n'
+                       '?>'),
     # The cookies a request sent, as the page reads them
     ('cookies.lc', '<?lc\n'
                    'put "session=" & $_COOKIE["LCSESSION"] & ";" & return\n'
@@ -533,7 +552,24 @@ def matches(value, wanted):
     return value == wanted
 
 
-def run_cases(transport, results):
+def session_attributes(cookie):
+    """The attributes of a Set-Cookie value after its name=value, lower
+    case, without their values' spaces."""
+    return [a.strip().lower() for a in (cookie or '').split(';')[1:]]
+
+
+def files_named(root, part, but_under=None):
+    """Every file or folder under root whose name contains part, except
+    those under but_under."""
+    found = []
+    for folder, dirs, files in os.walk(root):
+        if but_under and os.path.abspath(folder).startswith(os.path.abspath(but_under)):
+            continue
+        found += [os.path.join(folder, n) for n in dirs + files if part in n]
+    return found
+
+
+def run_cases(transport, results, work=None, sessions=None):
     for name, req, checks in CASES:
         where = '%s %s' % (transport.name, name)
         try:
@@ -580,6 +616,46 @@ def run_cases(transport, results):
             if got != want:
                 short.append('%s read as %r' % (want, got))
         results.add(where, 'every session id read whole (%d)' % SESSION_IDS, not short, '; '.join(short[:5]))
+        # The session cookie as LiveCode sent it, until a script asks
+        # for more: no Secure and no SameSite attribute
+        attrs = session_attributes(first.cookie('LCSESSION'))
+        results.add(where, 'session cookie has no Secure or SameSite attribute by default',
+                    'secure' not in attrs and not [a for a in attrs if a.startswith('samesite')], first.describe())
+        opted = transport.send(request('cookieattrs.lc'))
+        attrs = session_attributes(opted.cookie('LCSESSION'))
+        results.add(where, 'sessionCookieSecure and sessionCookieSameSite: off by default',
+                    opted.field('defaults') == 'false,', opted.describe())
+        results.add(where, 'sessionCookieSecure and sessionCookieSameSite: read back as set',
+                    opted.field('set') == 'true,lax', opted.describe())
+        results.add(where, 'sessionCookieSameSite: a value that is not one of its four is refused',
+                    opted.field('bad') == 'refused' and opted.field('after') == 'lax', opted.describe())
+        results.add(where, 'session cookie: Secure, SameSite=Lax and HttpOnly once set',
+                    'secure' in attrs and 'samesite=lax' in attrs and 'httponly' in attrs, opted.describe())
+        # A session ID that names a file outside the session folder (the
+        # cookie is the browser's to write): the session gets a new ID,
+        # and no file is made anywhere else. With "/" on every system;
+        # with "\\" the ID is a file's name except on Windows, so there
+        # only the files are looked at.
+        for sep, quoted in (('/', '%2F'), ('\\', '%5C')):
+            hostile = transport.send(request('session.lc', cookie='LCSESSION=..%s..%soxt-escape' % (quoted, quoted)))
+            got = (hostile.cookie('LCSESSION') or '').split(';')[0].split('=', 1)[-1]
+            if sep == '/' or os.name == 'nt':
+                results.add(where, 'a session ID with %r in it: a new session, with an ID of the engine\'s' % sep,
+                            hostile.field('count') == '1' and re.match(r'^[0-9A-F]{32}$', got) is not None,
+                            hostile.describe())
+            if work:
+                outside = files_named(work, 'oxt-escape', but_under=sessions)
+                results.add(where, 'a session ID with %r in it: no file outside the session folder' % sep,
+                            not outside, ', '.join(outside))
+        # The session files and their index hold $_SESSION and every
+        # visitor's address: their owner alone may read them (they were
+        # readable by every user of the machine)
+        if sessions and os.name != 'nt':
+            kept = [n for n in os.listdir(sessions) if n == 'lcsessions.idx' or n.startswith('127.0.0.1_')]
+            loose = ['%s %o' % (n, os.stat(os.path.join(sessions, n)).st_mode & 0o777) for n in kept
+                     if os.stat(os.path.join(sessions, n)).st_mode & 0o077]
+            results.add(where, 'session files and the index are private to their owner (%d files)' % len(kept),
+                        len(kept) >= 2 and not loose, ', '.join(loose) or 'files: %s' % kept)
     except (OSError, subprocess.SubprocessError, ValueError) as e:
         results.add(where, 'requests', False, str(e))
 
@@ -802,7 +878,7 @@ def main(argv=None):
         if hasattr(os, 'geteuid') and os.geteuid() == 0:
             os.chmod(sessions, 0o777)
         run_command_line(engine, work, args.repo, results)
-        run_cases(CgiTransport(engine, www), results)
+        run_cases(CgiTransport(engine, www), results, work, sessions)
         transports.append('as a CGI program')
         if p.family != 'windows':
             run_shebang(engine, www, results)
@@ -827,7 +903,7 @@ def main(argv=None):
                     os.chmod(sessions, 0o777)
                 apache = ApacheTransport(found[0], found[1], server_dir, www, work, log)
                 log('Apache       : %s, port %d' % (found[0], apache.port))
-                run_cases(apache, results)
+                run_cases(apache, results, work, sessions)
                 transports.append('through Apache')
             elif args.apache == 'yes':
                 results.add('apache', 'an Apache httpd with mod_cgi and mod_actions', False, 'none found')

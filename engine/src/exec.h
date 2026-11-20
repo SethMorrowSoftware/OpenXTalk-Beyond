@@ -3755,6 +3755,7 @@ void MCPrintingSetPrintFontTable(MCExecContext& ctxt, MCStringRef p_table);
 extern MCExecEnumTypeInfo *kMCServerErrorModeTypeInfo;
 extern MCExecEnumTypeInfo *kMCServerOutputLineEndingsTypeInfo;
 extern MCExecEnumTypeInfo *kMCServerOutputTextEncodingTypeInfo;
+extern MCExecEnumTypeInfo *kMCServerSessionCookieSameSiteTypeInfo;
 
 void MCServerExecPutHeader(MCExecContext& ctxt, MCStringRef value, bool as_new);
 void MCServerExecPutBinaryOutput(MCExecContext& ctxt, MCDataRef value);
@@ -3785,6 +3786,10 @@ void MCServerGetSessionCookieName(MCExecContext& ctxt, MCStringRef &r_value);
 void MCServerSetSessionCookieName(MCExecContext& ctxt, MCStringRef p_value);
 void MCServerGetSessionId(MCExecContext& ctxt, MCStringRef &r_value);
 void MCServerSetSessionId(MCExecContext& ctxt, MCStringRef p_value);
+void MCServerGetSessionCookieSecure(MCExecContext& ctxt, bool& r_value);
+void MCServerSetSessionCookieSecure(MCExecContext& ctxt, bool p_value);
+void MCServerGetSessionCookieSameSite(MCExecContext& ctxt, intenum_t& r_value);
+void MCServerSetSessionCookieSameSite(MCExecContext& ctxt, intenum_t p_value);
 
 ///////////
 
