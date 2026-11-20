@@ -14,6 +14,11 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -865,6 +870,15 @@ Boolean MCGroup::mup(uint2 which, bool p_release)
 	{
 		state &= ~(CS_GRAB | CS_MFOCUSED);
 		mgrabbed = False;
+		// OXT-Beyond: a group grabbed from the mouseDown of a menu button in
+		// it ("grab me" in the group's script, the press on a popup, option
+		// or pulldown menu) has no control under the mouse by the time the
+		// button comes up: the menu took the mouse and the card cleared the
+		// group's (clearmfocus). The engine crashed here on the nil control,
+		// in LiveCode Community 9.6.3 too (openxtalk.org p=9443, p=9448).
+		// The grab ends and there is no control to hand the release to.
+		if (!mfocused.IsValid())
+			return True;
 		mfocused->mfocus(mx, my);
 		return mfocused->mup(which, p_release);
 	}

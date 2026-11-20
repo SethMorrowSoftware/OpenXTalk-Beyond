@@ -799,10 +799,42 @@ on revCopyFile pSrcFile, pDestFile
       end if
       get shell ("copy" && revWindowsFromUnixPath(quote&pSrcFile&quote) && revWindowsFromUnixPath(quote&pDestFile&quote))
    else
-      get shell ("cp -f" && quote&pSrcFile&quote && quote&pDestFile&quote)
+      get shell ("cp -f" && __revShellPath(pSrcFile, false) && __revShellPath(pDestFile, true))
    end if
    return the result
 end revCopyFile
+
+-- OXT-Beyond: a path for the Unix shell commands of this library (cp, mv,
+-- rm), in double quotes. A name with a dollar sign, a backtick, a double
+-- quote or a backslash in it was read by the shell as its own syntax, so
+-- revCopyFile and the folder commands failed on such a file or copied
+-- another one, in LiveCode Community too (openxtalk.org, "revCopyFile on
+-- Linux"). Those four characters are now escaped when the path names
+-- something that is there: the file or folder itself, or for a destination
+-- the folder it goes into. A path that names nothing there is written as
+-- it always was, so one that counted on the shell ("$HOME/notes.txt")
+-- still reaches it unchanged.
+private function __revShellPath pPath, pIsDestination
+   local tLiteral, tParent
+   put (there is a file pPath) or (there is a folder pPath) into tLiteral
+   if not tLiteral and pIsDestination then
+      -- (a bare name that is not there stays the shell's: "$HOME" alone
+      -- as a destination is the home folder, as it always was)
+      set the itemDelimiter to slash
+      if the number of items of pPath >= 2 then
+         put item 1 to -2 of pPath into tParent
+         if tParent is empty then put slash into tParent
+         put there is a folder tParent into tLiteral
+      end if
+   end if
+   if tLiteral then
+      replace "\" with "\\" in pPath
+      replace quote with "\" & quote in pPath
+      replace "$" with "\$" in pPath
+      replace "`" with "\`" in pPath
+   end if
+   return quote & pPath & quote
+end __revShellPath
 
 -- OXT-Beyond: revCopyFile on the web engine, which has no shell. As cp
 -- does, a destination that is a folder receives the file under its own
@@ -927,7 +959,7 @@ on revCopyFolder pSrcFolder, pDestFolder
       end if
       
    else
-      get shell ("cp -rf" && quote&pSrcFolder&quote && quote&pDestFolder&quote)
+      get shell ("cp -rf" && __revShellPath(pSrcFolder, false) && __revShellPath(pDestFolder, true))
    end if
    return the result
 end revCopyFolder
@@ -968,7 +1000,7 @@ on revCopyFolder__Standalone pSrcFolder, pDestFolder
       end if
       
    else
-      get shell ("cp -rf" && quote&pSrcFolder&quote && quote&pDestFolder&quote)
+      get shell ("cp -rf" && __revShellPath(pSrcFolder, false) && __revShellPath(pDestFolder, true))
    end if
    return the result
 end revCopyFolder__Standalone
@@ -1005,7 +1037,7 @@ on revCopyPackage pSrcFolder, pDestFolder
       
       
    else
-      get shell ("cp -rf" && quote&pSrcFolder&quote && quote&pDestFolder&quote)
+      get shell ("cp -rf" && __revShellPath(pSrcFolder, false) && __revShellPath(pDestFolder, true))
    end if
    return the result
 end revCopyPackage
@@ -1022,7 +1054,7 @@ on revDeleteFolder pSrcFolder
          get shell ("deltree /Y" && revWindowsFromUnixPath(quote&pSrcFolder&quote))
       end if
    else
-      get shell ("rm -rf" && quote&pSrcFolder&quote)
+      get shell ("rm -rf" && __revShellPath(pSrcFolder, false))
    end if
    return the result
 end revDeleteFolder
@@ -1039,7 +1071,7 @@ on revMoveFolder pSrcFolder, pDestFolder
       revSetWindowsShellCommand
       get shell ("move /Y" && revWindowsFromUnixPath(quote&pSrcFolder&quote) && revWindowsFromUnixPath(quote&pDestFolder&quote))
    else
-      get shell ("mv -f" && quote&pSrcFolder&quote && quote&pDestFolder&quote)
+      get shell ("mv -f" && __revShellPath(pSrcFolder, false) && __revShellPath(pDestFolder, true))
    end if
    return the result
 end revMoveFolder

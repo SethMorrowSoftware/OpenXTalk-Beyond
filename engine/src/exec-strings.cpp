@@ -1273,6 +1273,48 @@ void MCStringsEvalFormat(MCExecContext& ctxt, MCStringRef p_format, MCValueRef* 
 					ctxt.LegacyThrow(EE_FORMAT_BADSOURCE, t_value);
 					return;
 				}
+				// OXT-Beyond: a whole number too large for 32 bits came out as
+				// whatever the conversion to a 32-bit integer left: -2147483648
+				// for format("%d", 3000000000) on x86, 2147483647 on ARM
+				// (LiveCode Community 9.6.3 too). Such a number is now formatted
+				// at its own value, as far as 64 bits go. Numbers that fit in 32
+				// bits, negative ones under %u, %x, %X and %o, %c and %h take
+				// the path they always did.
+				{
+					real64_t t_wide_real;
+					char t_conversion = dptr[-1];
+					char t_wide_format[sizeof(newFormat) + 4];
+					bool t_signed = t_conversion == 'd';
+					if (!useShort && t_conversion != 'c' &&
+						ctxt.ConvertToReal(t_value, t_wide_real))
+					{
+						// The same rounding as MCNumberFetchAsInteger.
+						if (t_signed)
+							t_wide_real = t_wide_real < 0.0 ? t_wide_real - 0.5 : t_wide_real + 0.5;
+						else
+							t_wide_real = t_wide_real + 0.5;
+
+						size_t t_format_length = strlen(newFormat);
+						memcpy(t_wide_format, newFormat, t_format_length - 1);
+						t_wide_format[t_format_length - 1] = 'l';
+						t_wide_format[t_format_length] = 'l';
+						t_wide_format[t_format_length + 1] = t_conversion;
+						t_wide_format[t_format_length + 2] = '\0';
+
+						if (t_signed &&
+							(t_wide_real >= 2147483648.0 || t_wide_real <= -2147483649.0) &&
+							t_wide_real < 9223372036854775808.0 && t_wide_real > -9223372036854775808.0)
+						{
+							t_success = MCStringAppendFormat(*t_result, t_wide_format, (long long)t_wide_real);
+							break;
+						}
+						if (!t_signed && t_wide_real >= 2147483648.0 && t_wide_real < 18446744073709551616.0)
+						{
+							t_success = MCStringAppendFormat(*t_result, t_wide_format, (unsigned long long)t_wide_real);
+							break;
+						}
+					}
+				}
 				if (useShort)
 					t_success = MCStringAppendFormat(*t_result, newFormat, (short)t_integer);
 				else

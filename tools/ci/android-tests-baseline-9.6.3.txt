@@ -206,6 +206,7 @@ lcs: core/interface/image-undo: TestRotateImageGetDataWorks
 lcs: core/interface/image-undo: TestRotateImageWorks
 lcs: core/interface/interface: TestImageIntersect
 lcs: core/interface/interface: TestIntersectWithRectangle
+lcs: core/interface/interface: TestPenBackAndFillBackOfAnObject # 9.6.3's engine stops the app: the penBack of an object reads an unset answer (fixed in OXT-Beyond's, #583)
 lcs: core/interface/show-cards: TestShowCardsCountOf65536
 lcs: core/interface/show-cards: TestShowEmptyCards
 lcs: core/interface/show-cards: TestShowMarkedCardsNoneMarked
@@ -230,8 +231,10 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipNotASoundFormat
 lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
+lcs: core/network/network: TestHostAddressToNameWithNoHost # 9.6.3's engine stops the app at a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestNetworkDNSServers
 lcs: core/network/network: TestNetworkDNSServersAnswers # 9.6.3's engine has no DNS servers on Android and throws (error 198); OXT-Beyond's answers them
+lcs: core/network/network: TestOpenSocketWithNoHost # 9.6.3's engine stops the app: open socket to a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
 lcs: core/server/sessioncookie: TestSessionCookieDefaults
 lcs: core/server/sessioncookie: TestSessionCookieSameSite
@@ -239,6 +242,7 @@ lcs: core/server/sessioncookie: TestSessionCookieSameSiteNotAValue
 lcs: core/server/sessioncookie: TestSessionCookieSecure
 lcs: core/server/sessioncookie: TestSessionCookieSecureNotABoolean
 lcs: core/strings/filter: TestBug15443
+lcs: core/strings/format: TestFormatWideIntegers # 9.6.3's engine cuts %d and its kin to 32 bits; OXT-Beyond's keeps the whole number (#583)
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
 lcs: core/strings/matches: TestMatchesHandlers

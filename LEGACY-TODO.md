@@ -67,7 +67,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 - [libfoundation/include/system-commandline.h:81](libfoundation/include/system-commandline.h#L81) FIXME support for getting the command filename isn't implemented
 - [libfoundation/src/foundation-handler.cpp:656](libfoundation/src/foundation-handler.cpp#L656) FIXME Should include information about arguments and return
-- [libfoundation/src/foundation-private.h:710](libfoundation/src/foundation-private.h#L710) define __MCAssertIsLocale(x)   MCAssert(nil != (x)) /* FIXME
+- [libfoundation/src/foundation-private.h:723](libfoundation/src/foundation-private.h#L723) define __MCAssertIsLocale(x)   MCAssert(nil != (x)) /* FIXME
 - [libfoundation/src/system-commandline.cpp:284](libfoundation/src/system-commandline.cpp#L284) return false; /* FIXME proper error
 - [libfoundation/src/system-file-w32.cpp:290](libfoundation/src/system-file-w32.cpp#L290) FIXME Remaining weaknesses:
 - [libfoundation/src/system-file-w32.cpp:488](libfoundation/src/system-file-w32.cpp#L488) FIXME[2017-04-20] there should be a "basename" function
@@ -124,7 +124,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 
 ### FIXME: ide (1)
 
-- [ide/Toolset/libraries/revidelibrary.8.livecodescript:13970](ide/Toolset/libraries/revidelibrary.8.livecodescript#L13970) FIXME There is some inconsistency in the guide's files that we
+- [ide/Toolset/libraries/revidelibrary.8.livecodescript:13979](ide/Toolset/libraries/revidelibrary.8.livecodescript#L13979) FIXME There is some inconsistency in the guide's files that we
 
 <a id="fixme-ide-support"></a>
 
@@ -156,7 +156,7 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 ### HACK: ide (8)
 
 - [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:1442](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L1442) For now we have to hack this without access to the parser
-- [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:2273](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L2273) calls IDE code, e.g get url. For now we hack around this.
+- [ide/Toolset/libraries/revdebuggerlibrary.livecodescript:2295](ide/Toolset/libraries/revdebuggerlibrary.livecodescript#L2295) calls IDE code, e.g get url. For now we hack around this.
 - [ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript:47](ide/Toolset/palettes/behaviors/revinspectorbehavior.livecodescript#L47) HACK for stopping the gradient and effects palette getting stuck behind the inspector!!
 - [ide/Toolset/palettes/extension manager/revideextensionmanagerstorebehavior.livecodescript:29](ide/Toolset/palettes/extension%20manager/revideextensionmanagerstorebehavior.livecodescript#L29) Hack to get round bug 18946
 - [ide/Toolset/palettes/reverrordisplay.livecodescript:576](ide/Toolset/palettes/reverrordisplay.livecodescript#L576) attempting to highlight the appropriate line number. This is a total hack, but there doensn't seem
@@ -213,7 +213,7 @@ Workarounds their authors were not happy with. 32 notes, by part of the reposito
 
 ### HACK: extensions (1)
 
-- [extensions/extensions.gyp:211](extensions/extensions.gyp#L211) hack because gyp wants an output
+- [extensions/extensions.gyp:212](extensions/extensions.gyp#L212) hack because gyp wants an output
 
 ## TODO
 
@@ -271,7 +271,7 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/em-util.js:308](engine/src/em-util.js#L308) TODO - support more value types
 - [engine/src/em-util.js:336](engine/src/em-util.js#L336) TODO - for now, treat functions as objects but we may wish to differentiate them later
 - [engine/src/exec-engine.cpp:523](engine/src/exec-engine.cpp#L523) TODO - create as list?
-- [engine/src/exec-extension.cpp:765](engine/src/exec-extension.cpp#L765) TODO: Augment error
+- [engine/src/exec-extension.cpp:781](engine/src/exec-extension.cpp#L781) TODO: Augment error
 - [engine/src/exec-interface-stack.cpp:125](engine/src/exec-interface-stack.cpp#L125) TODO
 - [engine/src/exec-network.cpp:180](engine/src/exec-network.cpp#L180) TODO - I.M. this is a bit odd, checking if we have permission to resolve a hostname AFTER we've
 - [engine/src/exec-pasteboard.cpp:556](engine/src/exec-pasteboard.cpp#L556) TODO: support multiple items
@@ -501,7 +501,7 @@ Work left for later. 434 notes, by part of the repository:
 - [libfoundation/include/foundation-span.h:456](libfoundation/include/foundation-span.h#L456) TODO[C++11] Enable this assertion once all our C++ compilers support it.
 - [libfoundation/include/foundation.h:793](libfoundation/include/foundation.h#L793) TODO: re-write when we adopt C++11
 - [libfoundation/include/foundation.h:801](libfoundation/include/foundation.h#L801) TODO: re-write when we adopt C++11
-- [libfoundation/src/foundation-array.cpp:937](libfoundation/src/foundation-array.cpp#L937) if defined(__ARM__) && 0 // TODO
+- [libfoundation/src/foundation-array.cpp:1045](libfoundation/src/foundation-array.cpp#L1045) if defined(__ARM__) && 0 // TODO
 - [libfoundation/src/foundation-bidi.cpp:399](libfoundation/src/foundation-bidi.cpp#L399) TODO
 - [libfoundation/src/foundation-data.cpp:894](libfoundation/src/foundation-data.cpp#L894) TODO: Shrink the buffer if its too big.
 - [libfoundation/src/foundation-foreign.cpp:967](libfoundation/src/foundation-foreign.cpp#L967) TODO[C++17] Some of the fields in here are left empty, and
@@ -519,7 +519,7 @@ Work left for later. 434 notes, by part of the repository:
 - [libfoundation/src/foundation-pickle.cpp:294](libfoundation/src/foundation-pickle.cpp#L294) r_value = MCValueRetain(kMCMinusOne); // TODO - this needs to be real minus one
 - [libfoundation/src/foundation-pickle.cpp:626](libfoundation/src/foundation-pickle.cpp#L626) TODO: Write out record typeinfo.
 - [libfoundation/src/foundation-pickle.cpp:642](libfoundation/src/foundation-pickle.cpp#L642) TODO: Write out error typeinfo.
-- [libfoundation/src/foundation-private.h:727](libfoundation/src/foundation-private.h#L727) TODO[C++11] Obsolete this macro by using std::reverse from
+- [libfoundation/src/foundation-private.h:740](libfoundation/src/foundation-private.h#L740) TODO[C++11] Obsolete this macro by using std::reverse from
 - [libfoundation/src/foundation-string.cpp:1538](libfoundation/src/foundation-string.cpp#L1538) TODO[2017-03-29] This could be optimised by _not_ copying the
 - [libfoundation/src/foundation-string.cpp:3674](libfoundation/src/foundation-string.cpp#L3674) TODO: Implement properly, based on properties of the needle string.
 - [libfoundation/src/foundation-string.cpp:6087](libfoundation/src/foundation-string.cpp#L6087) TODO: Shrink the buffer if its too big.

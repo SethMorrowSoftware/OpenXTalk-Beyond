@@ -1825,6 +1825,21 @@ jobs:
           python3 tools/ci/backdrop_focus_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/backdrop-focus-check.log" --shots "$RUNNER_TEMP/logs/backdrop-focus-shots"
 
+      # A group that grabs itself from the mouseDown of a popup, option or
+      # pulldown menu button in it, pressed and released with the system's
+      # mouse: the engine runs on (up to 0.2.8-dp.2, and in LiveCode
+      # Community 9.6.3, it crashed on the release), and a plain button
+      # that grabs itself still follows the mouse; and "popup button" from
+      # a timer with the mouse over none of the program's stacks opens its
+      # menu (it was error 583) (tools/ci/grab_menu_check.py)
+      - name: Grab from a menu button check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/grab_menu_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/grab-menu-check.log" --shots "$RUNNER_TEMP/logs/grab-menu-shots"
+
       # The IDE itself, started through the launcher as a user does, on an
       # Xvfb screen under openbox with a scratch home folder: still running
       # after 90 s, with windows on the screen (tools/ci/linux_ide_start.sh;
@@ -2306,6 +2321,15 @@ jobs:
             # missing, which would push the engine's stack out of view)
             grep -v '^missing: ' "$f" | tail -n 200 | cut -c1-600
           done
+
+      # And the grab check's lines, which the screenshots' lines after it
+      # push far up the log
+      - name: Repeat the grab check's output
+        if: ${{ failure() }}
+        run: |
+          out="$RUNNER_TEMP/logs/grab-menu-check.log"
+          [ -f "$out" ] || exit 0
+          cut -c1-1500 "$out"
 
       - name: Upload logs
         if: always()
