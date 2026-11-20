@@ -229,6 +229,18 @@ EDGE_TO_EDGE_ON_CONFIGURATION = (
     'for a stack drawn edge to edge, the bars\' icons follow the appearance (showBarsForAppearance, dark in the '
     'light one) when night mode changes; for any other stack it does what it did')
 
+# compare: whether a permission exists (androidPermissionExists, and what
+# androidHasPermission and androidRequestPermission ask first): a
+# difference from every Classes compare knows
+PERMISSION_EXISTS = {
+    'code com/runrev/android/Engine.checkPermissionExists:(Ljava/lang/String;)Z':
+        'the package manager is asked of the name first (permissionIsKnown, getPermissionInfo), and the walk of '
+        'the permission groups is done only when it does not know it: Android 10 and newer list most permissions '
+        'in no group (INTERNET, ACCESS_NETWORK_STATE), so the walk alone answered false for them, and '
+        'androidHasPermission and androidRequestPermission threw "bad permission name". A name either way knew '
+        'is answered true as before, and one neither knows false',
+}
+
 # compare: what a build from this repository's sources does differently
 # from a released runtime's Classes, by the released jar's SHA-256, each
 # with the reason. A key is "class X", "member X.name:descriptor" (gone or
@@ -314,6 +326,7 @@ EXPECTED = {
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
             RELAUNCH_GUARDS['code com/runrev/android/LiveCodeActivity.onConfigurationChanged:'
                             '(Landroid/content/res/Configuration;)V'] + '. And ' + EDGE_TO_EDGE_ON_CONFIGURATION,
@@ -336,6 +349,7 @@ EXPECTED = {
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
         'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
@@ -347,10 +361,22 @@ EXPECTED = {
     '328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d': {
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
         'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
             EDGE_TO_EDGE_ON_CONFIGURATION,
+    },
+    # oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes (a build adds
+    # Engine.getDNSServers to it, the dnsServers on Android, which 9.6.3's
+    # engine and dp.1's did not have: the function threw there)
+    '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe': {
+        **PERMISSION_EXISTS,
+    },
+    # oxt-runtimes-0.2.8-dp.2's Runtime/Android/Classes, built here from
+    # commit 24c8e5bae713 (its PROVENANCE.md gives this SHA-256)
+    '763a89804b090c24e4916f3fb753e36c2b49e2fa1971d47f01a9e233f0f81e54': {
+        **PERMISSION_EXISTS,
     },
 }
 
@@ -359,10 +385,8 @@ EXPECTED = {
 # the released jar's SHA-256, each with what the builds since have added.
 # (EXPECTED's entries are the jars that predate changes still named there.)
 ADDITIONS_ONLY = {
-    # oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes
-    '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe':
-        'Engine.getDNSServers, the dnsServers on Android (MCAndroidSystem::GetDNSservers), which 9.6.3\'s '
-        'engine and dp.1\'s did not have (the function threw there)',
+    # (none now: dp.1's and dp.2's differ in checkPermissionExists, so they
+    # are in EXPECTED)
 }
 
 

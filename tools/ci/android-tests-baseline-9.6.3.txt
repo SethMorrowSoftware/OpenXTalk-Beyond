@@ -67,6 +67,9 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder

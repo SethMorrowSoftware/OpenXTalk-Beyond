@@ -1485,11 +1485,12 @@ def read_xtalk_list(path, kind='extension'):
 def xtalk_permission_problems(package_dump, names):
     """The permissions (names without android.permission.) that dumpsys
     package does not say the probe's package holds (granted=true). Not the
-    probe's androidHasPermission: the engine throws "bad permission name"
-    for one Android lists in no permission group, as INTERNET is on
-    Android 10 and newer (Engine.java, checkPermissionExists), and its
-    value is then empty, whether or not the app holds it (run 44453086812
-    on Android 13)."""
+    probe's androidHasPermission: LiveCode's Java layer, and OXT-Beyond's
+    until 0.2.8-dp.3 (Engine.java, checkPermissionExists), throw "bad
+    permission name" for one Android lists in no permission group, as
+    INTERNET is on Android 10 and newer, and its value is then empty,
+    whether or not the app holds it (run 44453086812 on Android 13); the
+    probe is built with either."""
     problems = []
     for name in names:
         granted = permission_granted(package_dump, 'android.permission.' + name)
