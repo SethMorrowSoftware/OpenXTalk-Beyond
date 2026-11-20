@@ -46,7 +46,10 @@ end openStack
   (`the result` is "cancel" when there is none).
 - `mwShare` opens the phone's share sheet (or copies, where there is
   none), `mwKeepAwake` keeps the screen on, and `mwFullScreen` and
-  `mwIsFullScreen()` hide and show the browser's bars.
+  `mwIsFullScreen()` hide and show the browser's bars: the card gets
+  `fullScreenChanged` when the stack gets the whole screen or loses it,
+  whoever did it, and `fullScreenError` when the browser says no after
+  the call.
 - `mwVibrate`, `mwLongPressed()`, `mwIsWeb()`, `mwIsTouchScreen()` and
   `mwIsInstalled()`.
 

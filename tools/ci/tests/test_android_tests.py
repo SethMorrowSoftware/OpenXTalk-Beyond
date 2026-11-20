@@ -1158,8 +1158,25 @@ class Workflow(unittest.TestCase):
         cls.steps = dict((s.get('name'), s) for s in cls.job['steps'])
 
     def test_runs_after_the_build(self):
-        self.assertEqual(self.job['needs'], 'build')
-        self.assertIn('android-engine-*', self.steps['Download the runtime']['with']['pattern'])
+        # after the build, with its engine; or, when the gate says the
+        # change needs no engine built, with an earlier run's
+        self.assertEqual(self.job['needs'], ['gate', 'build'])
+        when = ' '.join(self.job['if'].split())
+        self.assertEqual(when, "!cancelled() && needs.gate.outputs.tests == 'true' && "
+                               "(needs.build.result == 'success' || (needs.build.result == 'skipped' && "
+                               "needs.gate.outputs.engine_run != ''))")
+        built, earlier = self.steps['Download the runtime'], self.steps['Download an earlier run\'s runtime']
+        self.assertEqual(built['if'], "needs.build.result == 'success'")
+        self.assertEqual(earlier['if'], "needs.build.result != 'success'")
+        for step in (built, earlier):
+            self.assertIn('android-engine-*', step['with']['pattern'])
+            self.assertEqual(step['with']['path'], '${{ runner.temp }}/android/parts')
+        self.assertNotIn('run-id', built['with'])
+        self.assertEqual(earlier['with']['run-id'], '${{ needs.gate.outputs.engine_run }}')
+        self.assertEqual(earlier['with']['github-token'], '${{ github.token }}')
+        order = [s.get('name') for s in self.job['steps']]
+        self.assertEqual(order.index('Make the four folders one runtime') - 1,
+                         order.index('Download an earlier run\'s runtime'))
 
     def test_both_engines_are_built(self):
         run = self.steps['Build the tests\' standalone with each engine']['run']
@@ -1192,10 +1209,11 @@ class Workflow(unittest.TestCase):
                       self.steps['Set up the JDK and the Android SDK']['run'])
 
     def test_the_files_that_start_it(self):
-        paths = self.wf[True]['pull_request']['paths']
+        # (the gate, android_runs.py, runs the tests for a change to these)
+        import android_runs
         for name in ('tools/ci/android_tests.py', 'tools/ci/android-tests.livecodescript',
                      'tools/ci/android-tests-baseline-*.txt'):
-            self.assertIn(name, paths)
+            self.assertIn(name, android_runs.TESTS_SCRIPTS)
 
     def test_the_baselines_are_there(self):
         for engine in at.ENGINES:

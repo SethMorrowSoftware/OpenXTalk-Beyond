@@ -20,9 +20,11 @@
 #                Runtime/Android/Beyond, which a standalone uses only when
 #                its "android,engine" setting is "beyond" (LiveCode 9.6.3's
 #                engines stay the default). Empty: the asset is made as
-#                before. The workflow runs on main by itself only when the
-#                engine's sources change, so for a later commit start it by
-#                hand (Actions > Android engine > Run workflow) first
+#                before. The workflow builds the engine on main by itself
+#                only when the engine's sources change (for a change to
+#                the tests alone it runs them with an earlier run's
+#                engine, and builds none), so for a later commit start it
+#                by hand (Actions > Android engine > Run workflow) first
 #   publish      also publish the archive as the pre-release
 #                runtimes-<label>, tagged at that commit, which must be on
 #                main; without it the archive is only the artifact

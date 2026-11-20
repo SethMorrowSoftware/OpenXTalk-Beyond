@@ -1082,3 +1082,27 @@ on TestEachScreenDrawsTheTilesItsSize
    press "Back"
    TestAssert "Home's again", the width of image "tile-gold" of card "Art" of stack kStack is st("hometile")
 end TestEachScreenDrawsTheTilesItsSize
+
+-- The Mobile Web library's word of the whole screen, gained or lost
+-- whoever did it (the switch, the phone's back gesture, the browser
+-- itself), and of a request the browser refused after mwFullScreen
+-- returned: the switch says so then. Where the page keeps its size while
+-- the screen is whole, no resizeStack comes to lay it out again, and the
+-- refusal was swallowed (both after 0.2.8-dp.2)
+on TestTheFullScreenSwitchFollowsTheBrowser
+   local tNote
+   press "Settings Open"
+   TestAssert "the settings are shown", st("panel") is "settings"
+   dispatch "fullScreenChanged" to card "Almanac" of stack kStack with true
+   TestAssert "the whole screen given: the switch is on", \
+         the label of button "Set Full" of card "Almanac" of stack kStack is "Full screen: on"
+   dispatch "fullScreenChanged" to card "Almanac" of stack kStack with false
+   TestAssert "and taken back: off", the label of button "Set Full" of card "Almanac" of stack kStack is "Full screen: off"
+   dispatch "fullScreenError" to card "Almanac" of stack kStack with "Permissions check failed"
+   TestAssert "a request refused after the call is said in the note", \
+         fieldText("Settings Note") is "The browser kept its bars this time."
+   press "Settings Done"
+   put fieldText("Settings Note") into tNote
+   dispatch "fullScreenError" to card "Almanac" of stack kStack with "refused"
+   TestAssert "out of the settings nothing is said", fieldText("Settings Note") is tNote
+end TestTheFullScreenSwitchFollowsTheBrowser

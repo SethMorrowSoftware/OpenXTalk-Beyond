@@ -1267,12 +1267,36 @@ private command ebSettingsLook
    else if sPlatform is "desktop" then
       put the fullscreen of me into tFull
    end if
-   if tFull is true then
-      set the label of button "Full" to "FULL SCREEN: ON"
-   else
-      set the label of button "Full" to "FULL SCREEN: OFF"
-   end if
+   ebFullLook tFull is true
 end ebSettingsLook
+
+-- The full screen switch, on (pFull) or off
+private command ebFullLook pFull
+   if pFull then
+      set the label of button "Full" of me to "FULL SCREEN: ON"
+   else
+      set the label of button "Full" of me to "FULL SCREEN: OFF"
+   end if
+end ebFullLook
+
+-- The Mobile Web library's word that the browser gave the game the whole
+-- screen or took it back, whoever did it (the switch, the phone's back
+-- gesture, the browser itself): the switch says so now, where the page
+-- keeps its size and no resizeStack comes
+on fullScreenChanged pFull
+   lock screen
+   ebFullLook pFull is true
+   unlock screen
+end fullScreenChanged
+
+-- A request for the whole screen that the browser refused after the call
+on fullScreenError pError
+   if sMode is "settings" then
+      lock screen
+      set the text of field "Settings Note" of me to "The browser kept its bars this time."
+      unlock screen
+   end if
+end fullScreenError
 
 -- The levels: those reached can be played, the others are dim
 private command ebShowLevels

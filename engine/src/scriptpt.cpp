@@ -1635,6 +1635,36 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 			needfact = True;
 			continue;
 		}
+		// OXT-Beyond: LiveCode 11's "<value> as a <kind>" (MCAsType). "as"
+		// is no keyword either, and it already follows an expression in
+		// statements ("do x as appleScript", "save stack x as y", "go stack
+		// x as palette"): it is the operator only where "a" or "an" and one
+		// of its kinds come next (MCAsType::isahead), and only where what
+		// holds it did not compile without it (MCNewSyntax). Its one
+		// operand is the value before it, which it takes as the validation
+		// operators do ("x is a number"): it sits on the right, and the
+		// expression may end or go on after it
+		if (!needfact && type == ST_ID && MCAsType::isahead(*this) &&
+			MCNewSyntax::Read())
+		{
+			newfact = new (nothrow) MCAsType;
+			if (newfact == nil)
+			{
+				MCperror->add(PE_OUTOFMEMORY, *this);
+				return PS_ERROR;
+			}
+			if (newfact->parse(*this, doingthe) == PS_ERROR)
+			{
+				delete newfact;
+				return PS_ERROR;
+			}
+			if (insertbinop(newfact, curfact, top) == NULL)
+				return PS_ERROR;
+			newfact->setright(newfact->getleft());
+			newfact->setleft(NULL);
+			needfact = False;
+			continue;
+		}
 		if (!needfact && type != ST_OP && type != ST_MIN && type != ST_RP
 		        && !(type == ST_SEP && litems)
 		        && !(type == ST_ID && lookup(SP_FACTOR, te) == PS_NORMAL

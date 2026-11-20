@@ -1,0 +1,91 @@
+%% Copyright (C) 2026 OXT-Beyond contributors.
+%%
+%% This file is part of OXT-Beyond.
+%%
+%% OXT-Beyond is free software; you can redistribute it and/or modify it
+%% under the terms of the GNU General Public License v3 as published by the
+%% Free Software Foundation.
+%%
+%% OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT
+%% ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+%% FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+%% for more details.
+%%
+%% You should have received a copy of the GNU General Public License
+%% along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+%% LiveCode 11's kinds of array (tests/lcs/core/array/kinds.livecodescript):
+%% "is a sequence", "is strictly a dictionary", "<value> as a <kind>", and
+%% the handler-local sequencesAsLists. None of their words is a keyword, so
+%% what compiled before compiles as it did.
+
+%TEST ArrayKindChecks
+on parse_test
+   local tX, tY
+   put tX is a sequence into tY
+   put tX is not a dictionary into tY
+   put tX is a numeric sequence into tY
+   put tX is not a numeric sequence into tY
+   put tX is strictly a sequence into tY
+   put tX is not strictly a dictionary into tY
+   if tX is a sequence and tY is a dictionary then beep
+end parse_test
+%EXPECT PASS
+%SUCCESS
+%ENDTEST
+
+%TEST AsConversions
+on parse_test
+   local tX, tY
+   put tX as an array into tY
+   put tX as a sequence into tY
+   put tX as a dictionary into tY
+   put tX as a name into tY
+   put tX as a string into tY
+   put tX as a binary string into tY
+   put tX as a number into tY
+   put tX as an integer into tY
+   put tX as a boolean into tY
+   put tX["k"] as a sequence as an array into tY
+   put 1 + tX as a number into tY
+   get parse_test_two(tX as a dictionary)
+end parse_test
+function parse_test_two pX
+   return pX
+end parse_test_two
+%EXPECT PASS
+%SUCCESS
+%ENDTEST
+
+%TEST SequencesAsLists
+on parse_test
+   local tX
+   set the sequencesAsLists to true
+   put the sequencesAsLists into tX
+   set the sequencesAsLists of me to tX
+   put the sequencesAsLists of me into tX
+end parse_test
+%EXPECT PASS
+%SUCCESS
+%ENDTEST
+
+%TEST KindWordsAreNames
+on parse_test
+   local sequence, dictionary, numeric, strictly
+   put 1 into sequence
+   put sequence into dictionary
+   put dictionary + 1 into numeric
+   put sequence is a number into strictly
+end parse_test
+%EXPECT PASS
+%SUCCESS
+%ENDTEST
+
+%TEST AsAfterAnExpressionAsBefore
+on parse_test
+   local tX, tY
+   put tX as %{AFTER_AS} widget into tY
+end parse_test
+%EXPECT PASS
+%ERROR PE_PUT_BADPREP AT AFTER_AS
+%ENDTEST

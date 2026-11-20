@@ -8,11 +8,12 @@ Pages site, so that anyone can open them with nothing to download:
 | --- | --- |
 | `https://<owner>.github.io/<repository>/` | the front page ([index.html](index.html)), which links to both |
 | `.../ide/` | the web IDE |
-| `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
+| `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens; `#put` or `?entry=put` opens at that word (`&type=command` picks among entries of one name, `&api=builder` an xTalk Builder one), which the forum's `[dict]` tag links to ([test_dictionary_deep_link.py](../ci/tests/test_dictionary_deep_link.py)) |
 | `.../lessons/` | the lessons: xTalk from the first line to xTalk Builder, and the extensions that come with OXT-Beyond, a page a lesson, searchable ([lessons/](lessons/)) |
 | `.../player/` | the Stack Player |
 | `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
+| `.../try/` | the forum's "Try it in the browser": a stack attached to a post on openxtalk.org/forum (`?id=` the attachment, `?name=` its file, `?t=` the topic) plays in a boxed copy of the bare player at `try/box/`, in a frame without `allow-same-origin`, which takes the forum's stack files alone ([forum/index.html](forum/index.html), `forum_player` in build_pages.py, [test_pages_forum_player.py](../ci/tests/test_pages_forum_player.py)) |
 | `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue, Wobble Forts and Puzzle Almanac play the player's own samples in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
 

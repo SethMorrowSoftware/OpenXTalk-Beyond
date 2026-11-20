@@ -2807,7 +2807,28 @@ enum Exec_errors
     EE_IMAGE_BADFRAMEDURATIONS,
 
     // {EE-0918} playRate: must be a number greater than 0
-    EE_IMAGE_BADPLAYRATE
+    EE_IMAGE_BADPLAYRATE,
+
+    // {EE-0919} as: error in expression
+    EE_AS_BADVALUE,
+
+    // {EE-0920} as: the value is not an array
+    EE_AS_NOTARRAY,
+
+    // {EE-0921} as: the value is not a sequence (keys 1 to N with no gaps)
+    EE_AS_NOTSEQUENCE,
+
+    // {EE-0922} as: the value is not a number
+    EE_AS_NOTNUMBER,
+
+    // {EE-0923} as: the value is not an integer
+    EE_AS_NOTINTEGER,
+
+    // {EE-0924} as: the value is not true or false
+    EE_AS_NOTBOOLEAN,
+
+    // {EE-0925} as: an array with elements is not text
+    EE_AS_NOTTEXT
     
 };
 
