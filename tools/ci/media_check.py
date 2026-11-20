@@ -416,6 +416,10 @@ def known_failures(family, player_backend='auto', missing_media_foundation=()):
     return known
 
 
+# What glibc prints when a function returns with a changed stack canary
+STACK_SMASHED = 'stack smashing detected'
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Check the browser widget, revBrowser and the player in a standalone '
                                              'of an installed OXT-Beyond.')
@@ -593,6 +597,13 @@ def main(argv=None):
                            for x in results]
             lines += results
             problems += [x[5:] for x in results if x.startswith('FAIL ')]
+            # A process of the browser's that ended by failing the stack
+            # protector's check: up to 0.2.8-dp.2 every child Chromium's
+            # zygote forked (which has a new canary) ended so, on its way
+            # out of the helper's main (libbrowser_cefprocess_lnx.cpp)
+            smashed = output.decode('utf-8', 'replace').count(STACK_SMASHED)
+            if smashed:
+                problems.append('%s: %d of the browser\'s processes ended with "%s"' % (part, smashed, STACK_SMASHED))
             if not finished:
                 problems.append('%s: the engine did not finish (%s)'
                                 % (part, 'timed out after %d seconds' % args.timeout if code is None
