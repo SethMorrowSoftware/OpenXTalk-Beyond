@@ -1559,6 +1559,22 @@ public class Engine extends View implements EngineApi
     
     boolean keyboardIsVisible()
     {
+        // OXT-Beyond: where the activity lays the stack out by the window's
+        // insets (LiveCodeActivity.keepOutOfSystemBars, drawEdgeToEdge), the
+        // insets say whether the keyboard shows. The window goes under the
+        // navigation bar there, and on Android 15 and newer the default
+        // display's metrics count it in (getSoftbuttonsbarHeight gives 0),
+        // so the sum below took the navigation bar for a keyboard: the
+        // stack was told the keyboard showed at launch, and its working
+        // area (getWorkarea) fell back to the whole screen below the status
+        // bar, the bottom of the stack under the navigation bar. Any other
+        // window is measured as before
+        if (Build.VERSION.SDK_INT >= 30 && LiveCodeActivity.laysOutByInsets())
+        {
+            WindowInsets t_insets = getRootWindowInsets();
+            return t_insets != null && t_insets.isVisible(WindowInsets.Type.ime());
+        }
+        
         // status bar height
         int t_status_bar_height = 0;
         int t_resource_id = getResources().getIdentifier("status_bar_height", "dimen", "android");
@@ -2125,10 +2141,21 @@ public class Engine extends View implements EngineApi
     }
     
     
+    // OXT-Beyond: whether Android knows a permission of this name. Android 10
+    // and newer put most permissions in no permission group (INTERNET,
+    // ACCESS_NETWORK_STATE, ...), so a walk of the groups alone answered
+    // false for them, androidHasPermission returned empty and
+    // androidRequestPermission asked for nothing (the engine's "bad
+    // permission name" error stops no script on Android). The package
+    // manager is asked of the name first; the walk of the groups stays
+    // after it, so that no name it knew is answered false now.
     public boolean checkPermissionExists(String p_permission)
     {
         if (Build.VERSION.SDK_INT >= 23)
         {
+            if (permissionIsKnown(p_permission))
+                return true;
+            
             List<PermissionGroupInfo> t_group_info_list = getAllPermissionGroups();
             if (t_group_info_list == null)
                 return false;
@@ -2151,6 +2178,22 @@ public class Engine extends View implements EngineApi
             return false;
         }
         return true;
+    }
+    
+    private boolean permissionIsKnown(String p_permission)
+    {
+        final PackageManager t_package_manager = getContext().getPackageManager();
+        if (t_package_manager == null || p_permission == null || p_permission.length() == 0)
+            return false;
+        
+        try
+        {
+            return t_package_manager.getPermissionInfo(p_permission, 0) != null;
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            return false;
+        }
     }
     
     private List<PermissionGroupInfo> getAllPermissionGroups()

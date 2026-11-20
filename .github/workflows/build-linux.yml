@@ -129,6 +129,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/web-host/**'
@@ -137,10 +138,13 @@ on:
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
       - 'tools/ci/release_notes.py'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
@@ -755,6 +759,17 @@ jobs:
             core/interface/delete.livecodescript:TestDeleteGroupOfTarget \
             core/interface/delete.livecodescript:TestDeleteStackOfTarget
 
+      # What the runtimes asset (oxt-runtimes-<label>, made by runtimes.yml
+      # with make_runtimes_asset.py --builds) takes from this build, checked
+      # as --builds checks it, from the tarball that runtimes.yml takes: a
+      # file it wants that this build no longer makes, a binary of another
+      # architecture, or a Standalone without this tree's engine version
+      # fails here, the day it happens, not in the runtimes run before a
+      # release. The asset takes nothing from linux-arm64.
+      - name: Check what the runtimes asset takes from this build
+        if: matrix.arch == 'x86_64'
+        run: python3 tools/oxt/make_runtimes_asset.py --check-bin "linux-$ARCH=OXT-Beyond-linux-$ARCH-bin.tar.xz"
+
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
       - name: Record the finished build
@@ -976,6 +991,11 @@ jobs:
         run: |
           tools/ci/i386-container.sh run 'python3 tools/ci/standalone_check.py --engine linux-x86-bin/LiveCode-Community \
             --runtime linux-x86-bin/standalone-community --platform linux-x86 --log standalone-check.log'
+
+      # What the runtimes asset takes from this build (as for the x86_64
+      # leg), on the runner itself: the tarball is in the workspace
+      - name: Check what the runtimes asset takes from this build
+        run: python3 tools/oxt/make_runtimes_asset.py --check-bin "linux-x86=OXT-Beyond-linux-x86-bin.tar.xz"
 
       - name: Upload build logs
         if: failure()

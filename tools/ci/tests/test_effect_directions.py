@@ -17,6 +17,8 @@
 """The visual effects that move one way (wipe, push, reveal and scroll), given
 no direction or one that is not a side: the forum's report on 0.2.8-dp.1
 (richmond62, 2026-11-19) that wipe, reveal, push and scroll crash the IDE.
+And shrink and stretch, given no place (top, center or bottom) to go to or
+come from.
 
 Their steps in engine/src/stacke.cpp switch on the direction with an
 unreachable default, which a release build compiles as __builtin_unreachable.
@@ -25,7 +27,14 @@ web) jumped off and the engine crashed, and GCC's (Linux) fell into a case.
 The steps now take a side first (effectside): the one GCC's code played, so
 Linux plays these as before and every build plays them the same way.
 
-These tests take the four steps and effectside out of stacke.cpp as they are,
+Shrink and stretch switch on top, center or bottom with the same default. They
+did not crash, but where they played was the compiler's choice: clang's code
+center, GCC's bottom, and MSVC's (Windows, whose default does nothing) a place
+never set. They now take a place first (effectplace): center, as clang's builds
+played them, everywhere.
+
+These tests take the six steps, effectside and effectplace out of stacke.cpp as
+they are,
 with the Visual_effects enum of parsedef.h, compile them with a stand-in
 surface that prints what each step draws, with the unreachable default made a
 trap (so that any compiler stops there, not only clang), and run them with
@@ -46,13 +55,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 STACKE = os.path.join(ROOT, 'engine', 'src', 'stacke.cpp')
 PARSEDEF = os.path.join(ROOT, 'engine', 'src', 'parsedef.h')
 
-STEPS = ('pusheffect_step', 'revealeffect_step', 'scrolleffect_step', 'wipeeffect_step')
+SIDE_STEPS = ('pusheffect_step', 'revealeffect_step', 'scrolleffect_step', 'wipeeffect_step')
+# the steps that go to (shrink) or come from (stretch) a place
+PLACE_STEPS = ('shrinkeffect_step', 'stretcheffect_step')
+STEPS = SIDE_STEPS + PLACE_STEPS
 
 # what the parser takes as a direction (engine/src/visual.cpp,
 # MCVisualEffect::parse), and none
 DIRECTIONS = ('VE_UNDEFINED', 'VE_CLOSE', 'VE_OPEN', 'VE_IN', 'VE_OUT', 'VE_DOWN', 'VE_LEFT',
               'VE_RIGHT', 'VE_UP', 'VE_BOTTOM', 'VE_CENTER', 'VE_TOP')
 SIDES = ('VE_DOWN', 'VE_LEFT', 'VE_RIGHT', 'VE_UP')
+PLACES = ('VE_BOTTOM', 'VE_CENTER', 'VE_TOP')
+# the place shrink and stretch play for a direction that is not one: what
+# clang's builds (macOS, iOS, Android, the web) played; GCC's played bottom
+NOT_A_PLACE = 'VE_CENTER'
+DELTAS = ('0', '25', '50', '75', '100')
 
 # the side each step plays for a direction that is not one: what the GCC
 # build of Linux played (none, close, open, in and out come before the sides
@@ -170,9 +187,10 @@ def steps_source():
     if enum is None:
         raise AssertionError('no enum Visual_effects in parsedef.h')
     parts = [PRELUDE % {'enum': enum.group(0)}]
-    side = function(text, 'effectside', 'Visual_effects')
-    if side:
-        parts.append(side)
+    for helper in ('effectside', 'effectplace'):
+        body = function(text, helper, 'Visual_effects')
+        if body:
+            parts.append(body)
     for name in STEPS:
         body = function(text, name)
         if body is None:
@@ -226,17 +244,58 @@ class EveryDirection(unittest.TestCase):
     def test_a_direction_that_is_not_a_side_plays_as_linux_played_it(self):
         for compiler, (status, output) in self.runs.items():
             got = drawn(output)
-            for step in STEPS:
+            for step in SIDE_STEPS:
                 before, after = NOT_A_SIDE[step]
                 for direction in DIRECTIONS:
                     if direction in SIDES:
                         continue
                     side = after if direction in AFTER_THE_SIDES else before
-                    for delta in ('0', '25', '50', '75', '100'):
+                    for delta in DELTAS:
                         key = (step, direction, delta)
                         self.assertIn(key, got, '%s: %s' % (compiler, ' '.join(key)))
                         self.assertEqual(got[key], got[(step, side, delta)],
                                          '%s: %s %s at %s should play %s' % (compiler, step, direction, delta, side))
+
+    def test_shrink_and_stretch_with_no_place_play_center(self):
+        # before the fix clang's code played center and GCC's bottom
+        for compiler, (status, output) in self.runs.items():
+            got = drawn(output)
+            for step in PLACE_STEPS:
+                for direction in DIRECTIONS:
+                    if direction in PLACES:
+                        continue
+                    for delta in DELTAS:
+                        key = (step, direction, delta)
+                        self.assertIn(key, got, '%s: %s' % (compiler, ' '.join(key)))
+                        self.assertEqual(got[key], got.get((step, NOT_A_PLACE, delta)),
+                                         '%s: %s %s at %s should play %s'
+                                         % (compiler, step, direction, delta, NOT_A_PLACE))
+
+    def test_the_three_places_play_as_they_did(self):
+        # halfway: shrink draws the start card at half its height at that
+        # place and the end card around it; stretch draws the end card at
+        # half its height at that place over the start card
+        for compiler, (status, output) in self.runs.items():
+            got = drawn(output)
+            self.assertEqual(got.get(('shrinkeffect_step', 'VE_TOP', '50')),
+                             'start 10,20,400,150 from 0,0,400,300 end 10,170,400,150 from 0,150,400,150', compiler)
+            self.assertEqual(got.get(('shrinkeffect_step', 'VE_CENTER', '50')),
+                             'start 10,95,400,150 from 0,0,400,300 end 10,20,400,75 from 0,0,400,75 '
+                             'end 10,245,400,75 from 0,225,400,75', compiler)
+            self.assertEqual(got.get(('shrinkeffect_step', 'VE_BOTTOM', '50')),
+                             'start 10,170,400,150 from 0,0,400,300 end 10,20,400,150 from 0,0,400,150', compiler)
+            self.assertEqual(got.get(('stretcheffect_step', 'VE_TOP', '50')),
+                             'start 10,20,400,300 from 0,0,400,300 end 10,20,400,150 from 0,0,400,300', compiler)
+            self.assertEqual(got.get(('stretcheffect_step', 'VE_CENTER', '50')),
+                             'start 10,20,400,300 from 0,0,400,300 end 10,95,400,150 from 0,0,400,300', compiler)
+            self.assertEqual(got.get(('stretcheffect_step', 'VE_BOTTOM', '50')),
+                             'start 10,20,400,300 from 0,0,400,300 end 10,170,400,150 from 0,0,400,300', compiler)
+            # the whole way: shrink ends on the end card alone, stretch with it whole
+            self.assertEqual(got.get(('shrinkeffect_step', 'VE_CENTER', '100')),
+                             'start 10,170,400,0 from 0,0,400,300 end 10,20,400,150 from 0,0,400,150 '
+                             'end 10,170,400,150 from 0,150,400,150', compiler)
+            self.assertEqual(got.get(('stretcheffect_step', 'VE_CENTER', '100')),
+                             'start 10,20,400,300 from 0,0,400,300 end 10,20,400,300 from 0,0,400,300', compiler)
 
     def test_the_four_sides_play_as_they_did(self):
         # what a side draws, whole: the start card moves (push, reveal) or
@@ -269,6 +328,29 @@ class TheSource(unittest.TestCase):
             self.assertGreater(side, 0, step)
             self.assertLess(side, body.index('switch (dir)'), step)
             self.assertLess(side, body.index('dir == ') if 'dir == ' in body else len(body), step)
+
+    def test_shrink_and_stretch_take_a_place_before_their_switch(self):
+        text = read(STACKE)
+        for step in PLACE_STEPS:
+            body = re.sub(r'//[^\n]*', '', function(text, step))
+            place = body.find('dir = effectplace(dir);')
+            self.assertGreater(place, 0, step)
+            self.assertLess(place, body.index('switch (dir)'), step)
+
+    def test_effectplace_keeps_the_three_places_and_maps_the_rest_to_center(self):
+        body = function(read(STACKE), 'effectplace', 'Visual_effects')
+        self.assertIsNotNone(body)
+        self.assertRegex(body, r'case VE_TOP:\s*case VE_CENTER:\s*case VE_BOTTOM:\s*return p_direction;')
+        self.assertRegex(body, r'default:\s*return VE_CENTER;')
+
+    def test_no_step_is_left_with_an_unreachable_default(self):
+        # every step that switches on its direction with an unreachable
+        # default takes a side or a place first: a new one would need both
+        text = read(STACKE)
+        for name in re.findall(r'^Boolean (\w+effect_step)\(', text, re.M):
+            body = re.sub(r'//[^\n]*', '', function(text, name))
+            if 'MCUnreachable' in body:
+                self.assertIn(name, STEPS, '%s has an unreachable default and no test' % name)
 
     def test_effectside_keeps_the_four_sides_and_maps_the_rest(self):
         body = function(read(STACKE), 'effectside', 'Visual_effects')

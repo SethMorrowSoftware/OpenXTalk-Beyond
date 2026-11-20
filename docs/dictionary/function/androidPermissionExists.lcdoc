@@ -31,3 +31,11 @@ Description:
 Use the <androidPermissionExists> function to check if <permissionName> is a valid Android permission name.
 
 >*Note:* Permission names are case sensitive.
+
+>*Note:* Android 10 and newer list most permissions in no permission group,
+> among them "android.permission.INTERNET" and
+> "android.permission.ACCESS_NETWORK_STATE". Older OpenXTalk versions looked
+> for a name only in the groups, so <androidPermissionExists> returned false
+> for such a permission there; it now returns true for every permission
+> Android knows (needs the Java layer built from OXT-Beyond's source, which
+> the runtimes asset carries from its next release).

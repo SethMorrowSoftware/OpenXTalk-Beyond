@@ -12,6 +12,11 @@ local sResponse, sRequest, sWaitDuring
 -- ("GET /api/v1/models"), the request lines it read, one per line, and
 -- the body of each, by number
 local sRoutes, sRouteLog, sRouteBodies
+-- The ports of the test servers that this test started, one per line, so
+-- that TestTearDown closes them: the tests run in one process (on Android,
+-- every file of the suite in one app), and a server left listening stayed
+-- open until the process ended
+local sServers
 
 on TestSetup
    local tCore, tLibUrl
@@ -22,6 +27,10 @@ on TestSetup
       send "extensionInitialize" to stack tLibUrl
    end if
 end TestSetup
+
+on TestTearDown
+   get TestStopServers()
+end TestTearDown
 
 --------------------------------------------------------------------------------
 -- JSON
@@ -1252,8 +1261,35 @@ private function TestStartServer pStatus, pBody
    put empty into sRequest
    TestSkipIfNot "sockets"
    accept connections on port 0 with message "xtaTestServerAccept"
+   put it & return after sServers
    return it
 end TestStartServer
+
+-- Closes the test servers that this test started (TestStartServer,
+-- TestStartRoutes) and returns the ports of any still open after it,
+-- one per line: empty when every one was closed
+private function TestStopServers
+   local tPort, tLeft
+   repeat for each line tPort in sServers
+      if tPort is among the lines of the openSockets then
+         close socket tPort
+      end if
+   end repeat
+   repeat for each line tPort in sServers
+      if tPort is among the lines of the openSockets then
+         put tPort & return after tLeft
+      end if
+   end repeat
+   put empty into sServers
+   return tLeft
+end TestStopServers
+
+-- What came back from a round trip, for the log: the server's port,
+-- whether the reply was ok, its error, and the socketTimeoutInterval the
+-- server saw while the client waited
+private function TestReplySeen pPort, pReply
+   return "port" && pPort & ": ok" && pReply["ok"] & ", waited" && sWaitDuring && "ms, error:" && pReply["error"]
+end TestReplySeen
 
 on xtaTestServerAccept pSocket
    read from socket pSocket until crlf & crlf with message "xtaTestServerHeaders"
@@ -1341,19 +1377,27 @@ on TestAskWaitsForTheAnswer
    put "sk-local" into tSettings["key"]
    put "test-model" into tSettings["model"]
    put xtaAsk(tSettings, empty, TestTurns()) into tReply
+   -- (it failed once on Android with the 9.6.3 engine and passed on its
+   -- run again: what came back, when the assertion that failed cannot say)
+   TestDiagnostic TestReplySeen(tPort, tReply)
    TestAssert "ten minutes for the default room", tReply["ok"] is true and sWaitDuring is 600000
+   TestAssert "its server is closed", TestStopServers() is empty
    put TestStartServer("200 OK", tBody) into tPort
    put "http://127.0.0.1:" & tPort into tSettings["baseUrl"]
    put 32000 into tSettings["maxTokens"]
    put xtaAsk(tSettings, empty, TestTurns()) into tReply
+   TestDiagnostic TestReplySeen(tPort, tReply)
    TestAssert "fifteen for twice as much", tReply["ok"] is true and sWaitDuring is 900000 \
          and xtaJsonText(xtaJsonMember(xtaJsonParse(TestRequestBody()), "max_tokens")) is 32000
+   TestAssert "its server is closed", TestStopServers() is empty
    put TestStartServer("200 OK", tBody) into tPort
    put "http://127.0.0.1:" & tPort into tSettings["baseUrl"]
    put 60 into tSettings["timeout"]
    put xtaAsk(tSettings, empty, TestTurns()) into tReply
+   TestDiagnostic TestReplySeen(tPort, tReply)
    TestAssert "as long as the user said", tReply["ok"] is true and sWaitDuring is 60000
    TestAssert "and the engine's is put back", the socketTimeoutInterval is tOldTimeout
+   TestAssert "its server is closed", TestStopServers() is empty
 end TestAskWaitsForTheAnswer
 
 on TestAskOpenAI
@@ -1427,6 +1471,7 @@ private function TestStartRoutes
    put empty into sRouteBodies
    TestSkipIfNot "sockets"
    accept connections on port 0 with message "xtaTestRouteAccept"
+   put it & return after sServers
    return it
 end TestStartRoutes
 

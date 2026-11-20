@@ -6034,19 +6034,26 @@ end tourBmStyleRow
 
 -- A navigation bar's items in the Inspector: the editor
 -- com.livecode.pi.navbar, a navigation bar in its edit mode, which draws a
--- white sheet with black labels in either appearance, a row for each item
--- with its icon and its highlighted icon. The icon was drawn in the
--- Inspector's text colour, which is light in the dark appearance: on a Mac
--- only the highlighted icons could be seen, and on Linux the others
--- faintly (bwmilby, issue 568). The editor now gives its widget the
--- labels' black as its own colour. A navigation bar is made as the Tools
--- palette makes one and inspected, and the screen is read over the icon of
--- every row that is on it: some of it must be ink, in either appearance.
--- Then the widget's colour is taken off for a moment, as it was, and what
--- the screen shows of the first row's icon is logged: in the dark
--- appearance, what the report saw
+-- sheet with a row for each item: its label, its icon and its highlighted
+-- icon. The icon was drawn in the Inspector's text colour, which is light
+-- in the dark appearance: on a Mac only the highlighted icons could be
+-- seen, and on Linux the others faintly (bwmilby, issue 568). The editor
+-- now gives its widget the labels' black as its own colour. The sheet was
+-- white with black labels in either appearance, a white slab in a dark
+-- Inspector (0.2.8-dp.2's shots on a Mac and on Windows); in the dark
+-- appearance (the systemAppearance dark, and the Inspector dark behind
+-- it) it is now dark, its labels and icons light (sheetPaint in
+-- extensions/widgets/navbar/navbar.lcb). A navigation bar is made as the
+-- Tools palette makes one and inspected, the screen is read between the
+-- first row's two icons, where it is the sheet, and over the icon of every
+-- row that is on it: the sheet must be white, and some of each icon ink,
+-- in the light appearance; in the dark one the sheet must be dark, and
+-- some of each icon light (Linux's systemAppearance is light, a dark GTK
+-- theme or not, and so is its sheet). Then the widget's colour is taken
+-- off for a moment, as it was, and what the screen shows of the first
+-- row's icon is logged
 on tour_inspector_navbar
-   local tCard, tNav, tPI, tEditor, tWidget, tItems, tRows, tRow, tShown, tRead, tFails, tError
+   local tCard, tNav, tPI, tEditor, tWidget, tItems, tRows, tRow, tShown, tRead, tFails, tError, tDark, tSheet
    get tourSampleStack()
    put the long id of card 1 of stack kSample into tCard
    try
@@ -6070,13 +6077,32 @@ on tour_inspector_navbar
          put "the editor's widget has the foregroundColor" && quote & the foregroundColor of tWidget & quote & \
                ", not the labels' black" & return after tFails
       end if
+      -- (the sheet, between the first row's icon and its highlighted icon)
+      put the systemAppearance is "dark" and revIDEAppearanceIsDark() into tDark
+      put tourNbSheet(tPI, tWidget) into tSheet
+      tourRecord "INFO inspector-navbar: the sheet on the screen" && tSheet & ", dark expected" && tDark
+      if tSheet is not "hidden" then
+         if tDark and max(item 1 to 3 of tSheet) > 80 then
+            put "the sheet is" && tSheet && "in the dark appearance, not dark (each of red, green and blue 80 or less)" & \
+                  return after tFails
+         else if not tDark and min(item 1 to 3 of tSheet) < 240 then
+            put "the sheet is" && tSheet && "in the light appearance, not white" & return after tFails
+         end if
+      end if
       put 0 into tRead
       repeat with tRow = 1 to tRows
          put tourNbIcon(tPI, tWidget, tRow) into tShown
          tourRecord "INFO inspector-navbar: row" && tRow & ": ink, paper and other pixels of its icon on the screen" && tShown
          if tShown is "hidden" then next repeat
          add 1 to tRead
-         if item 1 of tShown < 40 then
+         if tDark then
+            -- (light on the dark sheet)
+            if item 2 of tShown < 40 then
+               put "the icon of row" && tRow && "cannot be seen on the dark sheet:" && item 2 of tShown && \
+                     "light pixels, not 40 or more (ink" && item 1 of tShown & ", other" && item 3 of tShown & ")" & \
+                     return after tFails
+            end if
+         else if item 1 of tShown < 40 then
             put "the icon of row" && tRow && "cannot be seen on the sheet:" && item 1 of tShown && \
                   "ink pixels, not 40 or more (paper" && item 2 of tShown & ", other" && item 3 of tShown & ")" & \
                   return after tFails
@@ -6163,6 +6189,44 @@ function tourNbIcon pStack, pWidget, pRow
    end repeat
    return tInk & comma & tPaper & comma & tOther
 end tourNbIcon
+
+-- The screen between the icon of the first row of the Inspector's
+-- navigation bar editor (the widget pWidget of the stack pStack) and its
+-- highlighted icon, where it is the sheet: 20 points from the widget's
+-- right - 115 to its right - 95, of which the middle 6 points square, 22
+-- down the row, are read; their red, green and blue, each the mean of the
+-- pixels, "r,g,b", or "hidden" when that is not on the screen and in the
+-- stack's window (tourNbIcon says where the icons are)
+function tourNbSheet pStack, pWidget
+   local tStack, tScreen, tRect, tLeft, tTop, tData, tCount, tR, tG, tB, i
+   put the rect of stack pStack into tStack
+   put the screenRect into tScreen
+   put the rect of pWidget into tRect
+   put item 1 of tStack + item 3 of tRect - 108 into tLeft
+   put item 2 of tStack + item 2 of tRect + 22 into tTop
+   if tLeft < max(item 1 of tStack, item 1 of tScreen) or tTop < max(item 2 of tStack, item 2 of tScreen) or \
+         tLeft + 6 > min(item 3 of tStack, item 3 of tScreen) or tTop + 6 > min(item 4 of tStack, item 4 of tScreen) then
+      return "hidden"
+   end if
+   export snapshot from rect (tLeft, tTop, tLeft + 6, tTop + 6) to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put (the number of bytes of tData) div 4 into tCount
+   if tCount is 0 then return "hidden"
+   put 0 into tR
+   put 0 into tG
+   put 0 into tB
+   repeat with i = 0 to tCount - 1
+      add byteToNum(byte i * 4 + 2 of tData) to tR
+      add byteToNum(byte i * 4 + 3 of tData) to tG
+      add byteToNum(byte i * 4 + 4 of tData) to tB
+   end repeat
+   return round(tR / tCount) & comma & round(tG / tCount) & comma & round(tB / tCount)
+end tourNbSheet
 
 -- The Clear beside a colour takes away the pattern its row holds beside
 -- it too (LittleNemo, openxtalk.org p=26076: in rc.6.15 Clear stayed

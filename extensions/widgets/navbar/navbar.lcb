@@ -538,6 +538,52 @@ private handler paintFor(in pType as Integer, in pLight as List, in pDark as Lis
 	return tPaint
 end handler
 
+-- OXT-Beyond: the edit mode's sheet (the Inspector's editor of the items is
+-- a navigation bar in its edit mode) in the dark appearance: a dark sheet
+-- with light labels and icons, where it was white with black labels in
+-- either appearance, so that in the dark it was a white slab in a dark
+-- Inspector. In the dark appearance (MCWidgetGetMyAppearanceIsDark, as
+-- paintFor decides it: the systemAppearance is dark and the card behind the
+-- widget is dark) the sheet is kSheetDark, its frame kSheetFrameDark, the
+-- labels and the icons that are not highlighted kSheetInkDark (the icons
+-- are drawn there whatever the widget's own colour, which the editor sets
+-- to the light sheet's black), the lines between the rows the frame's
+-- colour, and a row being dragged kSheetDragDark. The highlighted icons and
+-- the actions are drawn as before. In the light appearance the sheet is
+-- drawn as before (getPaint).
+constant kSheetDark is [36, 36, 36]
+constant kSheetFrameDark is [90, 90, 90]
+constant kSheetInkDark is [240, 240, 240]
+constant kSheetDragDark is [120, 120, 120]
+
+private handler sheetIsDark() returns Boolean
+	variable tDark as Boolean
+	MCWidgetGetMyAppearanceIsDark(tDark)
+	return tDark
+end handler
+
+-- The edit mode's paint for pLocation and pType: getPaint's, but the dark
+-- sheet's in the dark appearance
+private handler sheetPaint(in pLocation as String, in pType as String) returns Paint
+	variable tColor as List
+	put [] into tColor
+	if sheetIsDark() then
+		if pLocation is "background" and pType is "editmode-fill" then
+			put kSheetDark into tColor
+		else if pLocation is "background" and pType is "editmode-stroke" then
+			put kSheetFrameDark into tColor
+		else if pLocation is "background" and pType is "drag-fill" then
+			put kSheetDragDark into tColor
+		else if pLocation is "text" and pType is "editmode-fill" then
+			put kSheetInkDark into tColor
+		end if
+	end if
+	if tColor is [] then
+		return getPaint(pLocation, pType)
+	end if
+	return solid paint with color [tColor[1] / 255, tColor[2] / 255, tColor[3] / 255]
+end handler
+
 public handler OnSave(out rProperties as Array)
 	put the empty array into rProperties
 
@@ -697,10 +743,10 @@ private handler drawNavBarEditMode() returns nothing
 	// Make sure the subsequent drawing operations are opaque
 	set the opacity of this canvas to 1
 	// background
-	set the paint of this canvas to getPaint("background","editmode-fill")
+	set the paint of this canvas to sheetPaint("background","editmode-fill")
 	fill getPath("bounding box") on this canvas
 
-	set the paint of this canvas to getPaint("background","editmode-stroke")
+	set the paint of this canvas to sheetPaint("background","editmode-stroke")
 	set the stroke width of this canvas to 0
 	stroke getPath("bounding box") on this canvas
 
@@ -718,9 +764,9 @@ private handler drawEditModeContent() returns nothing
 			-- Draw the text of the nav bar
 			drawEditModeLabel(mNavData[tX]["label"], mNavData[tX]["label_rect"])
 			-- Draw the icon
-			drawIcon(mNavData[tX]["icon_path"], false)
+			drawEditModeIcon(mNavData[tX]["icon_path"], false)
 			-- Draw the selectedIcon
-			drawIcon(mNavData[tX]["hilited_icon_path"], true)
+			drawEditModeIcon(mNavData[tX]["hilited_icon_path"], true)
 			-- Draw the 'add item' item
 			drawActionItems(tX)
 			-- Draw the rects round the editable elements
@@ -756,14 +802,14 @@ private handler drawDragData()
 
 	if "rect" is among the keys of mDragData then
 		set the opacity of this canvas to 0.4
-		set the paint of this canvas to getPaint("background","drag-fill")
+		set the paint of this canvas to sheetPaint("background","drag-fill")
 		fill rectangle path of mDragData["rect"] on this canvas
 		-- Draw the text of the nav bar
 		drawEditModeLabel(mDragData["label"], mDragData["label_rect"])
 		-- Draw the icon
-		drawIcon(mDragData["icon_path"], false)
+		drawEditModeIcon(mDragData["icon_path"], false)
 		-- Draw the selectedIcon
-		drawIcon(mDragData["hilited_icon_path"], true)
+		drawEditModeIcon(mDragData["hilited_icon_path"], true)
 	end if
 end handler
 
@@ -773,7 +819,12 @@ private handler drawEditModeDivide(in pNumber as Number) returns nothing
 	end if
 	variable tPath as Path
 	put line path from point [1, kEditModeLineHeight * pNumber] to point [mWidth - 1, kEditModeLineHeight * pNumber + 1] into tPath
-	set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
+	-- OXT-Beyond: on the dark sheet, in its frame's colour (sheetPaint)
+	if sheetIsDark() then
+		set the paint of this canvas to sheetPaint("background", "editmode-stroke")
+	else
+		set the paint of this canvas to paintFor(3, kBorderLight, kBorderDark)
+	end if
 	set the stroke width of this canvas to 0
 	stroke tPath on this canvas
 end handler
@@ -788,6 +839,18 @@ private handler drawIcon(in pIconPath as Path, in pSelected as Boolean)
 	fill pIconPath on this canvas
 end handler
 
+-- OXT-Beyond: an icon on the edit mode's sheet, drawn as drawIcon draws it,
+-- but on the dark sheet in the sheet's light ink when it is not the
+-- highlighted one (sheetPaint)
+private handler drawEditModeIcon(in pIconPath as Path, in pSelected as Boolean)
+	if not pSelected and sheetIsDark() then
+		set the paint of this canvas to sheetPaint("text", "editmode-fill")
+		fill pIconPath on this canvas
+	else
+		drawIcon(pIconPath, pSelected)
+	end if
+end handler
+
 private handler drawLabel(in pLabel as String, in pRect as Rectangle, in pSelected as Boolean)
 	if pSelected then
 		set the paint of this canvas to my highlight paint
@@ -800,7 +863,7 @@ private handler drawLabel(in pLabel as String, in pRect as Rectangle, in pSelect
 end handler
 
 private handler drawEditModeLabel(in pLabel as String, in pRect as Rectangle)
-	set the paint of this canvas to getPaint("text","editmode-fill")
+	set the paint of this canvas to sheetPaint("text","editmode-fill")
 	set the font of this canvas to getFont("editmode-label")
 	fill text pLabel at left of pRect on this canvas
 end handler

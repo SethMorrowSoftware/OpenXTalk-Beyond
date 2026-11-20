@@ -1,0 +1,83 @@
+widget com.livecode.lcs_tests.core.engine_lcb.widget_array_kinds
+
+-- OXT-Beyond: a widget whose saved state holds Lists, as the one in
+-- HyperXTalk issue 447 does, for array-kinds.livecodescript. Its OnLoad
+-- puts each part of the state into a variable of the type it saved, so a
+-- state whose Lists came back as arrays does not load.
+
+private variable mItems as List
+private variable mLoaded as String
+private variable mItemsInfo as String
+
+property loadedItems get GetLoadedItems
+property loadedState get mLoaded
+-- What a value set crossed into LCB as, described as _array_kinds.lcb does
+property itemsInfo get mItemsInfo set SetItemsInfo
+
+public handler OnCreate()
+	put [1, [2, 3]] into mItems
+	put "created" into mLoaded
+end handler
+
+public handler OnSave(out rProperties as Array)
+	put the empty array into rProperties
+	put mItems into rProperties["items"]
+	put {"nested": ["a", "b"]} into rProperties["more"]
+end handler
+
+public handler OnLoad(in pProperties as Array)
+	variable tMore as Array
+	variable tNested as List
+	put pProperties["items"] into mItems
+	put pProperties["more"] into tMore
+	put tMore["nested"] into tNested
+	put "loaded" into mLoaded
+end handler
+
+private handler SetItemsInfo(in pValue as Array)
+	put KindOf(pValue) into mItemsInfo
+end handler
+
+private handler KindOf(in pValue as optional any) returns String
+	variable tParts as List
+	variable tJoined as String
+	if pValue is nothing then
+		return "nothing"
+	else if pValue is a list then
+		variable tList as List
+		variable tElement as optional any
+		put pValue into tList
+		repeat for each element tElement in tList
+			push KindOf(tElement) onto back of tParts
+		end repeat
+		combine tParts with "," into tJoined
+		return "list(" & tJoined & ")"
+	else if pValue is an array then
+		variable tArray as Array
+		variable tKeys as List
+		variable tKey as String
+		put pValue into tArray
+		put the keys of tArray into tKeys
+		sort tKeys in ascending text order
+		repeat for each element tKey in tKeys
+			push tKey & ":" & KindOf(tArray[tKey]) onto back of tParts
+		end repeat
+		combine tParts with "," into tJoined
+		return "array(" & tJoined & ")"
+	else if pValue is a string then
+		return "string"
+	else if pValue is a number then
+		return "number"
+	else if pValue is a boolean then
+		return "boolean"
+	end if
+	return "other"
+end handler
+
+private handler GetLoadedItems() returns String
+	variable tCount as Number
+	put the number of elements in mItems into tCount
+	return tCount formatted as string
+end handler
+
+end widget

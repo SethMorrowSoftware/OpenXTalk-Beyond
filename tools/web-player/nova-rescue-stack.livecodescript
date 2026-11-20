@@ -671,12 +671,17 @@ private command nrSettingsLook
          put mwIsFullScreen() into tFull
       end try
    end if
-   if tFull is true then
-      set the label of button "Full" to "FULL SCREEN: ON"
-   else
-      set the label of button "Full" to "FULL SCREEN: OFF"
-   end if
+   nrFullLook tFull is true
 end nrSettingsLook
+
+-- The full screen switch, on (pFull) or off
+private command nrFullLook pFull
+   if pFull then
+      set the label of button "Full" of card "Space" of me to "FULL SCREEN: ON"
+   else
+      set the label of button "Full" of card "Space" of me to "FULL SCREEN: OFF"
+   end if
+end nrFullLook
 
 private command nrSettingsNote pText
    set the text of field "Settings Note" to pText
@@ -2495,6 +2500,21 @@ on orientationChanged
    nrTiltTurned
    pass orientationChanged
 end orientationChanged
+
+-- The Mobile Web library's word that the browser gave the game the whole
+-- screen or took it back, whoever did it (the switch, the phone's back
+-- gesture, the browser itself): the switch says so now, where the page
+-- keeps its size and no resizeStack comes
+on fullScreenChanged pFull
+   nrFullLook pFull is true
+end fullScreenChanged
+
+-- A request for the whole screen that the browser refused after the call
+on fullScreenError pError
+   if sMode is "settings" then
+      set the text of field "Settings Note" of card "Space" of me to "The browser kept its bars this time."
+   end if
+end fullScreenError
 
 on trackingError pSensor, pError
    if pSensor is "acceleration" then

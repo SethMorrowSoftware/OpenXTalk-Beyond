@@ -223,7 +223,7 @@ keyboard message comes then.
 | `mwSensorReading(pSensor)`, `mwSensorAvailable(pSensor)` | a sensor's last reading, and whether the browser can read it |
 | `mwShare pText, pURL, pTitle` | opens the phone's share sheet (or copies, where there is none) |
 | `mwKeepAwake true` | keeps the screen on while the page is open |
-| `mwFullScreen true`, `mwIsFullScreen()` | hides the browser's bars, and shows them again |
+| `mwFullScreen true`, `mwIsFullScreen()` | hides the browser's bars, and shows them again: the card gets `fullScreenChanged pFull` when the stack gets the whole screen or loses it, whoever did it, and `fullScreenError pError` when the browser says no after the call |
 | `mwVibrate pMilliseconds` | buzzes the phone |
 
 ```
@@ -247,6 +247,10 @@ A browser keeps some of these for the user's own choice:
   supported`, `not available`), and the stack goes on: an iPhone cannot
   buzz or hide Safari's bars, for one. Called other than from a tap, the
   camera, the share sheet and the full screen say `not from a tap`.
+* On an iPad, the browser ends full screen when a text input has the
+  focus, so a stack in full screen gets no keys from a keyboard attached
+  to the iPad, and tapping a field brings up the keyboard and ends full
+  screen.
 * A stack for phones needs iOS 15 or later on an iPhone or an iPad (an
   iPhone 6s or newer), and WebAssembly: Lockdown Mode turns it off, and
   the page says so.
