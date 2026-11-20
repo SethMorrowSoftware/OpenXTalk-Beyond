@@ -285,7 +285,9 @@ class SharedNames(unittest.TestCase):
 
     def test_the_card_colour_is_what_the_check_looks_for(self):
         self.assertEqual(self.constant(self.player, 'kBackground'), '#%02X%02X%02X' % bp.CARD_COLOUR)
-        self.assertIn('set the backgroundColor of stack kPlayerName to kBackground', self.player)
+        self.assertIn('set the backgroundColor of this card of stack kPlayerName to kBackground', self.player)
+        # never the stack's: a stack that plays falls back on it for its colours
+        self.assertNotRegex(self.player, r'set the (background|foreground|hilite)Color of stack kPlayerName')
 
     def test_the_player_is_saved_seen(self):
         # Android draws nothing of a stack saved invisible
