@@ -6908,6 +6908,11 @@ on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
    put revIDEPaletteToStackName("message box") into tMB
+   -- opened again, it keeps the window it opened with. A moment after
+   -- each openStack its tWDTroubleshooting set the systemWindow, to the
+   -- value it had, and the engine made the window again: the Message Box
+   -- was drawn twice (bwmilby on the forum, 0.2.8-dp.2 on Linux)
+   tourMessageBoxOneWindow tMB
    tourShotStack tMB, "11-message-box"
    -- However often its card is laid out, one positionOpenStacksButton
    -- waits for it, and that one is delivered. Each layout sent one more,
@@ -6933,6 +6938,23 @@ on tour_message_box
    -- a palette, in front of the windows of the later steps
    close stack tMB
 end tour_message_box
+
+-- The Message Box, closed and opened again, has the window it opened
+-- with once the messages its openStack sent have been delivered. (The
+-- second open is the one checked: by then the stack has the systemWindow
+-- of its platform and the preferences, which the first may have to set.)
+private command tourMessageBoxOneWindow pMB
+   local tOpened, tSettled
+   close stack pMB
+   revIDEOpenPalette "message box"
+   put the windowId of stack pMB into tOpened
+   tourWait 500
+   put the windowId of stack pMB into tSettled
+   tourRecord "INFO message-box opened with window" && tOpened && "and has" && tSettled && "half a second later"
+   if tSettled is not tOpened then
+      throw "the Message Box's window was made again after it opened (" & tOpened && "then" && tSettled & "): it is drawn twice"
+   end if
+end tourMessageBoxOneWindow
 
 -- how many positionOpenStacksButton messages wait
 function tourMessageBoxWaiting

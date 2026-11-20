@@ -45,7 +45,14 @@ on tWDTroubleshooting
    
    lock screen
    if the cMsgboxSysWin of stack "revPreferences" is empty then set the cMsgboxSysWin of stack "revPreferences" to false
-   set the systemwindow of this stack to the cMsgboxSysWin of stack "revPreferences"
+   -- OXT-Beyond: set only when it differs. Setting a decoration makes the
+   -- window again, also to the value it has, which drew the Message Box
+   -- twice at every open. Windows gets true whatever the preference says,
+   -- as the last line of this handler gave it
+   local tSystemWindow
+   put the cMsgboxSysWin of stack "revPreferences" into tSystemWindow
+   if the platform contains "win" then put true into tSystemWindow
+   if the systemwindow of this stack is not tSystemWindow then set the systemwindow of this stack to tSystemWindow
    --
    if the cMsgboxTopLevel of stack "revPreferences" is empty then set the cMsgboxTopLevel of stack "revPreferences" to false
    set the toplevel of this stack to the cMsgboxTopLevel of stack "revPreferences"
@@ -54,7 +61,7 @@ on tWDTroubleshooting
    unlock screen
    -- debug
    -- put "systemwindow: " & the systemwindow of stack "message box" & return & "toplevel: " & the toplevel of stack "message box"
-   if the platform contains "win" then set the systemwindow of this stack to true
+   -- OXT-Beyond: Windows gets its true above, before the one set
    
 end tWDTroubleshooting
 
