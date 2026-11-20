@@ -818,11 +818,10 @@ private function __revShellPath pPath, pIsDestination
    local tLiteral, tParent
    put (there is a file pPath) or (there is a folder pPath) into tLiteral
    if not tLiteral and pIsDestination then
+      -- (a bare name that is not there stays the shell's: "$HOME" alone
+      -- as a destination is the home folder, as it always was)
       set the itemDelimiter to slash
-      if the number of items of pPath < 2 then
-         -- a bare name, in the current folder
-         put true into tLiteral
-      else
+      if the number of items of pPath >= 2 then
          put item 1 to -2 of pPath into tParent
          if tParent is empty then put slash into tParent
          put there is a folder tParent into tLiteral

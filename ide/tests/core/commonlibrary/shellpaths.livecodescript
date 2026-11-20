@@ -99,6 +99,11 @@ on TestAPathForTheShellIsStillTheShells
    create folder (sFolder & "/home")
    put sFolder & "/home" into $HOME
    revCopyFile "$HOME/../from.txt", "$HOME/to.txt"
+   -- and as the whole destination, a folder to copy into
+   revCopyFile sFolder & "/from.txt", "$HOME"
    put tOldHome into $HOME
    TestAssert "$HOME in a path is still expanded", there is a file (sFolder & "/home/to.txt")
+   TestAssert "$HOME alone as the destination is still the home folder", \
+         there is a file (sFolder & "/home/from.txt")
+   TestAssert "and no file of that name was made", there is not a file "$HOME"
 end TestAPathForTheShellIsStillTheShells
