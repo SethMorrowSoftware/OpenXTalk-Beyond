@@ -143,6 +143,23 @@ on startup
       put shell("echo oxt") into tShell
       check "shell", word 1 of tShell is "oxt", word 1 of tShell
 
+      -- Engine crashes inherited from LiveCode Community 9.6.3: each of
+      -- these ended the engine, so reaching the next line is the check.
+      -- This script runs with no display on Linux and no stack on screen,
+      -- which two of them need.
+      local tCrash
+      put the penBack of me & the fillBack of me into tCrash
+      check "penBack and fillBack of an object", tCrash is empty, tCrash
+      put hostAddressToName(empty) into tCrash
+      check "hostAddressToName of empty", tCrash is empty and the result is "invalid host address", tCrash && the result
+      open socket to empty
+      check "open socket to empty", the result is not empty, the result
+      put topStack(1) & topWindow(1) into tCrash
+      check "topStack and topWindow of a number", true, tCrash
+      put the screenPixelScale into tCrash
+      check "screenPixelScale", tCrash is a number and tCrash > 0, tCrash
+      check "format of a number above 32 bits", format("%d", 3000000000) is "3000000000", format("%d", 3000000000)
+
       -- Externals: revDB, revXML and revZip (on macOS, bundles)
       set the externals of the templateStack to tExternals & "/revdb" & tSuffix & return & tExternals & "/revxml" & tSuffix & return & tExternals & "/revzip" & tSuffix
       create stack "oxt_smoke_test_externals"

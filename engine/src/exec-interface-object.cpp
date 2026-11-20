@@ -2148,7 +2148,10 @@ void MCObject::SetFocusPixel(MCExecContext& ctxt, uinteger_t* pixel)
 
 void MCObject::GetPenBackColor(MCExecContext& ctxt, MCValueRef& r_value)
 {
-	 // NO OP
+	// OXT-Beyond: the property does nothing, but a read of it must still
+	// give a value: left unset, "the penBack of button 1" crashed the engine
+	// (LiveCode Community 9.6.3 too). Empty, as the global penBack gives.
+	r_value = MCValueRetain(kMCEmptyString);
 }
 
 void MCObject::SetPenBackColor(MCExecContext& ctxt, MCValueRef r_value)
@@ -2158,7 +2161,8 @@ void MCObject::SetPenBackColor(MCExecContext& ctxt, MCValueRef r_value)
 
 void MCObject::GetBrushBackColor(MCExecContext& ctxt, MCValueRef& r_value)
 {
-	// NO OP
+	// OXT-Beyond: as GetPenBackColor.
+	r_value = MCValueRetain(kMCEmptyString);
 }
 
 void MCObject::SetBrushBackColor(MCExecContext& ctxt, MCValueRef r_value)

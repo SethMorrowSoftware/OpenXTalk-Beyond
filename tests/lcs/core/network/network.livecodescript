@@ -366,3 +366,35 @@ on TestAcceptConnectionsInEphemeralPortRange
    close socket tSocket
    close socket tPort
 end TestAcceptConnectionsInEphemeralPortRange
+
+-- OXT-Beyond: a socket name or an address with no host before its colon
+-- ("", ":80", "::1") crashed the engine in open socket and in
+-- hostAddressToName (LiveCode Community 9.6.3 too).
+on TestHostAddressToNameWithNoHost
+   TestAssert "hostAddressToName of empty is empty", hostAddressToName(empty) is empty
+   TestAssert "hostAddressToName of empty sets the result", the result is "invalid host address"
+   TestAssert "hostAddressToName of a port alone is empty", hostAddressToName(":80") is empty
+   TestAssert "hostAddressToName of an IPv6 address is empty", hostAddressToName("::1") is empty
+   TestAssert "hostAddressToName of a bad address is empty, as before", hostAddressToName("999.1.1.1") is empty
+   TestAssert "hostAddressToName of a bad address sets the result, as before", the result is "invalid host address"
+end TestHostAddressToNameWithNoHost
+
+on TestOpenSocketWithNoHost
+   local tBefore
+   put the openSockets into tBefore
+
+   open socket to empty
+   TestAssert "open socket to empty reports an error", the result is not empty
+   TestAssert "open socket to empty opens nothing", the openSockets is tBefore
+
+   open socket to ":8099"
+   TestAssert "open socket to a port alone reports an error", the result is not empty
+   TestAssert "open socket to a port alone opens nothing", the openSockets is tBefore
+
+   open datagram socket to ":8099"
+   TestAssert "open datagram socket to a port alone reports an error", the result is not empty
+
+   open socket to ":8099" with message "socketOpened"
+   TestAssert "open socket with message to a port alone reports an error", the result is not empty
+   TestAssert "open socket with message to a port alone opens nothing", the openSockets is tBefore
+end TestOpenSocketWithNoHost
