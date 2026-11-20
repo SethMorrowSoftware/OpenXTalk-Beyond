@@ -1,3 +1,0 @@
-- HyperCard import: FileModDate gives its seconds as the seconds function counts them in the stack that asks, from 1904 in local time in an imported stack, so that `convert FileModDate(...) to date` gives the file's date and not one in 1960 (a date of the disk image the stack came from is taken as HFS keeps it, from 1904 in its Mac's local time) (new in this release's HyperCard Library, so no stack depends on the old count) (#524)
-- HyperCard import: FSound() gives the name of the sound playing ("boing"), as Farallon's external did, where it gave this engine's audioclip "boing"; the new hcSoundName makes the one the other (#524)
-- Tests: TestHyperCardScriptsFileModDateSeconds, TestHyperCardScriptsSoundName (#524)

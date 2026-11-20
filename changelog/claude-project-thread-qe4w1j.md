@@ -1,4 +1,0 @@
-- CI: a merge to main no longer cancels main's Windows, macOS or Linux build that is still running (the preview installers and the release's builds come from it); GitHub keeps only the newest waiting build behind it (#541)
-- CI: a draft pull request's newest commit carries a pending "Platform builds" status (draft-status.yml), so a draft whose platform builds were skipped never shows all green; it turns to success when the pull request is marked ready (#541)
-- CI: the unit tests of the CI scripts on Windows and macOS run only when a script or a workflow changes (ci-checks-other-os.yml), not on every commit; the Linux run stays on every pull request (#541)
-- Tests: tools/ci/tests/test_draft_status.py runs the status step; test_build_paths.py and test_ci_checks.py hold the main build's concurrency and where the Windows and macOS tests run (#541)

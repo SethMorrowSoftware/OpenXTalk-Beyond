@@ -17,8 +17,8 @@ gradient, "Make It So" in slanted gold after a drawn sparkle, and the
 line "Say it in xTalk. Make it so." The splash's logo has the same
 burst, and its pill says "MAKE IT SO" in gold (no Star Trek logos or
 art; the name is a wink). The number is the version without its
-pre-release part, so 0.2.8-dp.1, which keeps the name and the art,
-shows "0.2.8". 0.2.7's release candidates,
+pre-release part, so 0.2.8-dp.1 and 0.2.8-dp.2, which keep the name and
+the art, show "0.2.8". 0.2.7's release candidates,
 frozen for play testing, had the "Bug Hunt" drawings there (and on the
 splash screens until rc.6.13): a friendly teal beetle caught under an
 orange-handled magnifying glass, over a trail of footprints, on a
