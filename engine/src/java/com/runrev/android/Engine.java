@@ -2128,10 +2128,11 @@ public class Engine extends View implements EngineApi
     // OXT-Beyond: whether Android knows a permission of this name. Android 10
     // and newer put most permissions in no permission group (INTERNET,
     // ACCESS_NETWORK_STATE, ...), so a walk of the groups alone answered
-    // false for them, and androidHasPermission and androidRequestPermission
-    // threw "bad permission name". The package manager is asked of the
-    // name first; the walk of the groups stays after it, so that no name it
-    // knew is answered false now.
+    // false for them, androidHasPermission returned empty and
+    // androidRequestPermission asked for nothing (the engine's "bad
+    // permission name" error stops no script on Android). The package
+    // manager is asked of the name first; the walk of the groups stays
+    // after it, so that no name it knew is answered false now.
     public boolean checkPermissionExists(String p_permission)
     {
         if (Build.VERSION.SDK_INT >= 23)

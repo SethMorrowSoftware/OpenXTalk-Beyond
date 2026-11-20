@@ -1933,7 +1933,7 @@ class OneSystem(unittest.TestCase):
     def test_a_permission_in_no_group_exists(self):
         # Android 10 and newer list most permissions in no permission group
         # (INTERNET), so a walk of the groups alone said they did not exist
-        # and androidHasPermission threw "bad permission name": the package
+        # and androidHasPermission returned empty for them: the package
         # manager is asked of the name first, and the walk is still done
         # after it, so no name the walk knew is answered false now
         engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')

@@ -236,9 +236,9 @@ PERMISSION_EXISTS = {
     'code com/runrev/android/Engine.checkPermissionExists:(Ljava/lang/String;)Z':
         'the package manager is asked of the name first (permissionIsKnown, getPermissionInfo), and the walk of '
         'the permission groups is done only when it does not know it: Android 10 and newer list most permissions '
-        'in no group (INTERNET, ACCESS_NETWORK_STATE), so the walk alone answered false for them, and '
-        'androidHasPermission and androidRequestPermission threw "bad permission name". A name either way knew '
-        'is answered true as before, and one neither knows false',
+        'in no group (INTERNET, ACCESS_NETWORK_STATE), so the walk alone answered false for them, '
+        'androidHasPermission returned empty and androidRequestPermission asked for nothing. A name either way '
+        'knew is answered true as before, and one neither knows false',
 }
 
 # compare: what a build from this repository's sources does differently
