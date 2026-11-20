@@ -84,8 +84,11 @@ pi_archive_keyring() {
   arch=$(dpkg --print-architecture)
   mkdir -p "$dir"
   # (--retry-all-errors: --retry alone does not try again after a reset
-  # connection, curl's error 56; tools/ci/tests/test_curl_retries.py)
-  curl -fsSL --retry 5 --retry-all-errors "$base/raspberrypi.gpg.key" | gpg --dearmor > "$dir/key.gpg" || return 1
+  # connection, curl's error 56; tools/ci/tests/test_curl_retries.py. Into
+  # a file, never a pipe: curl starts a file again for a try after a
+  # partial one, and a pipe would get both, which gpg refuses)
+  curl -fsSL --retry 5 --retry-all-errors "$base/raspberrypi.gpg.key" -o "$dir/key.asc" || return 1
+  gpg --dearmor < "$dir/key.asc" > "$dir/key.gpg" || return 1
   curl -fsSL --retry 5 --retry-all-errors "$base/dists/$release/InRelease" -o "$dir/InRelease" || return 1
   gpgv --keyring "$dir/key.gpg" --output "$dir/Release" "$dir/InRelease" 2> "$dir/gpgv.txt" || { cat "$dir/gpgv.txt" >&2; return 1; }
   # the first index InRelease lists, of this architecture's or "all",

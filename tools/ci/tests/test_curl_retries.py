@@ -100,6 +100,15 @@ class CurlRetries(unittest.TestCase):
         for path, n, command in downloads():
             self.assertIn('--retry-all-errors', command, '%s:%d: %s' % (path, n, command))
 
+    def test_every_download_goes_into_a_file(self):
+        # (curl starts an -o file again for a try after a partial one; a
+        # pipe or a > keeps what the failed try sent, and gets the whole
+        # again after it: the Raspberry Pi archive's key went through a
+        # pipe to gpg --dearmor, which refuses that; #599's review)
+        for path, n, command in downloads():
+            self.assertRegex(command, r'\s-o\s', '%s:%d: %s' % (path, n, command))
+            self.assertIsNone(re.search(r'(?<![|])[|>](?![|])', command), '%s:%d: %s' % (path, n, command))
+
     def test_an_error_page_is_an_error(self):
         # (-f: an HTTP error is curl's error, not a file of its page, so it
         # is tried again and then fails the step)
