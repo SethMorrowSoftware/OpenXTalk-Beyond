@@ -2,7 +2,7 @@ Name: is strictly
 
 Type: operator
 
-Syntax: <value> is strictly { nothing | a boolean | an integer | a real | a string | a binary string | an array }
+Syntax: <value> is strictly { nothing | a boolean | an integer | a real | a string | a binary string | an array | a sequence | a dictionary }
 
 Summary:
 Evaluates to true if the actual type of <value> is the specified type.
@@ -25,6 +25,12 @@ Example:
 Example:
 the compress of "Hello World!" is strictly a binary string -- evaluates to true
 
+Example:
+{"1": "a", "2": "b"} is strictly a dictionary -- evaluates to true
+
+Example:
+(1 as an integer) is strictly an integer -- evaluates to true; 1 alone is a string
+
 Parameters:
 value:
 The expression which will be tested for its type.
@@ -43,6 +49,21 @@ coercion. The true type of a value can be one of the following:
 * string: a piece of text (sequence of characters)
 * binary string: a sequence of bytes
 * array: an associative array
+* sequence: an array that <is a> sequence (keys 1 to N, or an empty
+  array marked as one) and was not marked as a dictionary
+* dictionary: an array that was marked as a dictionary, or that has
+  elements and is not a sequence
+
+An array can carry LiveCode 11's mark of a sequence or a dictionary. A
+literal `[...]` is marked as a sequence and a literal `{...}` as a
+dictionary; <as> marks an array (`as a sequence`, `as a dictionary`)
+or takes the mark off (`as an array`); a List that a LiveCode Builder
+handler returns is marked as a sequence. Changing an array's elements
+keeps its mark. Only `is strictly a sequence`, `is strictly a
+dictionary`, `is a sequence`, `is a dictionary`, the JSON Codec
+library's `jsonEncode` with its option `marks`, and the
+<sequencesAsLists> <property> read it: comparing arrays with `is`
+ignores it, and it is not saved with a stack or kept by <arrayEncode>.
 
 
 The <is strictly> operator differs from <is a> in that it does not
@@ -51,6 +72,11 @@ true if `x` is truly an integer or if it is a string which can be parsed
 as an integer; whereas `x is strictly an integer` only returns true if
 `x` is currently an integer (and not a string).
 
+Changes:
+The sequence and dictionary forms were added in OXT-Beyond
+0.2.8-dp.3, from LiveCode 11.
+
 References: is not strictly (operator), is a (operator),
-is not a (operator)
+is not a (operator), as (operator), arrayEncode (function),
+sequencesAsLists (property)
 

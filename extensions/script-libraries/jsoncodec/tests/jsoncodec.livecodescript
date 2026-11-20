@@ -620,6 +620,83 @@ on TestJSONTestSuite
 end TestJSONTestSuite
 
 --------------------------------------------------------------------------------
+-- Kinds of array: LiveCode 11's marks of a sequence and a dictionary
+--------------------------------------------------------------------------------
+
+on TestDecodeMarksArraysAndObjects
+   local tData, tPlain
+   put jsonDecode(q("[1, {'1': 'a'}, [], {}, {'k': [2]}]")) into tData
+   TestAssert "a JSON array is strictly a sequence", tData is strictly a sequence
+   TestAssert "an object keyed 1 is strictly a dictionary", tData[2] is strictly a dictionary
+   TestAssert "an empty array is empty, as before", \
+         tData[3] is empty and tData[3] is not a sequence and tData[3] is not an array
+   TestAssert "an empty object is empty, as before", \
+         tData[4] is empty and tData[4] is not a dictionary
+   TestAssert "a JSON array deeper down", tData[5]["k"] is strictly a sequence
+   put "a" into tPlain[1]
+   TestAssert "a marked array is equal to an unmarked one", tData[2] is tPlain
+   TestAssert "and dumps the same", dump(tData[2]) is dump(tPlain)
+   put jsonDecodeWithShape(q("{'1': 'a'}"), tPlain) into tData
+   TestAssert "jsonDecodeWithShape marks too", tData is strictly a dictionary
+end TestDecodeMarksArraysAndObjects
+
+on TestEncodeReadsMarksOnlyWhenAsked
+   local tPlain, tShape
+   TestAssert "a dictionary keyed 1 to N is guessed a sequence, as before", \
+         jsonEncode({"1": "a", "2": "b"}) is q("['a','b']")
+   TestAssert "an empty sequence is guessed a string, as before", jsonEncode([]) is q("''")
+   TestAssert "with marks, a dictionary keyed 1 to N is an object", \
+         jsonEncode({"1": "a", "2": "b"}, empty, "marks") is q("{'1':'a','2':'b'}")
+   TestAssert "with marks, an empty sequence is []", jsonEncode([], empty, "marks") is "[]"
+   TestAssert "with marks, an empty dictionary is {}", jsonEncode({}, empty, "marks") is "{}"
+   TestAssert "with marks, deeper down", \
+         jsonEncode({"a": [], "b": {}, "c": {"1": [1]}}, empty, "marks") is \
+         q("{'a':[],'b':{},'c':{'1':[1]}}")
+   put "a" into tPlain[1]
+   TestAssert "with marks, an array with no mark is guessed", \
+         jsonEncode(tPlain, empty, "marks") is q("['a']")
+   TestAssert "with marks, empty text is guessed", jsonEncode(empty, empty, "marks") is q("''")
+   jsonSetKind tShape, empty, "sequence"
+   TestAssert "the shape comes before the mark", \
+         jsonEncode({"1": "a"}, tShape, "marks") is q("['a']")
+   TestAssert "an unknown option is refused", __EncodeError("sorted") contains "unknown option"
+end TestEncodeReadsMarksOnlyWhenAsked
+
+on TestRoundTripWithMarks
+   local tJSON
+   put q("{'list':[1,'x'],'object':{'1':'y','2':'z'},'nested':[{'2':3}]}") into tJSON
+   TestAssert "decoding and encoding with marks keeps arrays and objects", \
+         jsonEncode(jsonDecode(tJSON), empty, "marks") is \
+         q("{'list':[1,'x'],'nested':[{'2':3}],'object':{'1':'y','2':'z'}}")
+   TestAssert "a value changed in script keeps its mark", \
+         jsonEncode(__AddedTo(jsonDecode(q("{'1':'a'}"))), empty, "marks") is q("{'1':'a','2':'b'}")
+end TestRoundTripWithMarks
+
+on TestGuessShapeWithMarks
+   TestAssert "without marks, a dictionary keyed 1 is guessed a sequence", \
+         jsonKindOf(jsonGuessShape({"1": "a"}), empty) is "sequence"
+   TestAssert "with marks it is a dictionary", \
+         jsonKindOf(jsonGuessShape({"1": "a"}, "marks"), empty) is "dictionary"
+   TestAssert "with marks an empty sequence is a sequence", \
+         jsonKindOf(jsonGuessShape({"e": []}, "marks"), "e") is "sequence"
+end TestGuessShapeWithMarks
+
+private function __EncodeError pOptions
+   local tError
+   try
+      get jsonEncode("x1", empty, pOptions)
+   catch tError
+      return tError
+   end try
+   return empty
+end __EncodeError
+
+private function __AddedTo pArray
+   put "b" into pArray[2]
+   return pArray
+end __AddedTo
+
+--------------------------------------------------------------------------------
 -- What was there before is untouched
 --------------------------------------------------------------------------------
 

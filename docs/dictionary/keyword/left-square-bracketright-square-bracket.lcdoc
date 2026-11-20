@@ -63,6 +63,13 @@ value, keys being compared as the <caseSensitive> says, and a key that
 is an array with elements is an error. A literal can be written over
 more than one line only with a "\" at the end of each line but the last.
 
+A literal array carries the mark of its kind, as LiveCode 11's do: one
+written with square brackets <is strictly> a sequence, even when it is
+empty, and one written with curly brackets is strictly a dictionary,
+even when its keys are 1 to N. Only the operators that ask for the mark
+see it (see <is strictly> and <as>): `[]` is still empty, and
+`{"1": "a"}` is still equal to `["a"]`.
+
 A square bracket after a variable's name is still that variable's key,
 with or without a space before it: `put tA [1] into tB` puts `tA[1]`
 into `tB`.
@@ -89,7 +96,8 @@ into `tB`.
 References: split (command), do (command), send (command),
 arrayEncode (function), merge (function), value (function),
 caseSensitive (property), array (glossary), variable (glossary),
-error (glossary), key (glossary), element (keyword), () (operator)
+error (glossary), key (glossary), element (keyword), () (operator),
+is strictly (operator), as (operator)
 
 Tags: properties
 

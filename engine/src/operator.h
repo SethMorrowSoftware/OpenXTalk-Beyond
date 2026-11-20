@@ -525,4 +525,47 @@ private:
     Match_mode m_mode;
 };
 
+// OXT-Beyond: LiveCode 11's conversions, "<value> as a <kind>": a value of
+// that kind, or an error where the value cannot be one. "as a sequence"
+// and "as a dictionary" give an array marked so (MCArrayKindMark), "as an
+// array" one with no mark, and "as a name", "as a string", "as a binary
+// string", "as a number", "as an integer" and "as a boolean" a value of
+// that type, which "is strictly" then names. It takes the value just
+// before it, as a function's parameters do: "1 + 2 as a string" is "1 + (2
+// as a string)". "as" is no keyword: MCScriptPoint::parseexp makes this
+// only where it follows an operand and "a" or "an" and a kind follow it
+// (MCAsType::isahead), and only where what holds it did not compile
+// without it (MCNewSyntax)
+class MCAsType : public MCBinaryOperator
+{
+public:
+    enum Kind
+    {
+        kKindArray,
+        kKindSequence,
+        kKindDictionary,
+        kKindName,
+        kKindString,
+        kKindBinaryString,
+        kKindNumber,
+        kKindInteger,
+        kKindBoolean,
+    };
+
+    MCAsType(void)
+    {
+        rank = FR_VALUE;
+        m_kind = kKindArray;
+    }
+    virtual Parse_stat parse(MCScriptPoint&, Boolean the);
+    virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
+
+    // Whether the token sp has just read is "as", and "a" or "an" and a
+    // kind come next
+    static bool isahead(MCScriptPoint &sp);
+
+private:
+    Kind m_kind;
+};
+
 #endif
