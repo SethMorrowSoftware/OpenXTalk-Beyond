@@ -862,10 +862,14 @@ end TestPenBackAndFillBackOfAnObject
 -- OXT-Beyond: with no display, the screenPixelScale crashed the engine
 -- (LiveCode Community 9.6.3 too); with one it is that display's scale.
 on TestScreenPixelScaleIsANumber
-   TestAssert "the screenPixelScale is a number", the screenPixelScale is a number and the screenPixelScale > 0
+   local tScale
+   put the screenPixelScale into tScale
+   TestAssert "the screenPixelScale is a number", tScale is a number and tScale > 0
 end TestScreenPixelScaleIsANumber
 
 on TestTopStackOfANumber
-   TestAssert "topStack(1) names a stack or is empty", topStack(1) is empty or word 1 of topStack(1) is "stack"
+   local tTop
+   put topStack(1) into tTop
+   TestAssert "topStack(1) names a stack or is empty", tTop is empty or word 1 of tTop is "stack"
    TestAssert "topStack past the last stack is empty", topStack(60000) is empty
 end TestTopStackOfANumber

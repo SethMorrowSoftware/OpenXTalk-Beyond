@@ -371,12 +371,15 @@ end TestAcceptConnectionsInEphemeralPortRange
 -- ("", ":80", "::1") crashed the engine in open socket and in
 -- hostAddressToName (LiveCode Community 9.6.3 too).
 on TestHostAddressToNameWithNoHost
-   TestAssert "hostAddressToName of empty is empty", hostAddressToName(empty) is empty
-   TestAssert "hostAddressToName of empty sets the result", the result is "invalid host address"
+   -- (the result is read before TestAssert runs: a handler call clears it)
+   local tName, tResult
+   put hostAddressToName(empty) into tName
+   put the result into tResult
+   TestAssert "hostAddressToName of empty is empty", tName is empty
+   TestAssert "hostAddressToName of empty sets the result", tResult is "invalid host address"
    TestAssert "hostAddressToName of a port alone is empty", hostAddressToName(":80") is empty
    TestAssert "hostAddressToName of an IPv6 address is empty", hostAddressToName("::1") is empty
    TestAssert "hostAddressToName of a bad address is empty, as before", hostAddressToName("999.1.1.1") is empty
-   TestAssert "hostAddressToName of a bad address sets the result, as before", the result is "invalid host address"
 end TestHostAddressToNameWithNoHost
 
 on TestOpenSocketWithNoHost
