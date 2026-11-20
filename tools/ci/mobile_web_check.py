@@ -650,16 +650,22 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
         # a tap on the button takes it (mwFullScreen, asked from the tap)
         # and a second tap gives the bars back (mwIsFullScreen says which
         # to ask for); where it has none (an iPhone's Safari, Playwright's
-        # WebKit) the stack says so. The button's label is not looked at
-        # while the screen is whole: it follows at the stack's next layout
-        # (a phone's browser gives the page more room as its bars go), and
-        # the emulated browser keeps the page's size and will not be given
-        # another while its screen is whole
+        # WebKit) the stack says so. The button's label follows the screen
+        # by the library's fullScreenChanged: the emulated browser keeps
+        # the page's size while its screen is whole, so no resizeStack
+        # comes to lay the card out again (until 0.2.8-dp.2 the label said
+        # "Full screen" all the while). Then a request the browser refuses
+        # after the call (its promise rejected, as an iPad's Safari can):
+        # the stack says so, by the library's fullScreenError, where it
+        # said nothing
         def whole_screen():
             return page.evaluate("() => !!(document.fullscreenElement || document.webkitFullscreenElement)")
 
         def cannot(s):
             return s.get('phonesaid', '').startswith('This browser cannot hide its bars')
+
+        def refused(s):
+            return s.get('phonesaid', '') == 'The browser kept its bars this time.'
 
         can = page.evaluate("""() => { var el = document.documentElement;
             return !!(el.requestFullscreen || el.webkitRequestFullscreen) && document.fullscreenEnabled !== false; }""")
@@ -667,12 +673,14 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
                not whole_screen() and labels(s).get('Full') == 'Full screen', dict(s, whole=whole_screen()))
         press('Full')
         if can:
-            s = wait_for(page, lambda s: whole_screen() or cannot(s))
+            s = wait_for(page, lambda s: (whole_screen() and labels(s).get('Full') == 'Show the bars') or cannot(s))
             expect('"Full screen" takes the whole screen from a tap (mwFullScreen)',
                    whole_screen() and not cannot(s), dict(s, whole=whole_screen()))
+            expect('and the button then asks for the bars back, though the page kept its size (fullScreenChanged)',
+                   labels(s).get('Full') == 'Show the bars', dict(s, whole=whole_screen()))
             shot('7-full-screen')
             press('Full')
-            s = wait_for(page, lambda s: not whole_screen())
+            s = wait_for(page, lambda s: not whole_screen() and labels(s).get('Full') == 'Full screen')
             expect('a second tap gives the bars back (mwIsFullScreen)',
                    not whole_screen() and not cannot(s) and labels(s).get('Full') == 'Full screen',
                    dict(s, whole=whole_screen()))
@@ -680,6 +688,16 @@ def check_device(playwright, browser_name, device, url, timeout, shots, touch='a
                 # (said above: the steps after this one need the page's own size)
                 page.evaluate("() => (document.exitFullscreen || document.webkitExitFullscreen).call(document)")
                 wait_for(page, lambda s: not whole_screen())
+            # the browser says no only after the call returned
+            page.evaluate("""() => { var el = document.documentElement;
+                el.__oxtAsk = el.requestFullscreen;
+                el.requestFullscreen = function() { return Promise.reject(new TypeError('Permissions check failed')); }; }""")
+            press('Full')
+            s = wait_for(page, lambda s: refused(s) or cannot(s))
+            page.evaluate("() => { var el = document.documentElement; el.requestFullscreen = el.__oxtAsk; }")
+            expect('a request the browser refuses after the call is said (fullScreenError)',
+                   refused(s) and not cannot(s) and not whole_screen() and labels(s).get('Full') == 'Full screen',
+                   dict(s, whole=whole_screen()))
         else:
             s = wait_for(page, cannot)
             expect('"Full screen" says that this browser cannot hide its bars',

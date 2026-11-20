@@ -1540,6 +1540,17 @@ void MCEngineGetWholeMatches(MCExecContext& ctxt, bool& r_value)
 	r_value = ctxt . GetWholeMatches();
 }
 
+// OXT-Beyond: the handler-local sequencesAsLists (MCExecContext)
+void MCEngineSetSequencesAsLists(MCExecContext& ctxt, bool p_value)
+{
+	ctxt . SetSequencesAsLists(p_value);
+}
+
+void MCEngineGetSequencesAsLists(MCExecContext& ctxt, bool& r_value)
+{
+	r_value = ctxt . GetSequencesAsLists();
+}
+
 void MCEngineSetUseSystemDate(MCExecContext& ctxt, bool p_value)
 {
 	ctxt . SetUseSystemDate(p_value);

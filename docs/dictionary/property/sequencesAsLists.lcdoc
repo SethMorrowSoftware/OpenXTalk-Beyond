@@ -1,0 +1,70 @@
+Name: sequencesAsLists
+
+Type: property
+
+Syntax: set the sequencesAsLists to {true | false}
+
+Summary:
+Specifies whether arrays marked as sequences go into LiveCode Builder
+as Lists.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android, html5
+
+Platforms: desktop, server, mobile
+
+Example:
+set the sequencesAsLists to true
+set the points of widget "Chart" to {"series": [3, 1, 4]} -- "series" is a List
+
+Example:
+-- Copy a widget whose saved state holds Lists
+local tState
+export widget "Original" to array tState
+set the sequencesAsLists to true
+import widget from array tState
+
+Value:
+The <sequencesAsLists> is true or false. It is false when a <handler>
+starts.
+
+Description:
+A LiveCode Builder List comes into script as an array keyed 1 to N,
+marked as a sequence (see <is strictly>). Going back into LiveCode
+Builder, an array is an Array, whatever is in it, except where a
+handler's parameter or a property is itself a List, so a List inside an
+Array arrives as an Array.
+
+Set the <sequencesAsLists> to true to have every array marked as a
+sequence go into LiveCode Builder as a List, however deep it is: to a
+LiveCode Builder handler's parameters, to a widget's properties, and to
+the state that <import> `widget from array` gives to the widget's
+`OnLoad` handler. That last is what lets a widget whose saved state
+holds Lists be copied with <export> and <import>, as it is when its
+stack is saved and opened. An array that is marked as a dictionary, or
+has no mark, or whose keys are no longer 1 to N, still goes in as an
+Array.
+
+An array is marked as a sequence when it is written `[...]`, converted
+with `as a sequence`, or came from a List; see <as>.
+
+Since the <sequencesAsLists> is a local <property>, its value is
+reset to false when the current <handler> finishes executing. It
+retains its value only for the current <handler>, and setting it in one
+<handler> does not affect its value in other <handlers> it calls.
+
+`sequencesAsLists` is not a reserved word: a <variable>, a <handler> or
+a <custom property> named `sequencesAsLists` works as it always has,
+and `the sequencesAsLists of` an <object> is that object's
+<custom property>.
+
+Changes:
+Added in OXT-Beyond 0.2.8-dp.3.
+
+References: as (operator), is strictly (operator), export (command),
+import (command), handler (glossary), handlers (glossary),
+property (glossary), custom property (glossary), variable (glossary),
+object (glossary)
+
+Tags: properties

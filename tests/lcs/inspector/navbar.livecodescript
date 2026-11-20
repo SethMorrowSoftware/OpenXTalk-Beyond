@@ -8,7 +8,9 @@ script "TestInspectorNavBar"
 -- the property's info, then editorInitialize.
 --
 -- The editor is a navigation bar widget in its edit mode, which draws a
--- white sheet with black labels in either appearance, a row of 50 points
+-- white sheet with black labels in the light appearance (in the dark one
+-- a dark sheet with light labels and icons, which the IDE tour checks: the
+-- engine's tests run in the light one), a row of 50 points
 -- for each item: its label, its icon, its highlighted icon and three
 -- actions. It draws the icon in the widget's foreground colour. The
 -- editor's widget had none of its own, so the icon took the Inspector's

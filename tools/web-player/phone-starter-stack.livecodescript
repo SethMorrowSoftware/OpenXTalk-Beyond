@@ -302,18 +302,22 @@ private command psPlacePhoto
    set the loc of image "Photo" to the loc of graphic "Frame"
 end psPlacePhoto
 
--- A button that is on (filled) or off (soft), with its label for each
+-- A button of the Phone card that is on (filled) or off (soft), with its
+-- label for each (named with its card, for a message that comes while
+-- another card is shown)
 private command psToggleLook pButton, pOn, pOffLabel, pOnLabel
+   local tButton
+   put the long id of button pButton of card "Phone" of me into tButton
    if pOn then
-      set the backgroundColor of button pButton to kAccent
-      set the borderColor of button pButton to kAccent
-      set the textColor of button pButton to "#FFFFFF"
-      set the label of button pButton to pOnLabel
+      set the backgroundColor of tButton to kAccent
+      set the borderColor of tButton to kAccent
+      set the textColor of tButton to "#FFFFFF"
+      set the label of tButton to pOnLabel
    else
-      set the backgroundColor of button pButton to kSoft
-      set the borderColor of button pButton to kSoft
-      set the textColor of button pButton to kSoftText
-      set the label of button pButton to pOffLabel
+      set the backgroundColor of tButton to kSoft
+      set the borderColor of tButton to kSoft
+      set the textColor of tButton to kSoftText
+      set the label of tButton to pOffLabel
    end if
 end psToggleLook
 
@@ -525,7 +529,7 @@ end psSayFingers
 -- The Phone card ---------------------------------------------------------
 
 private command psSay pText
-   set the text of field "Phone Said" to pText
+   set the text of field "Phone Said" of card "Phone" of me to pText
 end psSay
 
 command psPhone pWhat
@@ -671,6 +675,20 @@ on accelerationChanged pX, pY, pZ
    put tVX, tVY into sBallSpeed
    set the loc of graphic "Ball" to tLoc
 end accelerationChanged
+
+-- The browser gave the stack the whole screen or took it back, whoever
+-- did it (the button, the phone's back gesture, the browser itself): the
+-- button says which to ask for now. Where the page keeps its size while
+-- the screen is whole, no resizeStack comes to lay the card out again.
+on fullScreenChanged pFull
+   psToggleLook "Full", pFull is true, "Full screen", "Show the bars"
+end fullScreenChanged
+
+-- A request for the whole screen that the browser refused after the call
+-- (mwFullScreen returned empty, as the browser had not said no yet)
+on fullScreenError pError
+   psSay "The browser kept its bars this time."
+end fullScreenError
 
 on trackingError pSensor, pError
    psSay "The" && pSensor && "cannot be read:" && pError & "."

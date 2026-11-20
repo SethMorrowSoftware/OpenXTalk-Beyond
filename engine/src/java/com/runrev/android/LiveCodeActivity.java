@@ -165,7 +165,18 @@ public class LiveCodeActivity extends Activity
     // "pan", SOFT_INPUT_ADJUST_PAN, Android moves the window instead)
     protected void keepOutOfSystemBars()
     {
+        s_lays_out_by_insets = true;
         s_main_layout.setOnApplyWindowInsetsListener(new SystemBarsPadding(this));
+    }
+    
+    // OXT-Beyond: true once the stack is laid out by the window's insets
+    // (keepOutOfSystemBars, drawEdgeToEdge), where the engine's view asks
+    // them whether the keyboard shows (Engine.keyboardIsVisible)
+    protected static boolean s_lays_out_by_insets;
+    
+    public static boolean laysOutByInsets()
+    {
+        return s_lays_out_by_insets;
     }
     
     protected static class SystemBarsPadding implements View.OnApplyWindowInsetsListener
@@ -237,6 +248,7 @@ public class LiveCodeActivity extends Activity
         t_attributes.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
         t_window.setAttributes(t_attributes);
         s_edge_to_edge = new EdgeToEdge(this);
+        s_lays_out_by_insets = true;
         s_main_layout.setOnApplyWindowInsetsListener(s_edge_to_edge);
         showBarsForAppearance(getResources().getConfiguration());
     }

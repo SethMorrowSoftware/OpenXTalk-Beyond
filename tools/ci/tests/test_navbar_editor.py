@@ -18,8 +18,10 @@
 icon in the dark appearance too (bwmilby, issue 568). The editor
 (ide/Toolset/palettes/inspector/editors/com.livecode.pi.navbar) is a
 navigation bar widget in its edit mode, which draws a white sheet with black
-labels in either appearance and each item's icon in the widget's foreground
-colour. The editor's widget had no colour of its own, so the icon took the
+labels and each item's icon in the widget's foreground colour in the light
+appearance (and in the dark appearance until 0.2.8-dp.3, when the sheet was
+a white slab in a dark Inspector; now it is dark there, with light labels
+and icons). The editor's widget had no colour of its own, so the icon took the
 Inspector's text colour, light in the dark appearance: on a Mac it could not
 be seen on the sheet, on Linux hardly. The editor now gives its widget the
 labels' black as its own colour, which the widget draws as set in either
@@ -31,7 +33,8 @@ pixels (tests/lcs/inspector/navbar.livecodescript), and the IDE tour reads
 the real Inspector on the screen in the light and the dark appearance
 (tools/ci/ui-tour.livecodescript, the step inspector-navbar). These tests
 hold the pieces to each other: the editor's colour to the sheet the widget
-draws, and where the tests look for an icon to where the widget draws it.
+draws, the dark sheet's colours to the tour's checks of them, and where the
+tests look for an icon to where the widget draws it.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -89,6 +92,15 @@ def sheet_paint(source, location, kind):
     return colour(found.group(1))
 
 
+def dark_colour(source, name):
+    """The red, green and blue of 255 of the widget's constant NAME, a list
+    of three numbers."""
+    found = re.search(r'^constant %s is \[(\d+), (\d+), (\d+)\]' % name, source, re.M)
+    if found is None:
+        raise AssertionError('the widget has no constant %s' % name)
+    return tuple(int(x) for x in found.groups())
+
+
 class TheSheet(unittest.TestCase):
     """What the widget draws in its edit mode, which the editor's colour is
     chosen for: a white sheet, black labels, the icon in the widget's
@@ -98,17 +110,55 @@ class TheSheet(unittest.TestCase):
         self.source = read('extensions', 'widgets', 'navbar', 'navbar.lcb')
 
     def test_the_sheet_is_white_and_its_labels_black(self):
+        # in the light appearance: sheetPaint gives getPaint's colours
         edit = lcb_handler(self.source, 'drawNavBarEditMode')
-        self.assertIn('set the paint of this canvas to getPaint("background","editmode-fill")', edit)
+        self.assertIn('set the paint of this canvas to sheetPaint("background","editmode-fill")', edit)
         self.assertEqual(sheet_paint(self.source, 'background', 'editmode-fill'), (255, 255, 255))
         label = lcb_handler(self.source, 'drawEditModeLabel')
-        self.assertIn('set the paint of this canvas to getPaint("text","editmode-fill")', label)
+        self.assertIn('set the paint of this canvas to sheetPaint("text","editmode-fill")', label)
         self.assertEqual(sheet_paint(self.source, 'text', 'editmode-fill'), (0, 0, 0))
+        paint = lcb_handler(self.source, 'sheetPaint')
+        self.assertTrue(paint.split('\n', 1)[1].lstrip().startswith('variable tColor as List\n\tput [] into tColor\n'
+                                                                    '\tif sheetIsDark() then'), paint)
+        self.assertIn('if tColor is [] then\n\t\treturn getPaint(pLocation, pType)\n\tend if', paint)
+
+    def test_the_sheet_is_dark_in_the_dark_appearance(self):
+        # as the widget's colours go dark: the engine's own answer
+        dark = lcb_handler(self.source, 'sheetIsDark')
+        self.assertIn('MCWidgetGetMyAppearanceIsDark(tDark)', dark)
+        paint = lcb_handler(self.source, 'sheetPaint')
+        for location, kind, name in (('background', 'editmode-fill', 'kSheetDark'),
+                                     ('background', 'editmode-stroke', 'kSheetFrameDark'),
+                                     ('background', 'drag-fill', 'kSheetDragDark'),
+                                     ('text', 'editmode-fill', 'kSheetInkDark')):
+            self.assertRegex(paint, r'if pLocation is "%s" and pType is "%s" then\s+put %s into tColor'
+                             % (location, kind, name))
+        sheet, ink, frame = (dark_colour(self.source, n) for n in ('kSheetDark', 'kSheetInkDark', 'kSheetFrameDark'))
+        # what the tour asks of them: the sheet each of red, green and blue
+        # 80 or less, the ink each 240 or more, and the frame between
+        self.assertLessEqual(max(sheet), 80)
+        self.assertGreaterEqual(min(ink), 240)
+        self.assertTrue(max(sheet) < min(frame) and max(frame) < min(ink))
+        # the drag and the lines between the rows
+        drag = lcb_handler(self.source, 'drawDragData')
+        self.assertIn('set the paint of this canvas to sheetPaint("background","drag-fill")', drag)
+        divide = lcb_handler(self.source, 'drawEditModeDivide')
+        self.assertRegex(divide, r'if sheetIsDark\(\) then\s+set the paint of this canvas to '
+                                 r'sheetPaint\("background", "editmode-stroke"\)\s+else\s+'
+                                 r'set the paint of this canvas to paintFor\(3, kBorderLight, kBorderDark\)\s+end if')
 
     def test_an_icon_is_drawn_in_the_widgets_foreground_colour(self):
+        # (in the light appearance; on the dark sheet in its light ink)
         content = lcb_handler(self.source, 'drawEditModeContent')
-        self.assertIn('drawIcon(mNavData[tX]["icon_path"], false)', content)
-        self.assertIn('drawIcon(mNavData[tX]["hilited_icon_path"], true)', content)
+        self.assertIn('drawEditModeIcon(mNavData[tX]["icon_path"], false)', content)
+        self.assertIn('drawEditModeIcon(mNavData[tX]["hilited_icon_path"], true)', content)
+        drag = lcb_handler(self.source, 'drawDragData')
+        self.assertIn('drawEditModeIcon(mDragData["icon_path"], false)', drag)
+        self.assertIn('drawEditModeIcon(mDragData["hilited_icon_path"], true)', drag)
+        on_sheet = lcb_handler(self.source, 'drawEditModeIcon')
+        self.assertRegex(on_sheet, r'if not pSelected and sheetIsDark\(\) then\s+'
+                                   r'set the paint of this canvas to sheetPaint\("text", "editmode-fill"\)\s+'
+                                   r'fill pIconPath on this canvas\s+else\s+drawIcon\(pIconPath, pSelected\)\s+end if')
         icon = lcb_handler(self.source, 'drawIcon')
         self.assertRegex(icon, r'if pSelected then\s+set the paint of this canvas to my highlight paint\s+else\s+'
                                r'set the paint of this canvas to paintFor\(0, kForeLight, kForeDark\)\s+end if')
@@ -239,7 +289,17 @@ class TheTests(unittest.TestCase):
         self.assertIn('revIDECreateObject "com.livecode.widget.navbar", pCard',
                       handler(tour, 'function', 'tourNbMake'))
         self.assertIn('put tourInspectorEditor(tPI, "itemArray") into tEditor', step)
-        self.assertIn('if item 1 of tShown < 40 then', step)
+        self.assertIn('else if item 1 of tShown < 40 then', step)
+        # the sheet: dark in the dark appearance, white in the light one,
+        # and in the dark each icon light on it
+        self.assertIn('put the systemAppearance is "dark" and revIDEAppearanceIsDark() into tDark', step)
+        self.assertIn('put tourNbSheet(tPI, tWidget) into tSheet', step)
+        self.assertIn('if tDark and max(item 1 to 3 of tSheet) > 80 then', step)
+        self.assertIn('else if not tDark and min(item 1 to 3 of tSheet) < 240 then', step)
+        self.assertIn('if item 2 of tShown < 40 then', step)
+        sheet = handler(tour, 'function', 'tourNbSheet')
+        self.assertIn('put item 1 of tStack + item 3 of tRect - 108 into tLeft', sheet)
+        self.assertIn('export snapshot from rect (tLeft, tTop, tLeft + 6, tTop + 6) to tData as PNG', sheet)
         self.assertIn('if tRead is 0 then put "no row of the editor is on the screen"', step)
         self.assertIn('tourShotStack tPI, "08-inspector-navbar-items"', step)
         # the look as it was is logged, after the snapshot, and the colour
