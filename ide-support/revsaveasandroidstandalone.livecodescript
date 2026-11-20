@@ -638,7 +638,10 @@ private command revSaveAsMobileStandaloneMain pStack, pApkFile, pTarget, pSettin
       else
          put empty into tCustomUrlFilter
       end if
-      replace "${CUSTOM_URL_FILTER}" with tCustomUrlFilter in tManifest
+      -- OXT-Beyond: with the stack's "android,documentTypes" setting, the
+      -- filter that offers the app for documents of those kinds follows
+      -- it (androidDocumentFilter); without it, nothing does
+      replace "${CUSTOM_URL_FILTER}" with tCustomUrlFilter & androidDocumentFilter(pSettings) in tManifest
       
       local tPushPermissions
       local tPushReceiver
@@ -2382,6 +2385,48 @@ function androidAskForEdgeToEdge pManifest, pSettings, pRuntimeFolder
    end if
    return pManifest
 end androidAskForEdgeToEdge
+
+-- OXT-Beyond: an app that opens documents. A stack whose
+-- "android,documentTypes" setting lists kinds of document (MIME types,
+-- one a line or separated by commas: application/zip, image/*) is offered
+-- by Android where the user opens a document of one of those kinds, in a
+-- file manager, a mail app or a browser, beside the other apps that open
+-- it. The app then gets the document's address (content://..., or file://
+-- from an old file manager) in urlWakeUp and from mobileGetLaunchUrl(),
+-- and reads it with the Android Documents library
+-- (org.openxtalk.library.androiddocuments). Android matches a content
+-- address by its kind alone, never by its name's extension, so a kind of
+-- file Android knows no name for is application/octet-stream. A stack
+-- without the setting, every stack before it, has no such filter: its
+-- manifest is as it was. A kind that is no MIME type stops the build
+-- (what it says goes into the manifest as it is)
+function androidDocumentFilter pSettings
+   local tTypes, tType, tFilter, tSeen
+   put pSettings["android,documentTypes"] into tTypes
+   replace comma with return in tTypes
+   repeat for each line tType in tTypes
+      put word 1 to -1 of tType into tType
+      if tType is empty or tSeen[tType] then
+         next repeat
+      end if
+      if not matchText(tType, "^([A-Za-z0-9][A-Za-z0-9.+_-]*|\*)/([A-Za-z0-9][A-Za-z0-9.+_-]*|\*)$") then
+         throw "the stack's document types (android,documentTypes) have" && quote & tType & quote & \
+               ", which is no kind of document: each is a MIME type, such as application/zip or image/*"
+      end if
+      put true into tSeen[tType]
+      put "<data android:mimeType=" & quote & tType & quote & " />" after tFilter
+   end repeat
+   if tFilter is empty then
+      return empty
+   end if
+   return "<intent-filter>" & \
+         "<action android:name=" & quote & "android.intent.action.VIEW" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.DEFAULT" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.BROWSABLE" & quote & " />" & \
+         "<data android:scheme=" & quote & "content" & quote & " />" & \
+         "<data android:scheme=" & quote & "file" & quote & " />" & \
+         tFilter & "</intent-filter>"
+end androidDocumentFilter
 
 -- OXT-Beyond: whether the runtime's Java layer (its Classes jar) has each
 -- of the class files pClasses (a list of items), by their names, which a

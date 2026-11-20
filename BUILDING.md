@@ -993,7 +993,7 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.8-dp.1`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.8-dp.2`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
@@ -1002,11 +1002,11 @@ built from the same commit, and OXT-Beyond's own Android engine
 the rest of the Android runtime and its
 time zone library code carried over unchanged from the earlier asset
 `oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.8-dp.1.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.8-dp.2.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.8-dp.1.zip` of this repository's release
-`runtimes-0.2.8-dp.1`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.8-dp.2.zip` of this repository's release
+`runtimes-0.2.8-dp.2`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -2037,6 +2037,23 @@ check (`deployCheckSDK`) does not ask for it, so an SDK without it still
 builds packages, and only a bundle build stops with an error that says
 so.
 
+### Android Stack Player
+
+[`tools/android-player`](tools/android-player/README.md) is an Android
+app that opens any stack the user gives it, built by the IDE's own
+Android builder with OXT-Beyond's Android engine, and
+[`build_android_player.py`](tools/android-player/build_android_player.py) builds it,
+checks its package (its name, the Internet permission and no other, the
+filter that offers it for documents) and plays a sample stack in it on a
+device by each way a stack comes in. Its README says how to run each
+step. The "Android Stack Player" workflow
+(`.github/workflows/android-player.yml`) runs them on an Android 13
+emulator, in the IDE of the latest release with this checkout's builder
+and Android Documents library put into it. The player's script has its
+desktop tests in `tests/lcs/androidplayer`, and `build_android_player.py`'s
+reading of the IDE, aapt2 and the device's log in
+`tools/ci/tests/test_android_player.py`.
+
 ### Browser and player check
 
 [`tools/ci/media_check.py`](tools/ci/media_check.py) checks the browser
@@ -2720,8 +2737,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.8-dp.1.zip`). The download comes from this
-repository's `runtimes-0.2.8-dp.1` release (also in a fork, which needs
+(`oxt-runtimes-0.2.8-dp.2.zip`). The download comes from this
+repository's `runtimes-0.2.8-dp.2` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -3055,7 +3072,7 @@ it.
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
    "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7
-   and kept for 0.2.8-dp.1),
+   and kept for 0.2.8-dp.1 and 0.2.8-dp.2),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).

@@ -335,7 +335,12 @@ def run(args, capture=screencapture):
                         done = True
                     else:
                         log('%6.1f s  %s' % (now - started, ' '.join(fields)))
-                seen = len(marks)
+                # The script writes the whole of marks.txt each time (put
+                # sMarks into url), so a read can find it emptied or half
+                # written, with fewer lines than a read before: those were
+                # seen already, and seen never goes back. (It once did, and
+                # the check took two effects a second time, unseen.)
+                seen = max(seen, len(marks))
                 current = effects[-1] if effects else None
                 if current is not None and current.ended is not None and now - current.ended > AFTER_END:
                     current = None
