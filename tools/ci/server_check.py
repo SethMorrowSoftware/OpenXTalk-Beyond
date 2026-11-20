@@ -148,21 +148,26 @@ PAGES = collections.OrderedDict([
     # The session cookie's opt-in attributes (0.2.8): off until a script
     # sets them, read back as set, and a value that is none of SameSite's
     # refused
+    # (the cookie goes out with the headers, at the page's first output,
+    # so the session starts before the page puts anything: the Windows
+    # engine had sent its headers by "start session" otherwise)
     ('cookieattrs.lc', '<?lc\n'
+                       'local tOut\n'
                        'set the sessionSavePath to "{sessions}"\n'
-                       'put "defaults=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return\n'
+                       'put "defaults=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return into tOut\n'
                        'set the sessionCookieSecure to true\n'
                        'set the sessionCookieSameSite to "Lax"\n'
-                       'put "set=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return\n'
+                       'put "set=" & the sessionCookieSecure & "," & the sessionCookieSameSite & ";" & return after tOut\n'
                        'try\n'
                        '  set the sessionCookieSameSite to "sideways"\n'
-                       '  put "bad=taken;" & return\n'
+                       '  put "bad=taken;" & return after tOut\n'
                        'catch tError\n'
-                       '  put "bad=refused;" & return\n'
+                       '  put "bad=refused;" & return after tOut\n'
                        'end try\n'
-                       'put "after=" & the sessionCookieSameSite & ";" & return\n'
+                       'put "after=" & the sessionCookieSameSite & ";" & return after tOut\n'
                        'start session\n'
                        'stop session\n'
+                       'put tOut\n'
                        '?>'),
     # The cookies a request sent, as the page reads them
     ('cookies.lc', '<?lc\n'
