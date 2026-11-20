@@ -322,6 +322,7 @@ private command kdBuild pSize
       put lkLabel("panel", lkR(kPad + 8, tTop + 12, sWidth - kPad - 18, tTop + 88), empty, 13, lkColor("soft"), empty) into tObj
       set the textHeight of tObj to 19
       set the htmlText of tObj to kdTextHtml(sSpec["text"])
+      revKitDialogFitWords tObj
       put max(kMinPanel, min(kMaxPanel, the formattedHeight of tObj + 5)) into tHeight
       if sSpec["peek"] is not empty then
          -- (room for the file, without the window growing when it shows)
@@ -515,6 +516,82 @@ private function kdBreakWord pWord
    end repeat
    return tOut & pWord
 end kdBreakWord
+
+/*
+Breaks each word of a field of this dialog that is wider than the field's
+text onto lines that fit, after the last slash that fits where there is
+one past half of the line, and otherwise after the last character that
+fits.
+
+pField: The long id of a field.
+
+Description:
+A field wraps only at a space, so a word with none, wider than the field
+(a path: "Your copy is ready" of File > Community Stacks and "Your stack
+is packed" of File > Share Stack say where the file is), ran past the
+panel's right edge and was cut off. Each break is a new line in the
+field's text and nothing else: no character is taken out or added but
+the returns. A word that fits, and so every text without a word wider than
+the field, is left as it is. The width each word is measured at is the
+field's, less its left and right margins and two pixels, in its own font.
+
+Tags: ide
+*/
+command revKitDialogFitWords pField
+   local tId, tStack, tWidth, tLine, tWord, tWords, tFound, tLow, tHigh, tMid, tSlash
+   if pField is empty or there is not a pField then
+      exit revKitDialogFitWords
+   end if
+   -- (a chunk of a field is named by the field's id and its stack's name:
+   -- the chunk of a variable that holds a long id is the variable's text)
+   put the short id of pField into tId
+   put the long id of pField into tStack
+   repeat while word 1 of tStack is not "stack"
+      put the long id of the owner of tStack into tStack
+   end repeat
+   put the short name of tStack into tStack
+   put the width of field id tId of stack tStack - the leftMargin of field id tId of stack tStack \
+         - the rightMargin of field id tId of stack tStack - 2 into tWidth
+   if tWidth < 40 then
+      exit revKitDialogFitWords
+   end if
+   put 1 into tLine
+   repeat while tLine <= the number of lines of field id tId of stack tStack
+      -- (the first word of the line that is too wide and can be broken, if
+      -- any: a loop that runs to its end leaves its counter at the last
+      -- word, and one that never runs leaves it at 0, so it is not the test)
+      put the number of words of line tLine of field id tId of stack tStack into tWords
+      put 0 into tFound
+      repeat with tWord = 1 to tWords
+         if the number of chars of word tWord of line tLine of field id tId of stack tStack > 1 \
+               and the formattedWidth of word tWord of line tLine of field id tId of stack tStack > tWidth then
+            put tWord into tFound
+            exit repeat
+         end if
+      end repeat
+      if tFound > 0 then
+         put tFound into tWord
+         -- The most of its characters that fit, at least one
+         put 1 into tLow
+         put the number of chars of word tWord of line tLine of field id tId of stack tStack - 1 into tHigh
+         repeat while tLow < tHigh
+            put (tLow + tHigh + 1) div 2 into tMid
+            if the formattedWidth of char 1 to tMid of word tWord of line tLine of field id tId of stack tStack <= tWidth then
+               put tMid into tLow
+            else
+               put tMid - 1 into tHigh
+            end if
+         end repeat
+         put kdLastOffset("/", char 1 to tLow of word tWord of line tLine of field id tId of stack tStack) into tSlash
+         if tSlash > tLow div 2 then
+            put tSlash into tLow
+         end if
+         -- (the rest of the word, and of the line, is the next line)
+         put return after char tLow of word tWord of line tLine of field id tId of stack tStack
+      end if
+      add 1 to tLine
+   end repeat
+end revKitDialogFitWords
 
 private function kdLastOffset pFind, pText
    local tFrom, tFound
