@@ -83,8 +83,10 @@ pi_archive_keyring() {
   local arch file sum sumgot packages index
   arch=$(dpkg --print-architecture)
   mkdir -p "$dir"
-  curl -fsSL --retry 5 "$base/raspberrypi.gpg.key" | gpg --dearmor > "$dir/key.gpg" || return 1
-  curl -fsSL --retry 5 "$base/dists/$release/InRelease" -o "$dir/InRelease" || return 1
+  # (--retry-all-errors: --retry alone does not try again after a reset
+  # connection, curl's error 56; tools/ci/tests/test_curl_retries.py)
+  curl -fsSL --retry 5 --retry-all-errors "$base/raspberrypi.gpg.key" | gpg --dearmor > "$dir/key.gpg" || return 1
+  curl -fsSL --retry 5 --retry-all-errors "$base/dists/$release/InRelease" -o "$dir/InRelease" || return 1
   gpgv --keyring "$dir/key.gpg" --output "$dir/Release" "$dir/InRelease" 2> "$dir/gpgv.txt" || { cat "$dir/gpgv.txt" >&2; return 1; }
   # the first index InRelease lists, of this architecture's or "all",
   # compressed as xz, gzip or not at all
@@ -94,7 +96,7 @@ pi_archive_keyring() {
     packages=main/$index
     sumgot=$(release_sha256 "$packages" < "$dir/Release")
     [ -n "$sumgot" ] || continue
-    curl -fsSL --retry 5 "$base/dists/$release/$packages" -o "$dir/Packages.in" || return 1
+    curl -fsSL --retry 5 --retry-all-errors "$base/dists/$release/$packages" -o "$dir/Packages.in" || return 1
     echo "$sumgot  $dir/Packages.in" | sha256sum -c --quiet - >&2 || return 1
     case $packages in
       *.xz) xz -dc "$dir/Packages.in" > "$dir/Packages" ;;
@@ -106,7 +108,7 @@ pi_archive_keyring() {
     [ -n "$file" ] && break
   done
   [ -n "$file" ] && [ -n "$sum" ] || { echo "no raspberrypi-archive-keyring in the main indexes InRelease lists; InRelease begins:" >&2; head -n 40 "$dir/Release" >&2; return 1; }
-  curl -fsSL --retry 5 "$base/$file" -o "$dir/keyring.deb" || return 1
+  curl -fsSL --retry 5 --retry-all-errors "$base/$file" -o "$dir/keyring.deb" || return 1
   echo "$sum  $dir/keyring.deb" | sha256sum -c --quiet - >&2 || return 1
   dpkg -i "$dir/keyring.deb" > "$dir/dpkg.txt" 2>&1 || { cat "$dir/dpkg.txt" >&2; return 1; }
   dpkg -L raspberrypi-archive-keyring | grep -E '^/usr/share/keyrings/[^/]+\.(gpg|pgp|asc)$' | head -n 1 | grep . || return 1
