@@ -120,6 +120,19 @@ no mouse (outside MOUSE_BROWSERS) the game is told that it has one:
  28. a pause shows it over the arena, and Resume hides it again
  29. no script error, in the game or the page
 
+Then a tablet with a trackpad (an iPad with its keyboard, say) plays the
+same level, the same way: its page has a touch screen and a pointer as
+well. No browser that Playwright drives answers as one (Chromium's touch
+emulation answers (any-pointer: coarse) alone), so the page is made to
+answer (any-pointer: fine) too, before it loads; mwPointer() then says
+"both", where TABLET_BROWSERS can have a touch screen (Chromium), and the
+game plays with the mouse:
+
+ 30. the page has a touch screen and a pointer, and the game plays with
+     the mouse
+ 31. to 34. as 25. to 28.
+ 35. no script error, in the game or the page
+
 Playwright's WebKit on Linux makes no touch events, so there the taps and
 the drag are the mouse's, which the game reads as it reads a finger. Ends
 with "EMBER BRICKS CHECK OK" or a list of what failed, and exit status 1.
@@ -166,6 +179,28 @@ DUEL_BROWSERS = ('chromium',)
 # the browsers whose desktop page is known to say it has a mouse, which
 # the check then holds it to
 MOUSE_BROWSERS = ('chromium',)
+# A tablet with a trackpad: a tablet's window with a touch screen, whose
+# page is made to say that it has a fine pointer too (BOTH_POINTERS), as
+# an iPad with its keyboard, or a tablet with a mouse, says. Chromium's
+# touch emulation says that it has a coarse one; a browser outside
+# TABLET_BROWSERS may not, and is not held to it
+TABLET = {'viewport': {'width': 1024, 'height': 768}, 'has_touch': True}
+TABLET_BROWSERS = ('chromium',)
+BOTH_POINTERS = (
+    "(function () { var real = window.matchMedia;"
+    " if (!real) return;"
+    " window.matchMedia = function (query) {"
+    "  var answer = real.call(window, query);"
+    "  if (!/any-pointer\\s*:\\s*fine/.test(String(query))) return answer;"
+    "  return { matches: true, media: String(query), onchange: null,"
+    "   addListener: function () {}, removeListener: function () {},"
+    "   addEventListener: function () {}, removeEventListener: function () {},"
+    "   dispatchEvent: function () { return false; } };"
+    " };"
+    "})();")
+# What the page answers for its pointers (mwPointer's own questions)
+POINTERS = ("() => { var m = function (q) { return !!(window.matchMedia && window.matchMedia(q).matches); };"
+            " return [m('(any-pointer: coarse)'), m('(any-pointer: fine)')]; }")
 # the lobby's third page, a phone too
 LOBBY_THIRD = 'iPhone 13'
 # the seconds the lobby's relay keeps an ephemeral event for (strfry's
@@ -477,7 +512,7 @@ class Player:
     (DUEL_BROWSERS) and it is asked for"""
 
     def __init__(self, playwright, browser, browser_name, name, profile, url, timeout, shots, scene='duel',
-                 clipboard=True):
+                 clipboard=True, init_script=None):
         self.name = name
         self.shots = shots
         self.scene = scene
@@ -492,6 +527,9 @@ class Player:
             # permission, and refuses the context's first page for it)
             profile['permissions'] = ['clipboard-read', 'clipboard-write']
         self.context = browser.new_context(**profile)
+        if init_script:
+            # (before the page's own scripts: the game asks as it opens)
+            self.context.add_init_script(init_script)
         self.page = self.context.new_page()
         self.page.on('pageerror', lambda e: self.page_errors.append(str(e)))
         self.page.on('console', lambda m: log('  %s console.%s: %s' % (name, m.type, m.text))
@@ -689,24 +727,29 @@ def check_duel(playwright, browser_name, url, timeout, shots):
     return problems
 
 
-def check_pointer(playwright, browser_name, url, timeout, shots):
+def check_pointer(playwright, browser_name, url, timeout, shots, tablet=False):
     """A level played with a mouse in a desktop's window: 25 to 29 of the
-    list."""
+    list; with tablet, on a tablet with a trackpad: 30 to 35."""
     problems = []
+    where = 'the tablet\'s pointer' if tablet else 'the pointer'
 
     def expect(what, ok, *states):
         if ok:
             log('  ok: %s' % what)
         else:
-            problems.append('%s, the pointer: %s' % (browser_name, what))
+            problems.append('%s, %s: %s' % (browser_name, where, what))
             log('  FAILED: %s (%s)' % (what, ' | '.join(said(s) if isinstance(s, dict) else str(s) for s in states)))
 
     browser = getattr(playwright, browser_name).launch(**mobile_web_check.launch_options(browser_name))
     try:
         # (no clipboard: nothing here reads one, and the page has to open
         # in WebKit too)
-        me = Player(playwright, browser, browser_name, 'desktop', DUEL_HOST, url, timeout, shots, scene='pointer',
-                    clipboard=False)
+        if tablet:
+            me = Player(playwright, browser, browser_name, 'tablet', TABLET, url, timeout, shots, scene='pointer',
+                        clipboard=False, init_script=BOTH_POINTERS)
+        else:
+            me = Player(playwright, browser, browser_name, 'desktop', DUEL_HOST, url, timeout, shots, scene='pointer',
+                        clipboard=False)
 
         def pointer_at(x, y, hidden, seconds=3.0):
             """The mouse at a point of the page, and once the pointer is
@@ -733,10 +776,19 @@ def check_pointer(playwright, browser_name, url, timeout, shots):
                 raise CheckError('the game has no arena')
             return (a[0] + a[2]) / 2, (a[1] + a[3]) / 2
 
-        # 25. the title
+        # 25. the title (30. on the tablet: the page has both pointers)
         x, y = arena_middle()
         s = me.state()
-        if s.get('pointer') != 'mouse' and browser_name not in MOUSE_BROWSERS:
+        if tablet:
+            coarse, fine = me.page.evaluate(POINTERS)
+            if browser_name in TABLET_BROWSERS:
+                expect('the tablet\'s page has a touch screen and a pointer', coarse and fine,
+                       {'coarse': coarse, 'fine': fine})
+            else:
+                log('  (%s gives a page no touch screen to say it has (%s): the tablet\'s page says it has a '
+                    'pointer)' % (browser_name, {'coarse': coarse, 'fine': fine}))
+            expect('the tablet with a trackpad plays with the mouse', s.get('pointer') == 'mouse', s)
+        elif s.get('pointer') != 'mouse' and browser_name not in MOUSE_BROWSERS:
             # the page's (any-pointer) is the build's to answer, and a
             # headless one may answer as a phone does whatever the page:
             # the game is told what a desktop's browser tells it
@@ -744,7 +796,8 @@ def check_pointer(playwright, browser_name, url, timeout, shots):
                 % (browser_name, s.get('pointer')))
             me.set('pointer', 'mouse')
         s, c = pointer_at(x, y, False, 1.5)
-        expect('a desktop\'s page plays with a mouse', s.get('pointer') == 'mouse', s)
+        if not tablet:
+            expect('a desktop\'s page plays with a mouse', s.get('pointer') == 'mouse', s)
         expect('on the title the pointer shows, over where the arena is too', s.get('mode') == 'title' and shows(s, c), s, c)
 
         # 26. a level
@@ -1067,6 +1120,8 @@ def main(argv=None):
             else:
                 log('%s, a level with a mouse in a desktop\'s page:' % args.browser)
                 problems += check_pointer(p, args.browser, url, args.timeout, args.shots)
+                log('%s, a level with a trackpad on a tablet:' % args.browser)
+                problems += check_pointer(p, args.browser, url, args.timeout, args.shots, tablet=True)
         server.shutdown()
     except (CheckError, web_check.CheckError, subprocess.TimeoutExpired) as e:
         log('FAILED: %s' % e)

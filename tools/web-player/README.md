@@ -605,7 +605,12 @@ where it points at nothing and is in the ball's way; it shows over the
 score and the pause button beside the arena, on a pause and on every
 other screen, and outside the window. (The engine has one cursor for
 all of its windows, so the game gives it back whenever its frames stop,
-and leaves alone one that another script holds locked.)
+and leaves alone one that another script holds locked.) In a browser the
+same goes for a tablet's trackpad or mouse, an iPad's with its keyboard
+say, since its page says that it has a pointer as well as a touch
+screen. In an app on a phone or a tablet a mouse's pointer is the
+system's own, which the engine does not hide, and the game leaves it as
+it is.
 
 **The Online Duel** is a match between two players, each on their own
 wall: the same wall for both, three minutes on the clock, most points
@@ -752,7 +757,10 @@ No check goes to the public relays, which CI must neither lean on nor
 write to. Last, in both browsers, a desktop's page plays a level with a
 mouse: the pointer the page shows is hidden over the arena, shows over
 the pause button and on a pause, and is hidden again when the level goes
-on. CI runs it in web.yml, after Puzzle Almanac's check. To run it
+on. Then a tablet's page with a trackpad plays it the same way: a page
+with a touch screen that is made to say it has a pointer too, as an
+iPad with its keyboard says, which no browser the check drives can be.
+CI runs it in web.yml, after Puzzle Almanac's check. To run it
 yourself:
 
 ```sh

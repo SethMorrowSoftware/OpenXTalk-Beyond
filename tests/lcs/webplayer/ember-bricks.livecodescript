@@ -218,9 +218,9 @@ end pointerShown
 -- Whether the game runs where it hides no pointer at all: on a phone or
 -- a tablet (ebPointerHides), where a level is played with a finger.
 -- A test of the hidden pointer is skipped there and says so, and
--- TestAPhoneOrATabletHidesNoPointer runs in their place: with LiveCode
--- 9.6.3's engine and with OXT-Beyond's, the tests run in an Android
--- standalone too (tools/ci/android_tests.py)
+-- TestAPhoneOrATabletHidesNoPointer says what the game does there: with
+-- LiveCode 9.6.3's engine and with OXT-Beyond's, the tests run in an
+-- Android standalone too (tools/ci/android_tests.py)
 private function noPointerToHide pWhat
    if st("platform") is not "mobile" then
       return false
@@ -1065,14 +1065,20 @@ on TestAFingerHasNoPointerToHide
    TestAssert "a level played by touch: the engine's cursor is left as it is", st("mode") is "play" and pointerShown()
 end TestAFingerHasNoPointerToHide
 
--- On a phone or a tablet the game hides no pointer, whatever it is told
--- of a mouse: the other tests of the pointer are skipped there, and
--- this one is skipped everywhere else
+-- In a phone's or a tablet's app the game hides no pointer, whatever it
+-- is told of a mouse: the engine has no pointer of its own to hide there
+-- (a mouse's is the system's), and the other tests of the pointer are
+-- skipped there. This one runs everywhere: on a desktop and in a page the
+-- game is told that it is in such an app, and told back after, so that
+-- what the game does there is tested on every run of the tests, not only
+-- in the Android job
 on TestAPhoneOrATabletHidesNoPointer
-   if st("platform") is not "mobile" then
-      TestSkip "a mouse on a phone or a tablet", "this is not a phone or a tablet"
-      exit TestAPhoneOrATabletHidesNoPointer
+   local tPlatform
+   put st("platform") into tPlatform
+   if tPlatform is not "mobile" then
+      game "ebTestSet", "platform", "mobile"
    end if
+   TestAssert "the game is in a phone's or a tablet's app", st("platform") is "mobile"
    game "ebTestSet", "pointer", "mouse"
    newRun
    mouseAt arenaMiddle()
@@ -1081,6 +1087,8 @@ on TestAPhoneOrATabletHidesNoPointer
    TestAssert "and on a pause", st("mode") is "pause" and pointerShown()
    game "ebGoTitle"
    TestAssert "and on the title", st("mode") is "title" and pointerShown()
+   game "ebTestSet", "platform", tPlatform
+   TestAssert "the game is where it was again", st("platform") is tPlatform
 end TestAPhoneOrATabletHidesNoPointer
 
 -- The IDE's other tools (the pointer tool to move a control, say) need
