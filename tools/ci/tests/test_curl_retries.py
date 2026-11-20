@@ -71,7 +71,8 @@ def curl_commands():
             while command.endswith('\\') and j + 1 < len(lines):
                 j += 1
                 command = command[:-1] + ' ' + lines[j].strip()
-            found.append((os.path.relpath(path, REPO), i + 1, command[CURL.search(command).start():]))
+            found.append((os.path.relpath(path, REPO).replace(os.sep, '/'), i + 1,
+                          command[CURL.search(command).start():]))
     return found
 
 
