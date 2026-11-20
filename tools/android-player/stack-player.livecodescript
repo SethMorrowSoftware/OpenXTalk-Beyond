@@ -105,6 +105,10 @@ end openStack
 -- the player's own cards send it here (a stack that plays has its own)
 on resizeStack
    playerLayout
+   -- and again once Android has settled: turned back upright, the first
+   -- resizeStack can come before the stack's rect and the screenRect
+   -- agree, which laid the library out as for a phone held sideways
+   send "playerLayout" to me in 300 milliseconds
    pass resizeStack
 end resizeStack
 
@@ -147,9 +151,13 @@ command playerMake pBackScript, pLogo
    put the defaultStack into tDefault
    set the defaultStack to kPlayerName
    lock messages
-   set the backgroundColor of stack kPlayerName to kBackground
-   set the foregroundColor of stack kPlayerName to kText
-   set the hiliteColor of stack kPlayerName to kChosen
+   -- the colours are the card's, never the stack's: in a standalone the
+   -- stack that plays falls back on the app's own stack for every colour
+   -- it does not set, so the player's colours on its stack were a played
+   -- stack's too (white text on its own light card)
+   set the backgroundColor of this card of stack kPlayerName to kBackground
+   set the foregroundColor of this card of stack kPlayerName to kText
+   set the hiliteColor of this card of stack kPlayerName to kChosen
    if pLogo is not empty then
       create image "Logo"
       set the text of image "Logo" to pLogo
@@ -195,23 +203,48 @@ command playerMake pBackScript, pLogo
    set the hiliteColor of field "Library" to kChosen
    set the textSize of field "Library" to 17
    set the fixedLineHeight of field "Library" to true
-   set the textHeight of field "Library" to 52
+   set the textHeight of field "Library" to 46
    set the leftMargin of field "Library" to 14
    set the rightMargin of field "Library" to 14
+   set the topMargin of field "Library" to 2
+   set the vGrid of field "Library" to false
+   set the hGrid of field "Library" to false
+   -- a thin bar says there is more; a finger drags the list as well
+   set the vScrollbar of field "Library" to true
+   set the scrollbarWidth of field "Library" to 8
    set the dontWrap of field "Library" to true
-   set the vScrollbar of field "Library" to false
-   -- a tap plays the stack of its line; a finger held kHold asks to
-   -- remove it
-   set the script of field "Library" to "local sDownAt" & return & \
-         "on mouseDown" & return & "   put the milliseconds into sDownAt" & return & "end mouseDown" & return & \
+   -- a tap plays the stack of its line, a finger held kHold asks to
+   -- remove it, and a finger that moves drags the list (a field does not
+   -- scroll by touch on its own)
+   set the script of field "Library" to "local sDownAt, sDownY, sDownScroll, sDragged" & return & \
+         "on mouseDown" & return & \
+         "   put the milliseconds into sDownAt" & return & \
+         "   put item 2 of the mouseLoc into sDownY" & return & \
+         "   put the vScroll of me into sDownScroll" & return & \
+         "   put false into sDragged" & return & \
+         "end mouseDown" & return & \
+         "on mouseMove pX, pY" & return & \
+         "   if sDownAt is empty or the mouse is up then exit mouseMove" & return & \
+         "   if abs(pY - sDownY) > 12 then put true into sDragged" & return & \
+         "   if sDragged then set the vScroll of me to max(0, sDownScroll - (pY - sDownY))" & return & \
+         "end mouseMove" & return & \
          "on mouseUp" & return & \
-         "   if the hilitedLine of me is empty then exit mouseUp" & return & \
-         "   if the milliseconds - sDownAt >= " & kHold & " then" & return & \
-         "      playerAskRemove the hilitedLine of me" & return & \
+         "   local tLine, tHeld" & return & \
+         "   put the hilitedLine of me into tLine" & return & \
+         "   put (the milliseconds - sDownAt >= " & kHold & ") into tHeld" & return & \
+         "   put empty into sDownAt" & return & \
+         "   set the hilitedLine of me to empty" & return & \
+         "   if tLine is empty or sDragged then exit mouseUp" & return & \
+         "   if tHeld then" & return & \
+         "      playerAskRemove tLine" & return & \
          "   else" & return & \
-         "      playerPickLine the hilitedLine of me" & return & \
+         "      playerPickLine tLine" & return & \
          "   end if" & return & \
-         "end mouseUp"
+         "end mouseUp" & return & \
+         "on mouseRelease" & return & \
+         "   put empty into sDownAt" & return & \
+         "   set the hilitedLine of me to empty" & return & \
+         "end mouseRelease"
    playerMakeField "Empty", 15, empty, "No stacks yet." & return & \
          "Tap Open a stack..., or open a stack file with this app from your files, mail or browser."
    set the textColor of field "Empty" to kMuted
@@ -279,13 +312,17 @@ end playerLayout
 -- is drawn edge to edge: the engine puts the stack below the status bar
 -- but makes it as tall as the whole screen, so that its bottom is under
 -- the navigation bar or past the screen. What lies below the screen's
--- bottom, and kBarAllowance above it, is left empty. Held sideways the
--- stack is the screen's height, and this changes nothing
+-- bottom, and kBarAllowance above it, is left empty
 function playerSeenHeight
    local tHeight, tSeen
    put the height of stack kPlayerName into tHeight
    if the environment is "mobile" then
-      put item 4 of the screenRect - item 2 of the rect of stack kPlayerName - kBarAllowance into tSeen
+      -- held sideways the bar is at the side (playerSeenWidth)
+      if the width of stack kPlayerName > tHeight then
+         put item 4 of the screenRect - item 2 of the rect of stack kPlayerName into tSeen
+      else
+         put item 4 of the screenRect - item 2 of the rect of stack kPlayerName - kBarAllowance into tSeen
+      end if
       if tSeen > 300 and tSeen < tHeight then
          return tSeen
       end if

@@ -143,6 +143,15 @@ on TestTheControlsAreMade
    TestAssert "the controls are inside the card", \
          item 3 of the rect of button "Open" of stack kPlayer <= the width of stack kPlayer and \
          item 4 of the rect of field "Status" of stack kPlayer <= the height of stack kPlayer
+   -- a stack that plays falls back on the app's own stack for the
+   -- colours it does not set: the player's are its card's
+   TestAssert "the player's stack sets no colour", \
+         the backgroundColor of stack kPlayer is empty and the foregroundColor of stack kPlayer is empty and \
+         the hiliteColor of stack kPlayer is empty and the borderColor of stack kPlayer is empty and \
+         the shadowColor of stack kPlayer is empty and the topColor of stack kPlayer is empty and \
+         the bottomColor of stack kPlayer is empty and the focusColor of stack kPlayer is empty
+   TestAssert "its card has them", the backgroundColor of this card of stack kPlayer is not empty
+   TestAssert "nor any font", the textFont of stack kPlayer is empty and the textSize of stack kPlayer is empty
 end TestTheControlsAreMade
 
 -- Android turns the screen: resizeStack comes to the player's card. On a
