@@ -1715,6 +1715,23 @@ jobs:
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend webkitgtk \
             --log "$RUNNER_TEMP/logs/media-check-webkitgtk.log"
 
+      # The browser widget on a desktop scaled to 200% as GNOME scales one
+      # (an XSETTINGS manager publishing Gdk/WindowScalingFactor 2, with
+      # Xft/DPI at 192 and Gdk/UnscaledDPI at 96): the page is as wide as
+      # the widget, at 2 pixels a point, with WebKitGTK and (x86_64) with
+      # CEF. Up to 0.2.8-dp.2 WebKitGTK drew the page at 4 pixels a point,
+      # everything in it double (tools/ci/media_check.py --desktop-scale)
+      - name: Browser check (a desktop at 200%)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend webkitgtk \
+            --desktop-scale 2 --log "$RUNNER_TEMP/logs/media-check-webkitgtk-200.log"
+          if [ "$ARCH" = x86_64 ]; then
+            python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend cef \
+              --desktop-scale 2 --log "$RUNNER_TEMP/logs/media-check-cef-200.log"
+          fi
+
       # Text a standalone puts on the clipboard is still there after it
       # quits, when a clipboard manager runs (this script's own, which does
       # what GNOME's and Xfce's do), and a standalone with no manager to

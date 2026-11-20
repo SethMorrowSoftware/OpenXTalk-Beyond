@@ -135,6 +135,7 @@ command checkWidget pUrl
    check "browser widget: its JavaScript calls a handler of the script", waitFor("oxtReport: loaded", 15), sEvents
    put the htmlText of widget "Browser" of stack "MediaCheck" into tHtml
    check "browser widget: htmlText is the page after its JavaScript ran", tHtml contains "script ran: 3", char 1 to 120 of tHtml
+   checkWidgetScale
    -- The page again: with CEF (Windows; Linux when OXT_BROWSER_BACKEND is
    -- cef) its script finds liveCode as it is read, not only once the page
    -- has loaded. Until 0.2.8-dp.2 the handlers came only with a message
@@ -150,6 +151,39 @@ command checkWidget pUrl
    end if
    delete widget "Browser" of stack "MediaCheck"
 end checkWidget
+
+-- The page is drawn at the stack's scale: as many CSS pixels wide as the
+-- widget is points (window.innerWidth), at the screen's pixels a point
+-- (window.devicePixelRatio). On a Linux desktop scaled as GNOME scales
+-- one (tools/ci/media_check.py --desktop-scale), WebKitGTK up to
+-- 0.2.8-dp.2 drew a page at four times its size in a widget of twice the
+-- size: innerWidth was half the widget's width and devicePixelRatio 4,
+-- the Dictionary's page double (bwmilby on the forum, Ubuntu 26.04). The
+-- helper was given the scale (GDK_SCALE) and GTK 3 then took the
+-- desktop's Xft/DPI, which has the scale in it already
+-- (libbrowser_webkitprocess_lnx.cpp, MCUseUnscaledFontDpi). Checked on
+-- Linux; elsewhere the numbers are only written down.
+command checkWidgetScale
+   local tLine, tSize, tWidth, tRatio, tScale
+   repeat for each line tLine in sEvents
+      if tLine begins with "oxtReport: size " then put word 3 to 4 of tLine into tSize
+   end repeat
+   put word 1 of tSize into tWidth
+   put word 2 of tSize into tRatio
+   put the screenPixelScale into tScale
+   if the platform is not "Linux" then
+      logLine "INFO browser widget: the page is" && tWidth && "CSS pixels wide in a widget of" && the width of widget "Browser" of stack "MediaCheck" && \
+            "points, devicePixelRatio" && tRatio & ", screenPixelScale" && tScale
+      exit checkWidgetScale
+   end if
+   if $OXT_MEDIA_DESKTOP_SCALE is not empty then
+      check "browser widget: the engine has the desktop's scale", tScale is $OXT_MEDIA_DESKTOP_SCALE, "screenPixelScale=" & tScale && "desktop=" & $OXT_MEDIA_DESKTOP_SCALE
+   end if
+   check "browser widget: the page is as wide as the widget", tWidth is a number and abs(tWidth - the width of widget "Browser" of stack "MediaCheck") <= 1, \
+         "innerWidth=" & tWidth && "widget=" & the width of widget "Browser" of stack "MediaCheck" && "screenPixelScale=" & tScale
+   check "browser widget: the page has the screen's pixels", tRatio is a number and abs(tRatio - tScale) < 0.01, \
+         "devicePixelRatio=" & tRatio && "screenPixelScale=" & tScale
+end checkWidgetScale
 
 command checkRevBrowser pUrl
    put empty into sEvents

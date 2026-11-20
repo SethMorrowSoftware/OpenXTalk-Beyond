@@ -132,6 +132,7 @@ sys.path.insert(0, HERE)
 import package  # noqa: E402
 import run_livecode_check as rlc  # noqa: E402
 import standalone_check  # noqa: E402
+import hidpi_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'media-check.livecodescript')
 MEDIA = os.path.join(HERE, 'media')
@@ -191,6 +192,7 @@ PAGE = """<!DOCTYPE html>
 if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('inline', location.search || 'first');
 document.getElementById('h').textContent = 'script ran: ' + (1 + 2);
 setTimeout(function () {
+  if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('size', window.innerWidth + ' ' + window.devicePixelRatio);
   if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('loaded', navigator.userAgent);
 }, 300);
 </script>
@@ -451,6 +453,11 @@ def main(argv=None):
                          'looks for Chromium\'s X window in the stack\'s; "wayland-name" gives the engine '
                          'XDG_SESSION_TYPE=wayland alone, with no compositor (default: %(default)s, the display '
                          'there is, or xvfb-run)')
+    ap.add_argument('--desktop-scale', type=int, choices=(2, 3), metavar='N',
+                    help='on Linux, run the engine on a screen of its own (Xvfb) with a desktop scaled N times: an '
+                         'XSETTINGS manager (xsettingsd) publishing Gdk/WindowScalingFactor N, Xft/DPI N times 96 '
+                         'and Gdk/UnscaledDPI 96, as GNOME\'s settings do. The browser widget\'s page must then be '
+                         'as wide as the widget, at N pixels a point')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -467,8 +474,11 @@ def main(argv=None):
 
     if args.session != 'own' and p.family != 'linux':
         ap.error('--session %s is for Linux' % args.session)
+    if args.desktop_scale and (p.family != 'linux' or args.session != 'own'):
+        ap.error('--desktop-scale is for Linux, with a screen of its own (no --session)')
 
     lines, problems, temp_dirs, server, session, sample_tree = [], [], [], None, None, False
+    desktop = []
     try:
         base = os.environ.get('RUNNER_TEMP') or tempfile.gettempdir()
         work = tempfile.mkdtemp(prefix='oxt-media-', dir=base)
@@ -541,6 +551,26 @@ def main(argv=None):
                         env.pop(name, None)
                     rlc.log('Session : XDG_SESSION_TYPE=wayland alone, with no compositor')
                     lines.append('INFO session: XDG_SESSION_TYPE=wayland alone, on an X display, with no compositor')
+                if args.desktop_scale:
+                    # A desktop scaled as GNOME scales one: the engine reads
+                    # the scale from XSETTINGS (no GDK_SCALE), and a GTK 3
+                    # program finds Xft/DPI with the scale in it already
+                    for name in ('GDK_SCALE', 'GDK_DPI_SCALE'):
+                        env.pop(name, None)
+                    try:
+                        xvfb, display = hidpi_check.start_xvfb(1280 * args.desktop_scale, 1024 * args.desktop_scale)
+                        desktop.append(xvfb)
+                        manager = hidpi_check.start_xsettingsd(display, args.desktop_scale, work)
+                    except RuntimeError as e:
+                        raise rlc.CheckError(str(e))
+                    if manager is None:
+                        raise rlc.CheckError('--desktop-scale needs xsettingsd')
+                    desktop.append(manager)
+                    env['DISPLAY'] = display
+                    env['OXT_MEDIA_DESKTOP_SCALE'] = str(args.desktop_scale)
+                    rlc.log('Desktop : scaled %d times (XSETTINGS, on %s)' % (args.desktop_scale, display))
+                    lines.append('INFO desktop: Gdk/WindowScalingFactor %d, Xft/DPI %d, Gdk/UnscaledDPI 96'
+                                 % (args.desktop_scale, 96 * args.desktop_scale))
                 if not env.get('DISPLAY'):
                     xvfb = shutil.which('xvfb-run')
                     if not xvfb:
@@ -618,6 +648,9 @@ def main(argv=None):
     finally:
         if session:
             end_session(session)
+        for proc in reversed(desktop):
+            proc.kill()
+            proc.wait()
         if server:
             server.shutdown()
         for d in temp_dirs:
