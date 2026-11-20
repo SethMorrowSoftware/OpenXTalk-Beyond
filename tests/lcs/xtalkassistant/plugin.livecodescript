@@ -52,6 +52,11 @@ local sAngles
 -- The request at which the server turns the pictures switch off, as the
 -- user does in the Settings while the model answers (0: none)
 local sPicturesOffAt
+-- The ports of the test servers that this test started, one per line, so
+-- that TestTeardown closes them: the tests run in one process (on Android,
+-- every file of the suite in one app), and a server left listening stayed
+-- open until the process ended
+local sServers
 
 on TestSetup
    local tLibUrl, tStub
@@ -96,6 +101,13 @@ on TestSetup
 end TestSetup
 
 on TestTeardown
+   local tPort
+   repeat for each line tPort in sServers
+      if tPort is among the lines of the openSockets then
+         close socket tPort
+      end if
+   end repeat
+   put empty into sServers
    if there is a file (sPrefsFolder & "/xTalk Assistant Memory.txt") then
       delete file (sPrefsFolder & "/xTalk Assistant Memory.txt")
    end if
@@ -1757,6 +1769,7 @@ private function TestStartServer pStatus, pBody
    put 0 into sPicturesOffAt
    TestSkipIfNot "sockets"
    accept connections on port 0 with message "xtaTestServerAccept"
+   put it & return after sServers
    return it
 end TestStartServer
 
