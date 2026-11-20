@@ -94,7 +94,10 @@ else
     tarball=$work/OXT-Beyond-$DOCS_ENGINE_VERSION-linux-x86_64-binaries.tar.xz
     if ! echo "$DOCS_ENGINE_SHA256  $tarball" | sha256sum -c --status - 2> /dev/null; then
       echo "Downloading the engine of OXT-Beyond $DOCS_ENGINE_VERSION (Linux x86_64)"
-      curl -sSfL --retry 3 -o "$tarball" "$DOCS_ENGINE_URL"
+      # (--retry-all-errors: --retry alone does not try again after a reset
+      # connection, curl's error 56, which failed a docs job on 20 Nov 2026;
+      # tools/ci/tests/test_curl_retries.py)
+      curl -sSfL --retry 3 --retry-all-errors -o "$tarball" "$DOCS_ENGINE_URL"
       echo "$DOCS_ENGINE_SHA256  $tarball" | sha256sum -c -
     fi
     rm -rf "$work/engine"
