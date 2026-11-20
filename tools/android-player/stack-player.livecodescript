@@ -209,9 +209,11 @@ command playerMake pBackScript, pLogo
    set the topMargin of field "Library" to 2
    set the vGrid of field "Library" to false
    set the hGrid of field "Library" to false
-   -- a thin bar says there is more; a finger drags the list as well
-   set the vScrollbar of field "Library" to true
-   set the scrollbarWidth of field "Library" to 8
+   -- no scrollbar of the engine's: on a phone it drew its thumb in the
+   -- list's own border colour on a black track, so it was hardly seen.
+   -- The player draws its own thin bar instead (playerShowThumb), and a
+   -- finger drags the list
+   set the vScrollbar of field "Library" to false
    set the dontWrap of field "Library" to true
    -- a tap plays the stack of its line, a finger held kHold asks to
    -- remove it, and a finger that moves drags the list (a field does not
@@ -226,8 +228,14 @@ command playerMake pBackScript, pLogo
          "on mouseMove pX, pY" & return & \
          "   if sDownAt is empty or the mouse is up then exit mouseMove" & return & \
          "   if abs(pY - sDownY) > 12 then put true into sDragged" & return & \
-         "   if sDragged then set the vScroll of me to max(0, sDownScroll - (pY - sDownY))" & return & \
+         "   if sDragged then" & return & \
+         "      set the vScroll of me to max(0, sDownScroll - (pY - sDownY))" & return & \
+         "      playerShowThumb" & return & \
+         "   end if" & return & \
          "end mouseMove" & return & \
+         "on scrollbarDrag" & return & \
+         "   playerShowThumb" & return & \
+         "end scrollbarDrag" & return & \
          "on mouseUp" & return & \
          "   local tLine, tHeld" & return & \
          "   put the hilitedLine of me into tLine" & return & \
@@ -245,6 +253,15 @@ command playerMake pBackScript, pLogo
          "   put empty into sDownAt" & return & \
          "   set the hilitedLine of me to empty" & return & \
          "end mouseRelease"
+   create graphic "Scroll Thumb"
+   set the style of graphic "Scroll Thumb" to "roundrect"
+   set the roundRadius of graphic "Scroll Thumb" to 4
+   set the opaque of graphic "Scroll Thumb" to true
+   set the lineSize of graphic "Scroll Thumb" to 0
+   set the showBorder of graphic "Scroll Thumb" to false
+   set the backgroundColor of graphic "Scroll Thumb" to kMuted
+   set the blendLevel of graphic "Scroll Thumb" to 30
+   set the visible of graphic "Scroll Thumb" to false
    playerMakeField "Empty", 15, empty, "No stacks yet." & return & \
          "Tap Open a stack..., or open a stack file with this app from your files, mail or browser."
    set the textColor of field "Empty" to kMuted
@@ -305,8 +322,29 @@ command playerLayout
    set the tabStops of field "Library" of stack kPlayerName to max(150, tWidth - 2 * tMargin - 150)
    set the rect of field "Empty" of stack kPlayerName to tMargin + 16, tTop + 50, tWidth - tMargin - 16, tTop + 130
    set the rect of field "Status" of stack kPlayerName to tMargin, max(tTop + 86, tHeight - 46), tWidth - tMargin, max(tTop + 126, tHeight - 6)
+   playerShowThumb
    unlock screen
 end playerLayout
+
+-- The library's own scroll bar: a thin rounded bar inside the list's
+-- right edge, as long as the part of the list that is seen and as far
+-- down as the list is scrolled. Not shown when every line is seen
+command playerShowThumb
+   local tRect, tSeen, tWhole, tTrack, tLength, tTop
+   if there is not a graphic "Scroll Thumb" of stack kPlayerName then exit playerShowThumb
+   put the rect of field "Library" of stack kPlayerName into tRect
+   put the height of field "Library" of stack kPlayerName into tSeen
+   put the formattedHeight of field "Library" of stack kPlayerName into tWhole
+   if tWhole <= tSeen or tSeen < 40 then
+      set the visible of graphic "Scroll Thumb" of stack kPlayerName to false
+      exit playerShowThumb
+   end if
+   put tSeen - 12 into tTrack
+   put max(28, round(tTrack * tSeen / tWhole)) into tLength
+   put item 2 of tRect + 6 + round((tTrack - tLength) * min(1, the vScroll of field "Library" of stack kPlayerName / (tWhole - tSeen))) into tTop
+   set the rect of graphic "Scroll Thumb" of stack kPlayerName to item 3 of tRect - 9, tTop, item 3 of tRect - 4, tTop + tLength
+   set the visible of graphic "Scroll Thumb" of stack kPlayerName to true
+end playerShowThumb
 
 -- How much of the player's card is seen. On Android 15 and later an app
 -- is drawn edge to edge: the engine puts the stack below the status bar
@@ -358,6 +396,7 @@ command playerShowLibrary
    end repeat
    set the htmlText of field "Library" of stack kPlayerName to tHtml
    set the cFiles of field "Library" of stack kPlayerName to tFiles
+   playerShowThumb
    set the visible of field "Empty" of stack kPlayerName to (tFiles is empty)
    if tCount > 0 then
       put "YOUR STACKS" && "(" & tCount & ")" into field "Library Title" of stack kPlayerName

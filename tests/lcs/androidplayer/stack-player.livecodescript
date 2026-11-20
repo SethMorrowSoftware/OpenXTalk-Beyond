@@ -189,6 +189,35 @@ on TestTheLibraryAsItIsShown
    TestAssert "its line opens its file", line 1 of the cFiles of field "Library" of stack kPlayer is tCopy
 end TestTheLibraryAsItIsShown
 
+-- The library's own scroll bar (playerShowThumb): none while every
+-- line is seen; inside the list's right edge, at its top, and at its
+-- bottom when the list is scrolled to its end
+on TestTheScrollBarSaysWhereTheListIs
+   local tLines, tList, tThumb
+   put "One stack" into field "Library" of stack kPlayer
+   dispatch "playerShowThumb" to stack kPlayer
+   TestAssert "a list that is all seen has no scroll bar", not the visible of graphic "Scroll Thumb" of stack kPlayer
+   repeat with i = 1 to 40
+      put "Stack" && i & return after tLines
+   end repeat
+   put tLines into field "Library" of stack kPlayer
+   set the vScroll of field "Library" of stack kPlayer to 0
+   dispatch "playerShowThumb" to stack kPlayer
+   put the rect of field "Library" of stack kPlayer into tList
+   put the rect of graphic "Scroll Thumb" of stack kPlayer into tThumb
+   TestAssert "a longer list has one", the visible of graphic "Scroll Thumb" of stack kPlayer
+   TestAssert "the engine's own bar is not drawn", not the vScrollbar of field "Library" of stack kPlayer
+   TestAssert "it is inside the list's right edge", \
+         item 1 of tThumb > item 1 of tList and item 3 of tThumb < item 3 of tList
+   TestAssert "at the top of the list", item 2 of tThumb - item 2 of tList is among the items of "5,6,7"
+   TestAssert "shorter than the list", item 4 of tThumb - item 2 of tThumb < (item 4 of tList - item 2 of tList) / 2
+   set the vScroll of field "Library" of stack kPlayer to 100000
+   dispatch "playerShowThumb" to stack kPlayer
+   put the rect of graphic "Scroll Thumb" of stack kPlayer into tThumb
+   TestAssert "at the bottom when the list is at its end", item 4 of tList - item 4 of tThumb is among the items of "5,6,7"
+   TestAssert "it is above the list", the layer of graphic "Scroll Thumb" of stack kPlayer > the layer of field "Library" of stack kPlayer
+end TestTheScrollBarSaysWhereTheListIs
+
 on TestWhenAsAPersonSaysIt
    local tNow, tThen
    put "2026,11,19,18,30,0,5" into tNow
