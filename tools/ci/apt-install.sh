@@ -3,7 +3,14 @@
 # a package server is slow or out for a while:
 #
 #   bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" PACKAGE...
-#       the packages, installed
+#       the packages, installed (without the ones they only recommend:
+#       apt-get install --no-install-recommends)
+#   bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --with-recommends PACKAGE...
+#       the packages and the ones they recommend (as apt-get install
+#       does by itself), for a step that needs one of those: the
+#       Raspberry Pi OS check's cross compiler links with
+#       libc6-dev-arm64-cross, which gcc-13-aarch64-linux-gnu only
+#       recommends (#597's review)
 #   bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
 #       apt's lists only (as apt-get update), for a step that asks
 #       apt-cache which packages there are before it installs them
@@ -56,8 +63,12 @@ limit="${APT_TRY_LIMIT:-300}"
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 mode=install
+recommends=(--no-install-recommends)
 case $1 in
   --update|--fetch|--download|--playwright) mode=${1#--}; shift ;;
+  --with-recommends) recommends=(); shift ;;
+esac
+case $1 in
   --*) echo "apt-install.sh: unknown option $1" >&2; exit 2 ;;
 esac
 if [ "$mode" = playwright ]; then
@@ -100,7 +111,7 @@ one_try() {
   case $mode in
     update) ;;
     download) timeout "$limit" apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 download "$@" ;;
-    *) timeout "$limit" "${apt[@]}" install -y --no-install-recommends --download-only "$@" ;;
+    *) timeout "$limit" "${apt[@]}" install -y "${recommends[@]}" --download-only "$@" ;;
   esac
 }
 
@@ -130,7 +141,7 @@ case $mode in
     ;;
   install)
     tries "$@"
-    "${apt[@]}" install -y --no-install-recommends "$@"
+    "${apt[@]}" install -y "${recommends[@]}" "$@"
     ;;
   playwright)
     # The packages that Playwright's install asks apt for: its dry run

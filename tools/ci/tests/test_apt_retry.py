@@ -499,10 +499,23 @@ class InstallScript(Machine):
         self.assertIn("Playwright's dry run named no packages", self.output)
         self.assertEqual(self.read('playwright')[-1], '-m playwright install --with-deps webkit')
 
+    def test_the_recommended_packages_when_asked(self):
+        # (as apt-get install does by itself: the Raspberry Pi OS check's
+        # cross compiler needs libc6-dev-arm64-cross, which it only
+        # recommends; #597's review)
+        self.assertEqual(self.run_install('--with-recommends', 'gcc-aarch64-linux-gnu', FETCH_FAILS=1), 0,
+                         self.output)
+        self.assertEqual([c.split(' @')[0] for c in self.calls()], [
+            'update', 'install -y --download-only gcc-aarch64-linux-gnu',
+            'update', 'install -y --download-only gcc-aarch64-linux-gnu',
+            'install -y gcc-aarch64-linux-gnu'])
+
     def test_wrong_use_is_refused(self):
         self.assertEqual(self.run_install(), 2)
         self.assertEqual(self.run_install('--fetch'), 2)
         self.assertEqual(self.run_install('--nonsense', 'gcc'), 2)
+        self.assertEqual(self.run_install('--with-recommends'), 2)
+        self.assertEqual(self.run_install('--with-recommends', '--fetch', 'gcc'), 2)
         self.assertEqual(self.calls(), [])
 
 
@@ -599,8 +612,24 @@ class EveryPackageStep(unittest.TestCase):
                         if rest[0] == '--playwright':
                             self.assertGreaterEqual(len(rest), 3, '%s, job %s: a python and a browser' % (name, job))
                         elif rest[0] != '--update':
-                            self.assertTrue(rest[0] in ('--fetch', '--download') and rest[1:] or
+                            self.assertTrue(rest[0] in ('--fetch', '--download', '--with-recommends') and rest[1:] or
                                             not rest[0].startswith('--'), '%s, job %s: %s' % (name, job, line.strip()))
+
+    def test_steps_that_installed_the_recommended_packages_still_do(self):
+        # Every step that ran apt-get install without
+        # --no-install-recommends before the helper (the Raspberry Pi OS
+        # check's three) keeps the packages they recommend: the cross
+        # compiler links with libc6-dev-arm64-cross, which
+        # gcc-13-aarch64-linux-gnu only recommends (#597's review)
+        calls = []
+        for name, job, container, runs in run_steps():
+            for run in runs:
+                for line in run.split('\n'):
+                    if HELPER in line and name == 'pi-os-check.yml':
+                        calls.append(line.split(HELPER + '"', 1)[1].split()[:2])
+        self.assertEqual(sorted(calls), [['--with-recommends', 'gcc-aarch64-linux-gnu'],
+                                         ['--with-recommends', 'imagemagick'],
+                                         ['--with-recommends', 'qemu-user-static']])
 
     def test_the_checkout_is_there_before_the_call(self):
         # (at the workspace's root: a checkout with a path of its own would
