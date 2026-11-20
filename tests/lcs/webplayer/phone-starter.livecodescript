@@ -174,3 +174,25 @@ on TestALayoutPutsTheDotInTheMiddle
    TestAssert "in the middle of the pad", dotLoc() is the loc of graphic "Pad" of card "Gestures" of stack kStack
    TestAssert "at its size", dotWidth() is 132
 end TestALayoutPutsTheDotInTheMiddle
+
+-- The Mobile Web library's word of the whole screen, gained or lost
+-- whoever did it (the button, the phone's back gesture, the browser
+-- itself), and of a request the browser refused after mwFullScreen
+-- returned. The button said which to ask for only at the stack's next
+-- layout, and none comes where the page keeps its size while the screen
+-- is whole; a refusal was swallowed (both after 0.2.8-dp.2). The word can
+-- come while another card is shown.
+on TestTheFullScreenButtonFollowsTheBrowser
+   dispatch "fullScreenChanged" to card "Gestures" of stack kStack with true
+   TestAssert "the whole screen given, on another card: the button asks for the bars", \
+         the label of button "Full" of card "Phone" of stack kStack is "Show the bars"
+   dispatch "fullScreenChanged" to card "Gestures" of stack kStack with false
+   TestAssert "and taken back: it asks for the whole screen", \
+         the label of button "Full" of card "Phone" of stack kStack is "Full screen"
+   go card "Phone" of stack kStack
+   dispatch "fullScreenError" to card "Phone" of stack kStack with "Permissions check failed"
+   TestAssert "a request refused after the call is said", \
+         the text of field "Phone Said" of card "Phone" of stack kStack is "The browser kept its bars this time."
+   TestAssert "and the button still asks for the whole screen", \
+         the label of button "Full" of card "Phone" of stack kStack is "Full screen"
+end TestTheFullScreenButtonFollowsTheBrowser

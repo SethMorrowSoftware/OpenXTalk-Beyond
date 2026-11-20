@@ -223,7 +223,7 @@ keyboard message comes then.
 | `mwSensorReading(pSensor)`, `mwSensorAvailable(pSensor)` | a sensor's last reading, and whether the browser can read it |
 | `mwShare pText, pURL, pTitle` | opens the phone's share sheet (or copies, where there is none) |
 | `mwKeepAwake true` | keeps the screen on while the page is open |
-| `mwFullScreen true`, `mwIsFullScreen()` | hides the browser's bars, and shows them again |
+| `mwFullScreen true`, `mwIsFullScreen()` | hides the browser's bars, and shows them again: the card gets `fullScreenChanged pFull` when the stack gets the whole screen or loses it, whoever did it, and `fullScreenError pError` when the browser says no after the call |
 | `mwVibrate pMilliseconds` | buzzes the phone |
 
 ```

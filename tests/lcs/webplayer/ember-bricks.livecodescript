@@ -2318,3 +2318,26 @@ on TestADuelFitsAPhoneAndAWindow
       press "Pause Home"
    end repeat
 end TestADuelFitsAPhoneAndAWindow
+
+-- The Mobile Web library's word of the whole screen, gained or lost
+-- whoever did it (the switch, the phone's back gesture, the browser
+-- itself), and of a request the browser refused after mwFullScreen
+-- returned: the switch says so then. Where the page keeps its size while
+-- the screen is whole, no resizeStack comes to lay it out again, and the
+-- refusal was swallowed (both after 0.2.8-dp.2)
+on TestTheFullScreenSwitchFollowsTheBrowser
+   local tNote
+   press "Settings Open"
+   dispatch "fullScreenChanged" to card kCard of stack kStack with true
+   TestAssert "the whole screen given: the switch is on", \
+         the label of button "Full" of card kCard of stack kStack is "FULL SCREEN: ON"
+   dispatch "fullScreenChanged" to card kCard of stack kStack with false
+   TestAssert "and taken back: off", the label of button "Full" of card kCard of stack kStack is "FULL SCREEN: OFF"
+   dispatch "fullScreenError" to card kCard of stack kStack with "Permissions check failed"
+   TestAssert "a request refused after the call is said in the note", \
+         fieldText("Settings Note") is "The browser kept its bars this time."
+   press "Settings Back"
+   put fieldText("Settings Note") into tNote
+   dispatch "fullScreenError" to card kCard of stack kStack with "refused"
+   TestAssert "out of the settings nothing is said", fieldText("Settings Note") is tNote
+end TestTheFullScreenSwitchFollowsTheBrowser
