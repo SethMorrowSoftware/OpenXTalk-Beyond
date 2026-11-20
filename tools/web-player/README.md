@@ -798,7 +798,10 @@ plays the playlist. The sounds are a kit of sixteen, five synths (a saw
 lead, a square bass, a soft pad, a pluck and keys) and up to eight samples
 of the user's own (a WAV, MP3 or OGG file of up to 4 MB, loaded from the
 picker or the File menu). Undo and Redo (also Ctrl+Z and Ctrl+Shift+Z or
-Ctrl+Y) go back over the last sixty changes, a drag being one. The song is
+Ctrl+Y) go back over the last sixty changes, a drag being one; a sample
+loaded over another is a change too, and Undo brings back the other's
+sound with its name (each sample's file has a key of its own, and a file
+no step can reach any more is deleted). The song is
 kept in the browser's storage and is there on the next visit; the File
 menu saves it as a file to download (its samples inside it) and opens one
 again, exports the song or pattern as a WAV file, loads a sample, starts a
@@ -815,7 +818,9 @@ browser); for each channel a filter, a fader, a stereo panner, a meter and
 sends to a reverb (a convolver with a made impulse) and a tempo-synced
 delay; a master gain, a limiter and a soft clip; and a scheduler that
 books each step on the audio clock a tenth of a second ahead, so a slow
-frame of the engine never moves the beat. Swing moves every second
+frame of the engine never moves the beat. Stop fades out every voice it
+booked in a few milliseconds, a long note still sounding as well as a
+step booked ahead, and the reverb and delay ring on. Swing moves every second
 sixteenth later by up to half a step. The stack tells the core the song
 after every change (`beyondBeats.set`) and asks it about sixty times a
 second which step is sounding and how loud each channel is, to move the
@@ -841,14 +846,16 @@ mute and solo, channels and the sound picker), patterns, the views and
 the layout, the playlist (blocks, drags, scrolling, Song mode and where
 it starts), the piano roll (adding, stretching, moving and deleting
 notes, velocity, the channel and octaves), the mixer and the master,
-undo and redo, New and Demo, what the page is told, song files and
-samples, a file that is not a song, and Play in both modes.
+undo and redo (a sample loaded over another among them), New and Demo,
+what the page is told, song files and samples, a file that is not a song,
+and Play in both modes.
 `tools/ci/beyond_beats_check.py` checks the rest in headless Chromium: the
 audio core alone, its songs rendered offline and measured sample by sample
 (the kit and the synths, each step on its sample, swing, volume, velocity,
 pan, mute, solo, notes and tuning, the filter, the reverb and the delay,
-the playlist, user samples, the limiter, the meters, the live clock and
-the WAV export), and the stack in a Stack Player (Play starts the page's
+the playlist, user samples, the limiter, the meters, the live clock, Stop
+silencing a held note and a step booked ahead, and the WAV export), and
+the stack in a Stack Player (Play starts the page's
 core with the stack's song, a pad clicked is in it at once, the views and
 the pattern list answer, Song mode plays the playlist, and Stop stops
 it). `build_player.py --check` runs both;

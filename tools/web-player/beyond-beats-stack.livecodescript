@@ -128,8 +128,10 @@ constant kFaderBottom = 420
 --     ["notes"][n] a line a note: start step, length in steps, MIDI pitch,
 --     velocity
 --   ["track"][t][b] the pattern that starts at bar b of track t
---   ["user"][slot]["name"] the name of a sample of the user's own (its
---     file is kept beside the song's: btSampleFile)
+--   ["user"][slot]["name"] the name of a sample of the user's own, and
+--     ["file"] its file's key: the file is kept beside the song's
+--     (btSampleFile), and a sample loaded over another gets a new key, so
+--     that a step of Undo brings back the sound with its name
 local sSong
 local sView, sPianoCh, sPianoLow, sNoteLen, sSongView
 local sPlaying, sStep, sTimer, sFallbackAt, sAudio
@@ -1690,12 +1692,13 @@ command btUndoReset
    put btSongText() into sUndo[1]
    put 1 into sUndoAt
    put 1 into sUndoTop
+   btTidySamples
 end btUndoReset
 
 -- The song as it is now, as the newest step of Undo; what Redo had is
 -- gone. Only the last kUndoDepth are kept.
 command btRemember
-   local tText, i, tKept
+   local tText, i, tKept, tTidy
    if sUndoAt is empty then
       btUndoReset
       exit btRemember
@@ -1705,16 +1708,29 @@ command btRemember
       put tText into sUndo[sUndoAt]
       exit btRemember
    end if
+   -- the steps Redo had, and the oldest one past the depth, are let go,
+   -- and with them a sample file only they had
+   repeat with i = sUndoAt + 1 to sUndoTop
+      if btSampleKeys(sUndo[i]) is not empty then
+         put true into tTidy
+      end if
+   end repeat
    add 1 to sUndoAt
    put tText into sUndo[sUndoAt]
    put sUndoAt into sUndoTop
    if sUndoTop > kUndoDepth then
+      if btSampleKeys(sUndo[1]) is not empty then
+         put true into tTidy
+      end if
       repeat with i = 2 to sUndoTop
          put sUndo[i] into tKept[i - 1]
       end repeat
       put tKept into sUndo
       subtract 1 from sUndoAt
       subtract 1 from sUndoTop
+   end if
+   if tTidy is true then
+      btTidySamples
    end if
 end btRemember
 
@@ -1749,11 +1765,24 @@ end btRedo
 
 -- A step of Undo back in the song; the pattern shown stays if it can.
 command btRestore pText
-   local tCur
+   local tCur, tWas, n
    put sSong["cur"] into tCur
+   repeat with n = 1 to kUserSlots
+      put btSlotKey(n) into tWas[n]
+   end repeat
    if not btReadSong(pText) then
       exit btRestore
    end if
+   -- a slot whose sample the step had another of: that one to the page
+   repeat with n = 1 to kUserSlots
+      if btSlotKey(n) is not tWas[n] then
+         if sSong["user"][n]["name"] is empty then
+            btClearPageSample n
+         else
+            btSendSample n
+         end if
+      end if
+   end repeat
    if tCur is an integer and tCur <= sSong["pats"] then
       put tCur into sSong["cur"]
    end if
@@ -1796,9 +1825,78 @@ function btSampleFolder
    return tFolder
 end btSampleFolder
 
+-- The file of a slot's sample as the song has it now.
 function btSampleFile pSlot
-   return btSampleFolder() & "/sample-" & pSlot & ".bin"
+   return btKeyFile(btSlotKey(pSlot))
 end btSampleFile
+
+function btKeyFile pKey
+   return btSampleFolder() & "/sample-" & pKey & ".bin"
+end btKeyFile
+
+-- A slot's file key: a song from before keys has the slot's number.
+function btSlotKey pSlot
+   if sSong["user"][pSlot]["name"] is empty then
+      return empty
+   end if
+   if sSong["user"][pSlot]["file"] is empty then
+      return pSlot
+   end if
+   return sSong["user"][pSlot]["file"]
+end btSlotKey
+
+-- A key no file has yet, for a sample coming into a slot.
+function btNewSampleKey pSlot
+   local tN
+   put the milliseconds into tN
+   repeat while there is a file btKeyFile(pSlot & "-" & tN)
+      add 1 to tN
+   end repeat
+   return pSlot & "-" & tN
+end btNewSampleKey
+
+-- A key read from a song's text: digits, and a dash and digits, or none
+-- (it names a file, so nothing else gets in).
+function btGoodKey pKey
+   return matchText(pKey, "^[1-9][0-9]*(-[0-9]+)?$")
+end btGoodKey
+
+-- The keys of the samples a song's text plays, a line each.
+function btSampleKeys pText
+   local tLine, tKeys
+   set the itemDelimiter to tab
+   filter pText with "sample" & tab & "*"
+   repeat for each line tLine in pText
+      if item 4 of tLine is not empty then
+         put item 4 of tLine & return after tKeys
+      else
+         put item 2 of tLine & return after tKeys
+      end if
+   end repeat
+   return tKeys
+end btSampleKeys
+
+-- The sample files that neither the song nor a step of Undo or Redo
+-- plays are deleted: a sample loaded over another keeps the other's file
+-- only while a step can bring it back.
+command btTidySamples
+   local tKeep, i, tFile, tFolder
+   put btSavePath() & "-samples" into tFolder
+   if there is not a folder tFolder then
+      exit btTidySamples
+   end if
+   put btSampleKeys(btSongText()) into tKeep
+   repeat with i = 1 to sUndoTop
+      put btSampleKeys(sUndo[i]) after tKeep
+   end repeat
+   repeat for each line tFile in files(tFolder)
+      if tFile begins with "sample-" and tFile ends with ".bin" then
+         if not (char 8 to -5 of tFile is among the lines of tKeep) then
+            delete file (tFolder & "/" & tFile)
+         end if
+      end if
+   end repeat
+end btTidySamples
 
 -- The song as text: a line a setting, a line a channel, a line for each
 -- pattern followed by its rows and its notes, a line a track of the
@@ -1845,7 +1943,7 @@ function btSongText
    end repeat
    repeat with n = 1 to kUserSlots
       if sSong["user"][n]["name"] is not empty then
-         put "sample" & tab & n & tab & sSong["user"][n]["name"] & return after tText
+         put "sample" & tab & n & tab & sSong["user"][n]["name"] & tab & btSlotKey(n) & return after tText
       end if
    end repeat
    return tText
@@ -1866,7 +1964,9 @@ end btClean
 -- are read too: they are the same lines with fewer of them. A file saved
 -- with Save has the samples' data in it too ("sampledata"): they are
 -- kept and played.
-function btReadSong pText
+-- pFromFile: a song file of the user's (File, Open a song), whose
+-- samples come with it and take new keys here.
+function btReadSong pText, pFromFile
    local tSong, tLine, tKey, n, p, tRow, tDigits, i, tSamples, tNotes, tNote, tList, tFormat, t, b, tBlock
    set the itemDelimiter to tab
    put line 1 of pText into tFormat
@@ -1986,6 +2086,9 @@ function btReadSong pText
          case "sample"
             if item 2 of tLine is an integer and item 2 of tLine >= 1 and item 2 of tLine <= kUserSlots then
                put char 1 to 40 of btCleanName(item 3 of tLine) into tSong["user"][item 2 of tLine]["name"]
+               if btGoodKey(item 4 of tLine) then
+                  put item 4 of tLine into tSong["user"][item 2 of tLine]["file"]
+               end if
             end if
             break
          case "sampledata"
@@ -2020,13 +2123,19 @@ function btReadSong pText
    put btWithin(tSong["cur"], 1, tSong["pats"], 1) into tSong["cur"]
    put btWithin(tSong["from"], 1, kSongBars, 1) into tSong["from"]
    put tSong into sSong
-   -- the samples a file brought: kept beside the song, and played
-   repeat for each key n in tSamples
-      if sSong["user"][n]["name"] is not empty then
-         put base64Decode(tSamples[n]) into url ("binfile:" & btSampleFile(n))
-         btSendSample n
-      end if
-   end repeat
+   -- the samples a file brought: kept beside the song under new keys (a
+   -- named slot that brought none has a key with no file), and played
+   if pFromFile is true then
+      repeat with n = 1 to kUserSlots
+         if sSong["user"][n]["name"] is not empty then
+            put btNewSampleKey(n) into sSong["user"][n]["file"]
+            if tSamples[n] is not empty then
+               put base64Decode(tSamples[n]) into url ("binfile:" & btSampleFile(n))
+            end if
+            btSendSample n
+         end if
+      end repeat
+   end if
    return true
 end btReadSong
 
@@ -2123,7 +2232,7 @@ end btAskOpen
 command btOpenProject pPath
    local tText
    put textDecode(url ("binfile:" & pPath), "UTF-8") into tText
-   if not btReadSong(tText) then
+   if not btReadSong(tText, true) then
       btStatus btCleanName(pPath) && "is not a Beyond Beats song."
       exit btOpenProject
    end if
@@ -2180,8 +2289,11 @@ command btImportSample pRow, pPath, pSlot
       put sSong["chans"] into pRow
    end if
    put char 1 to 40 of btCleanName(pPath) into tName
-   put tData into url ("binfile:" & btSampleFile(pSlot))
+   -- a new key: the file of a sample it replaces stays while Undo can
+   -- bring that one back
    put tName into sSong["user"][pSlot]["name"]
+   put btNewSampleKey(pSlot) into sSong["user"][pSlot]["file"]
+   put tData into url ("binfile:" & btSampleFile(pSlot))
    btSendSample pSlot
    btSetSound pRow, kFirstUser + pSlot - 1
    btStatus "Channel" && pRow && "plays" && tName & ". Its notes in the piano roll play it higher and lower."
@@ -2198,6 +2310,13 @@ command btSendSample pSlot
    replace linefeed with empty in tData
    do "beyondBeats.loadSample(" & pSlot & ",'" & tData & "')" as "JavaScript"
 end btSendSample
+
+-- A slot the song no longer has a sample in, emptied in the page too.
+command btClearPageSample pSlot
+   if sAudio is "ok" then
+      do "beyondBeats.clearSample(" & pSlot & ")" as "JavaScript"
+   end if
+end btClearPageSample
 
 -- File > Export: the page renders the song (or, in Pattern mode, the
 -- pattern) and the browser downloads it as a WAV.
@@ -3436,7 +3555,7 @@ end btTestEnd
 -- "solo n", "cut n", "rev n", "dly n", "tune n", "audible n", "name p",
 -- "master vol|size|dly|fb", "block t b" (the pattern at bar b of track t),
 -- "track t" ("bar:pattern,..."), "songsteps", "pianoch", "pianolow",
--- "notelen", "songview", "undo" ("at/top"), "user slot".
+-- "notelen", "songview", "undo" ("at/top"), "user slot", "file slot".
 function btState pWhat
    local tN, tAt, tText
    put word 2 of pWhat into tN
@@ -3505,6 +3624,12 @@ function btState pWhat
          return sUndoAt & "/" & sUndoTop
       case "user"
          return sSong["user"][tN]["name"]
+      case "file"
+         -- the file of a slot's sample, or empty
+         if sSong["user"][tN]["name"] is empty then
+            return empty
+         end if
+         return btSampleFile(tN)
    end switch
    return empty
 end btState

@@ -1084,8 +1084,8 @@ on TestASampleIsLoadedAndKept
    TestAssert "into the first slot, by its name", st("user 1") is "click.wav"
    TestAssert "channel 3 plays it", st("sound 3") is 22
    TestAssert "and is named for it", the label of ctl("button", "chan 3") is "click.wav"
-   TestAssert "kept beside the song", there is a file (sSave & "-samples/sample-1.bin") and \
-         url ("binfile:" & sSave & "-samples/sample-1.bin") is wavFile()
+   TestAssert "kept beside the song", st("file 1") begins with sSave & "-samples/sample-1-" and \
+         there is a file st("file 1") and url ("binfile:" & st("file 1")) is wavFile()
    TestAssert "in the song's file", saved() contains "sample" & tab & "1" & tab
    press "chan 3"
    TestAssert "the picker names it", the label of ctl("button", "pick 22") is "click.wav" and \
@@ -1106,13 +1106,13 @@ on TestASampleIsLoadedAndKept
    studio "btSaveProject", tSong
    TestAssert "the file has the data", url ("file:" & tSong) contains "sampledata" & tab & "1" & tab & \
          replaceText(base64Encode(wavFile()), "[\r\n]", "")
-   delete file (sSave & "-samples/sample-1.bin")
-   delete file (sSave & "-samples/sample-2.bin")
+   delete file st("file 1")
+   delete file st("file 2")
    press "New"
    press "New"
    studio "btOpenProject", tSong
    TestAssert "opened, the samples are back", st("sound 3") is 22 and \
-         url ("binfile:" & sSave & "-samples/sample-1.bin") is wavFile() and there is a file (sSave & "-samples/sample-2.bin")
+         url ("binfile:" & st("file 1")) is wavFile() and there is a file st("file 2")
    put "x" into url ("binfile:" & tWav)
    put "" into url ("binfile:" & tWav)
    studio "btImportSample", 4, tWav
@@ -1121,6 +1121,71 @@ on TestASampleIsLoadedAndKept
    delete folder tFolder
    delete file tSong
 end TestASampleIsLoadedAndKept
+
+-- A sample loaded over another: Undo brings back the one it replaced,
+-- its name and its sound, and Redo the new one; the replaced one's file
+-- is kept only while a step of Undo or Redo can bring it back.
+on TestUndoBringsBackTheSampleItReplaced
+   local tFolder, tA, tB, tFileA, tFileB, tSong, tFileC
+   put sSave & "-in" into tFolder
+   create folder tFolder
+   put tFolder & "/a.wav" into tA
+   put tFolder & "/b.wav" into tB
+   put wavFile() into url ("binfile:" & tA)
+   put wavFile() & "B" into url ("binfile:" & tB)
+   studio "btImportSample", 3, tA
+   put st("file 1") into tFileA
+   studio "btImportSample", 3, tB
+   put st("file 1") into tFileB
+   TestAssert "loaded over it: the same slot, a file of its own", st("user 1") is "b.wav" and \
+         tFileB is not tFileA and url ("binfile:" & tFileB) is wavFile() & "B"
+   TestAssert "the one it replaced is kept for Undo", url ("binfile:" & tFileA) is wavFile()
+   TestAssert "the song names its file", saved() contains "sample" & tab & "1" & tab & "b.wav" & tab & \
+         char length(sSave & "-samples/sample-") + 1 to -5 of tFileB
+   press "Undo"
+   TestAssert "undone: the old name and the old sound", st("user 1") is "a.wav" and st("file 1") is tFileA
+   press "Redo"
+   TestAssert "redone: the new ones", st("user 1") is "b.wav" and st("file 1") is tFileB
+   -- a song file opened over it: its samples come under new keys, and
+   -- Undo brings back the song before with its own
+   put sSave & "-a.beats" into tSong
+   press "Undo"
+   studio "btSaveProject", tSong
+   press "Redo"
+   studio "btOpenProject", tSong
+   put st("file 1") into tFileC
+   TestAssert "a song file opened: its sample, under a key of its own", st("user 1") is "a.wav" and \
+         tFileC is not tFileA and tFileC is not tFileB and url ("binfile:" & tFileC) is wavFile()
+   press "Undo"
+   TestAssert "undone: the song before, with its sample", st("user 1") is "b.wav" and st("file 1") is tFileB and \
+         url ("binfile:" & tFileB) is wavFile() & "B"
+   -- a change after Undo ends Redo, and the file only Redo had goes
+   studio "btSetTempo", 100
+   TestAssert "the file only Redo had is gone", there is not a file tFileC
+   TestAssert "the files Undo still has stay", there is a file tFileA and there is a file tFileB
+   -- New (twice), and the stack opened again: Undo starts again, and the
+   -- files only it had go
+   press "New"
+   press "New"
+   studio "btUndoReset"
+   TestAssert "only the song's samples are kept", there is not a file tFileA and there is not a file tFileB
+   delete file tA
+   delete file tB
+   delete folder tFolder
+   delete file tSong
+end TestUndoBringsBackTheSampleItReplaced
+
+-- A song's text names a sample's file by a key: one that is not digits
+-- (a path, say) is not used, and the slot's own number is.
+on TestASampleKeyIsOnlyDigits
+   local tSong
+   put "beyond-beats 2" & return & "ch" & tab & "22" & return & "pat" & tab & "A" & tab & "16" & return & \
+         "sample" & tab & "1" & tab & "x.wav" & tab & "../../x" & return & \
+         "sample" & tab & "2" & tab & "y.wav" & tab & "2-123" & return into tSong
+   TestAssert "read", says("btTestRead", tSong)
+   TestAssert "a path is not a key", st("file 1") is sSave & "-samples/sample-1.bin"
+   TestAssert "digits are", st("file 2") is sSave & "-samples/sample-2-123.bin"
+end TestASampleKeyIsOnlyDigits
 
 on TestExportingNeedsABrowser
    if the platform is "HTML5" then
