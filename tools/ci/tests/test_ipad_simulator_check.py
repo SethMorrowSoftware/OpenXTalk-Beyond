@@ -296,9 +296,9 @@ class FakeIPad:
     SCALE, LEFT, TOP, BAR = 0.5, 100, 60, 40
     SPEED = 20
 
-    def __init__(self, record, commands, fixed=True, rule=True, refuse=False):
+    def __init__(self, record, commands, fixed=True, rule=True, refuse=False, smaller_bar=False):
         self.record, self.commands = record, commands
-        self.fixed, self.rule_on, self.refuse = fixed, rule, refuse
+        self.fixed, self.rule_on, self.refuse, self.smaller_bar = fixed, rule, refuse, smaller_bar
         self.card, self.full, self.focus, self.unfixed = 'Home', False, 'body', False
         self.lock = threading.RLock()
         self.later = []
@@ -332,6 +332,10 @@ class FakeIPad:
                 command = self.commands.take()
                 if command == 'leave':
                     self.set_full(False)
+                    if self.smaller_bar:
+                        # Safari's bar comes back 30 points smaller: the
+                        # page is 60 pixels taller, its bottom where it was
+                        self.BAR, self.H, self.TABS_TOP = self.BAR - 30, self.H + 60, self.TABS_TOP + 60
                     self.post('done', command=command)
                 elif command == 'unfix':
                     self.unfixed = True
@@ -424,9 +428,10 @@ class Driving(unittest.TestCase):
     def test_the_engine_of_dp2_keeps_full_screen(self):
         problems, ipad, record = self.drive()
         self.assertEqual(problems, [])
-        # the Phone tab, Full screen, the tab again in full screen, Full
-        # screen for the control (after the two calibration clicks)
-        self.assertEqual(len(ipad.clicks), 6)
+        # the Phone tab, Full screen, the tab again in full screen, the tab
+        # after it, Full screen for the control (after the two calibration
+        # clicks)
+        self.assertEqual(len(ipad.clicks), 7)
         self.assertEqual([e['command'] for e in record.since() if e['kind'] == 'done'], ['leave', 'unfix'])
 
     def test_the_engine_before_dp2_loses_it(self):
@@ -441,6 +446,13 @@ class Driving(unittest.TestCase):
         problems, ipad, record = self.drive(rule=False)
         self.assertEqual(len(problems), 1, problems)
         self.assertIn('so this check can see the bug it is for', problems[0])
+
+    def test_the_page_is_found_again_after_full_screen(self):
+        # the control's tap where the Full button was before would land 60
+        # pixels below it, outside it
+        problems, ipad, record = self.drive(smaller_bar=True)
+        self.assertEqual(problems, [])
+        self.assertTrue(FakeIPad.FULL[1] <= ipad.clicks[-1][1] <= FakeIPad.FULL[3], ipad.clicks)
 
     def test_a_refusal_fails(self):
         problems, ipad, record = self.drive(refuse=True)

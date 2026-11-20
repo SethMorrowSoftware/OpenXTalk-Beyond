@@ -60,7 +60,9 @@ what the page does to this script's server, and takes its commands.
         4. a second press, on the Phone tab, while full screen: the page
            stays full screen (a press gave the input the focus)
         5. the page leaves full screen (its own call, no tap): the button
-           says "Full screen" again and the stack is as big as before
+           says "Full screen" again and the stack fills the window; a tap
+           on the Phone tab says where the page is now (Safari's bars may
+           come back smaller than they were)
         6. the control: the engine made to do what it did before
            0.2.8-dp.2 (the reporter's "unfix": its input with the focus
            when the page asks and in full screen), a tap on "Full screen"
@@ -196,6 +198,12 @@ class Mapping:
 
     def to_mac(self, x, y):
         return int(round(self.ax * x + self.bx)), int(round(self.ay * y + self.by))
+
+    def moved(self, page_point, mac_point):
+        """The same scale (the screen's), the page where a click at
+        mac_point landed at page_point"""
+        return Mapping(self.ax, mac_point[0] - self.ax * page_point[0],
+                       self.ay, mac_point[1] - self.ay * page_point[1])
 
     def __repr__(self):
         return 'x * %.4f + %.1f, y * %.4f + %.1f' % (self.ax, self.bx, self.ay, self.by)
@@ -632,15 +640,25 @@ def check(sim, record, commands, url, out=None):
     commands.put('leave')
     gone = record.wait(lambda e: e.get('kind') == 'fullscreenchange' and e.get('full') is False, 10, since=i)
     expect('the page leaves full screen when it asks to', gone is not None, latest())
-    off = record.wait(lambda e: is_state(e) and label_of(e, 'Full') == LABEL_OFF and rect_of(e.get('rect')) == before,
-                      10, since=i)
-    expect('the Full button says "%s" again, and the stack is as big as before (%s)' % (LABEL_OFF, before),
-           off is not None, latest())
+    off = record.wait(lambda e: is_state(e) and e.get('full') is False and label_of(e, 'Full') == LABEL_OFF and
+                      fills(e), 10, since=i)
+    expect('the Full button says "%s" again, and the stack fills the window' % LABEL_OFF, off is not None, latest())
     time.sleep(PAUSES['settle'])
     shot('5-left')
-    # (the control taps the Full button where it was before full screen)
     if gone is None or off is None:
         return problems
+    if rect_of(record.state().get('rect')) != before:
+        log('  the stack is %s now, %s before full screen' % (record.state().get('rect'), before))
+    # Safari's bars may come back smaller than they were: a tap on the
+    # Phone tab, where it was, says where the page is now (the tab bar is
+    # at the bottom of the page, and the page at the bottom of the screen)
+    i, touch = tap(phone_tab)
+    if not expect('a tap on the Phone tab reaches the page again', touch is not None, latest()):
+        return problems
+    mapping = mapping.moved((touch['x'], touch['y']), phone_tab)
+    log('  the page on the screen now: %r' % mapping)
+    time.sleep(PAUSES['effect'])
+    full_button = mapping.to_mac(*button_point(record.state(), 'Full'))
 
     # 6. the control: the engine as it was before 0.2.8-dp.2
     i = record.mark()
