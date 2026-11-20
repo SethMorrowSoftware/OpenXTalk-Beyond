@@ -86,6 +86,12 @@ the page's phone frame at its own size and its keys play it at once; on a
 phone the page loads no engine until a tap, which opens the bare player
 with the game filling the window.
 
+Then Beyond Beats (tools/ci/beyond_beats_check.py): its audio core alone
+in a page, the song rendered offline and measured (the kit, each step on
+its sample, swing, volume, pan, mute, solo, the limiter, the clock), and
+the stack in the bare player: Play starts the page's core with its pattern,
+a pad clicked is in the pattern at once, and Stop stops it.
+
 The first page also has other scripts' errors raised while the player
 starts and once it has (tools/ci/stray_errors.py: a browser extension's
 script in the page, another site's): the player must start and say
@@ -360,6 +366,12 @@ SAMPLES = [
      'description': 'A 16-step drum machine: drums made by Web Audio, kept in time by the '
                     'browser, and your beat saved for next time.',
      'tags': ['Music', 'Web Audio']},
+    {'title': 'Beyond Beats', 'source': 'stacks',
+     'files': ['Beyond Beats.oxtstack'], 'image': 'Beyond Beats.webp',
+     'description': 'A beat studio: drums in a channel rack, bass lines and chords in a piano '
+                    'roll, patterns arranged into a song, a mixer with reverb and delay, your own '
+                    'samples, and the song saved as a file or exported as a WAV.',
+     'tags': ['Music', 'Web Audio', 'Sequencer']},
     {'title': 'Kanban Board', 'source': 'stacks',
      'files': ['Kanban Board.oxtstack'], 'image': 'Kanban Board.webp',
      'description': 'Drag cards between three columns while the others slide out of the way; '
@@ -950,6 +962,15 @@ def check(site, samples, work):
         import check_puzzle_almanac_page
         check_puzzle_almanac_page.check_player(p, browser, site, os.path.join(work, 'puzzle-almanac-page'), shots,
                                                expect)
+
+        # Beyond Beats: its audio core alone, then the stack playing in
+        # the bare player, in a browser that lets a page play sound
+        import beyond_beats_check
+        beyond_beats_check.check_core(p, 'chromium', expect)
+        beats = p.chromium.launch(executable_path=executable, args=['--autoplay-policy=no-user-gesture-required'])
+        beyond_beats_check.check_player(p, beats, url.replace('index.html', BARE + '/') + '?play=Beyond%20Beats',
+                                        shots, expect, wait_for)
+        beats.close()
 
         # An error of the page's own while the engine starts still shows
         own_context = browser.new_context(viewport={'width': 1000, 'height': 700})
