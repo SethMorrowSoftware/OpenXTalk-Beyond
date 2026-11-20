@@ -1,0 +1,192 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# Full screen from a tap, in Safari on Apple's iPad simulator, with the web
+# engine of the commit (tools/ci/ipad_simulator_check.py says what it
+# checks). The forum's report on 0.2.8-dp.1 (CamelCaps, an iPad with
+# iPadOS 18.5): the Phone Starter's "Full screen" went full screen and
+# came back "in a split second". WebKit ends full screen on an iPhone or an
+# iPad when a text input takes the focus, and the web engine's hidden input
+# had it; 0.2.8-dp.2 keeps it without the focus there (em-event.js). That
+# rule is in no browser on Linux, so the web check (web.yml) cannot see it:
+# this is where it is seen, on iOS 18.5 (the report's system) and the
+# newest iOS 26, and where a check that cannot see it fails (its control
+# step).
+#
+# The web runtime is web.yml's, built for this run (its cache makes that
+# quick when the engine did not change); the Phone Starter is made into an
+# HTML5 standalone on Linux, with the development engine that the web
+# check uses, and served from the Mac to the simulator's Safari.
+#
+# Mac runners are few, so this runs only for what can change the answer:
+# the engine's browser side of presses, focus and full screen, the Mobile
+# Web library, the Phone Starter and the check itself; and by hand.
+
+name: iPad simulator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: &ipad-paths
+      - '.github/workflows/ipad-simulator.yml'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
+      - 'tools/ci/mobile-web-check.livecodescript'
+      - 'tools/ci/mobile-web-deploy.livecodescript'
+      - 'engine/src/em-event.js'
+      - 'engine/src/em-event.cpp'
+      - 'engine/src/em-dc.js'
+      - 'extensions/script-libraries/mobileweb/mobileweb.livecodescript'
+      - 'tools/web-player/stacks/Phone Starter.oxtstack'
+  pull_request:
+    branches: [main]
+    paths: *ipad-paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipad-simulator-${{ github.ref }}
+  # newer pushes to a pull request replace older runs; main's run ends
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  web:
+    name: Web
+    uses: ./.github/workflows/web.yml
+    with:
+      artifact: OXT-Beyond-web-ipad
+
+  stage:
+    name: The Phone Starter, made for the iPad
+    needs: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the runtime
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-web-ipad
+          path: ${{ runner.temp }}/web-runtime
+
+      # The engine's "core" libraries, as web.yml's check installs them,
+      # for the development engine that writes the standalone's data
+      - name: Install the engine's libraries
+        run: |
+          installed() { dpkg-query -W -f='${Status}\n' "$1" 2> /dev/null | grep -qx 'install ok installed'; }
+          pkgs=()
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            [ "$use" = core ] || continue
+            if installed "${deb}t64"; then
+              deb="${deb}t64"
+            elif ! installed "$deb" && apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          missing=()
+          for p in "${pkgs[@]}"; do installed "$p" || missing+=("$p"); done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Installing: ${missing[*]}"
+            # (public name servers too, if the runner's own give no answer for the package servers)
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
+            sudo apt-get -o Acquire::Retries=3 update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends "${missing[@]}"
+          else
+            echo "Already installed: ${pkgs[*]}"
+          fi
+
+      - name: Make the Phone Starter's page
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/ipad_simulator_check.py stage --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --out "$RUNNER_TEMP/ipad-site"
+
+      - name: Upload the page
+        uses: actions/upload-artifact@v7
+        with:
+          name: ipad-site
+          path: ${{ runner.temp }}/ipad-site
+          if-no-files-found: error
+          retention-days: 7
+
+  ipad:
+    name: Full screen on an iPad (iOS ${{ matrix.ios }})
+    needs: stage
+    runs-on: macos-15
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # 18.5: the report's system; 26: the newest system of the runner
+        ios: ['18.5', '26']
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the page
+        uses: actions/download-artifact@v8
+        with:
+          name: ipad-site
+          path: ${{ runner.temp }}/ipad-site
+
+      - name: The simulators of this machine
+        timeout-minutes: 5
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: Boot an iPad and show it
+        timeout-minutes: 15
+        env:
+          IOS: ${{ matrix.ios }}
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 tools/ci/ipad_simulator_check.py pick "$IOS")
+          echo "IPAD_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          open -a Simulator --args -CurrentDeviceUDID "$udid"
+          # (the Simulator's window takes a while to show the iPad's screen)
+          sleep 20
+
+      - name: Full screen from a tap
+        timeout-minutes: 15
+        run: |
+          python3 tools/ci/ipad_simulator_check.py drive --site "$RUNNER_TEMP/ipad-site" --udid "$IPAD_UDID" \
+            --out "$RUNNER_TEMP/ipad-check"
+
+      - name: Upload the screenshots and the page's events
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ipad-check-ios-${{ matrix.ios }}
+          path: ${{ runner.temp }}/ipad-check
+          if-no-files-found: ignore
+          retention-days: 14

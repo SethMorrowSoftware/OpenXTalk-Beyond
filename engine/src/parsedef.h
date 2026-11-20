@@ -719,6 +719,14 @@ enum Is_validation {
     IV_STRING,
     IV_BINARY_STRING,
     IV_REAL,
+
+    // OXT-Beyond: LiveCode 11's "is [strictly] a sequence", "is [strictly]
+    // a dictionary" and "is a numeric sequence" (MCIs). No word of the
+    // validation table names them, so that "x is sequence" and the like,
+    // with a variable of that name, mean what they did
+    IV_SEQUENCE,
+    IV_DICTIONARY,
+    IV_NUMERIC_SEQUENCE,
 };
 
 enum Lock_constants {
@@ -1793,9 +1801,20 @@ enum Properties {
     // OXT-Beyond: the global useDesktopAppearance
     P_USE_DESKTOP_APPEARANCE,
     
+    // OXT-Beyond: the server's sessionCookieSecure and sessionCookieSameSite
+    P_SESSION_COOKIE_SECURE,
+    P_SESSION_COOKIE_SAME_SITE,
+    
     // OXT-Beyond: an image's frameDurations (its playRate is P_PLAY_RATE,
     // the player's)
     P_FRAME_DURATIONS,
+
+    // OXT-Beyond: the handler-local sequencesAsLists, read only after "the"
+    // and where what holds it did not compile without it (MCProperty::parse,
+    // MCNewSyntax): no token of the factor table, so "sequencesAsLists"
+    // stays free as a name, and "the sequencesAsLists of" an object is the
+    // custom property it was
+    P_SEQUENCES_AS_LISTS,
     
     __P_LAST,
 };

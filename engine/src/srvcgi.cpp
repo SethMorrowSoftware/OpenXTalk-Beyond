@@ -1808,6 +1808,24 @@ static bool cgi_send_cookies(void)
 		if (t_success && MCservercgicookies[i].http_only)
 			t_success = MCCStringAppend(t_cookie_header, "; HttpOnly");
 		
+		// OXT-Beyond: the session cookie's SameSite attribute, when a script
+		// set the sessionCookieSameSite
+		if (t_success)
+			switch (MCservercgicookies[i].same_site)
+			{
+				case kMCServerCookieSameSiteLax:
+					t_success = MCCStringAppend(t_cookie_header, "; SameSite=Lax");
+					break;
+				case kMCServerCookieSameSiteStrict:
+					t_success = MCCStringAppend(t_cookie_header, "; SameSite=Strict");
+					break;
+				case kMCServerCookieSameSiteCrossSite:
+					t_success = MCCStringAppend(t_cookie_header, "; SameSite=None");
+					break;
+				default:
+					break;
+			}
+		
 		if (t_success)
 			t_success = MCCStringAppend(t_cookie_header, "\n");
 		

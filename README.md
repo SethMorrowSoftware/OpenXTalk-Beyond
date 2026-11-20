@@ -5100,6 +5100,12 @@ pages that use all of the above, revDB with SQLite, revXML and revZip
 ([`tools/ci/server_check.py`](tools/ci/server_check.py)). From
 0.2.7-rc.6.15 a second `require` of the same file no longer crashes the
 engine (LiveCode Community 9.6.3's server engine crashed there too).
+From 0.2.8 the session files and their index are private to the user
+the engine runs as (on Linux and macOS), a session ID that names a file
+outside the session folder is replaced by a new one, and two new
+properties, off by default, give the session cookie the attributes
+browsers now expect: `the sessionCookieSecure` (true or false) and
+`the sessionCookieSameSite` (`lax`, `strict` or `none`).
 
 Changes made in this repository to build it: the `thirdparty` and `ide`
 submodules are ordinary folders in the repository, the prebuilt

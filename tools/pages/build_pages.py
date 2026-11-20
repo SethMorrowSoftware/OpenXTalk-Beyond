@@ -502,6 +502,59 @@ def bare_player(out):
     return True
 
 
+# The forum's "Try it in the browser" (seth, 2026-11-19): a stack attached
+# to a post on openxtalk.org/forum plays at <site>/try/ (tools/pages/forum/
+# index.html), in a copy of the bare player at try/box/ that a frame boxes
+# in. Not on the forum's own site: its login cookies are there, and a
+# stack would run beside them. Here the frame's sandbox has no
+# allow-same-origin, so the stack is a stranger to this site (the web IDE
+# keeps people's stacks here) as well as to the forum; the box's page,
+# opened anywhere but in such a frame, goes back to try/ instead of
+# playing (FORUM_GUARD, as the OXT Community Stacks gallery does it); and
+# it takes a stack from the forum's stack files alone, which the forum's
+# oxt/stacktools extension serves to anyone, with no login, only when a
+# guest may download them.
+FORUM_SANDBOX = 'allow-scripts allow-downloads allow-popups allow-popups-to-escape-sandbox allow-pointer-lock'
+FORUM_GUARD = ('<script data-cfasync="false">if(self.origin!=="null"||self===top)'
+               '{location.replace("../")}</script>')
+# (no Referer to the forum; and neither try/ nor its box is for search
+# engines: tools/pages/seo.py leaves a noindex page out and unchanged)
+FORUM_BOX_HEAD = '<meta name="referrer" content="no-referrer">\n<meta name="robots" content="noindex">'
+FORUM_FILES = 'https://openxtalk.org/forum/app.php/oxtstack/file/'
+# The bare player's own rule (play.html, sameSite): this site's files only
+SAME_SITE = "if (url.origin !== location.origin || !/^https?:$/.test(url.protocol)) return null;"
+FORUM_ONLY = ("if (url.protocol !== 'https:' || url.href.indexOf('%s') !== 0"
+              " || url.search || url.hash) return null;" % FORUM_FILES)
+
+
+def forum_player(out):
+    """Puts the forum's try page at <out>/try/ and its boxed player at
+    <out>/try/box/, made from the bare player at <out>/play/ (bare_player,
+    which must have run). Refuses a bare player whose page has changed so
+    that the box could not be put on it."""
+    with open(os.path.join(out, 'play', 'index.html'), encoding='utf-8') as f:
+        text = f.read()
+    based = BARE_BASE.replace('"../"', '"../player/"')
+    for part, what in (('<head>', 'a single <head>'), (based, 'its base'), (SAME_SITE, 'its rule for stacks')):
+        if text.count(part) != 1:
+            raise BuildError('the bare player has changed: the forum\'s box needs %s in it' % what)
+    text = text.replace('<head>', '<head>\n' + FORUM_GUARD + '\n' + FORUM_BOX_HEAD, 1)
+    text = text.replace(based, BARE_BASE.replace('"../"', '"../../player/"'), 1)
+    text = text.replace(SAME_SITE, FORUM_ONLY, 1)
+    text = text.replace("'The stack must be on this site: '", "'The stack must be a forum stack: '", 1)
+    with open(os.path.join(HERE, 'forum', 'index.html'), encoding='utf-8') as f:
+        page = f.read()
+    for hole in ('@SANDBOX@', '@FORUM_FILES@'):
+        if page.count(hole) != 1:
+            raise BuildError('tools/pages/forum/index.html does not have %s once' % hole)
+    page = page.replace('@SANDBOX@', FORUM_SANDBOX).replace('@FORUM_FILES@', FORUM_FILES)
+    os.makedirs(os.path.join(out, 'try', 'box'))
+    with open(os.path.join(out, 'try', 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(page)
+    with open(os.path.join(out, 'try', 'box', 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text)
+
+
 def check_sizes(folder):
     for root, dirs, names in os.walk(folder):
         for name in names:
@@ -775,6 +828,8 @@ def build(args):
         bare = bare_player(out)
         if bare:
             print('bare player: play/')
+            forum_player(out)
+            print('forum stacks: try/')
         # The games run on the Stack Player's engine, so they go up with it
         if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player'), bare):
             parts['GAMES'] = ''

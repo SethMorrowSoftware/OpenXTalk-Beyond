@@ -6,6 +6,21 @@
 # compiler) skips there, through the test library's requirements
 # (tests/_testlib.livecodescript), and is not here.
 
+lcs: core/array/kinds: TestAsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAScalar  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAnArray  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsInExpressions  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestCompileErrors  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsANumericSequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsStrictly  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestMarksIgnoredAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestNamesAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsCustomPropertyAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsProperty  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestTheMarkStays  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
 lcs: core/array/literals: TestAFreshArrayEachTime
 lcs: core/array/literals: TestAnElementIsWritten
 lcs: core/array/literals: TestBadKey
@@ -67,6 +82,15 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
+lcs: core/engine-lcb/array-kinds: TestEditedSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestImportWidgetWithLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
@@ -212,6 +236,11 @@ lcs: core/network/network: TestNetworkDNSServers
 lcs: core/network/network: TestNetworkDNSServersAnswers # 9.6.3's engine has no DNS servers on Android and throws (error 198); OXT-Beyond's answers them
 lcs: core/network/network: TestOpenSocketWithNoHost # 9.6.3's engine stops the app: open socket to a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
+lcs: core/server/sessioncookie: TestSessionCookieDefaults
+lcs: core/server/sessioncookie: TestSessionCookieSameSite
+lcs: core/server/sessioncookie: TestSessionCookieSameSiteNotAValue
+lcs: core/server/sessioncookie: TestSessionCookieSecure
+lcs: core/server/sessioncookie: TestSessionCookieSecureNotABoolean
 lcs: core/strings/filter: TestBug15443
 lcs: core/strings/format: TestFormatWideIntegers # 9.6.3's engine cuts %d and its kin to 32 bits; OXT-Beyond's keeps the whole number (#583)
 lcs: core/strings/matches: TestMatchesCustomProperty

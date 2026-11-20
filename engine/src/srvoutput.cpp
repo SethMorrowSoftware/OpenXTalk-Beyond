@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -517,6 +521,7 @@ bool MCServerSetCookie(MCStringRef p_name, MCStringRef p_value, uint32_t p_expir
 		MCservercgicookies[t_index].expires = p_expires;
 		MCservercgicookies[t_index].secure = p_secure;
 		MCservercgicookies[t_index].http_only = p_http_only;
+		MCservercgicookies[t_index].same_site = kMCServerCookieSameSiteNone;
 	}
 	
 	return t_success;
@@ -524,3 +529,20 @@ bool MCServerSetCookie(MCStringRef p_name, MCStringRef p_value, uint32_t p_expir
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: the session cookie, which alone takes the attributes of the
+// sessionCookieSecure and the sessionCookieSameSite. The cookie it has just
+// set (or replaced) is the last one whose name matches.
+bool MCServerSetSessionCookie(MCStringRef p_name, MCStringRef p_value, uint32_t p_expires)
+{
+	if (!MCServerSetCookie(p_name, p_value, p_expires, nil, nil, MCsessioncookiesecure, true))
+		return false;
+	
+	for (uint32_t i = MCservercgicookiecount; i > 0; i--)
+		if (MCStringIsEqualToCString(p_name, MCservercgicookies[i - 1].name, kMCCompareExact))
+		{
+			MCservercgicookies[i - 1].same_site = MCsessioncookiesamesite;
+			break;
+		}
+	
+	return true;
+}

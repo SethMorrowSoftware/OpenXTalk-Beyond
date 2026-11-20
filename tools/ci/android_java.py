@@ -229,6 +229,37 @@ EDGE_TO_EDGE_ON_CONFIGURATION = (
     'for a stack drawn edge to edge, the bars\' icons follow the appearance (showBarsForAppearance, dark in the '
     'light one) when night mode changes; for any other stack it does what it did')
 
+# compare: whether a permission exists (androidPermissionExists, and what
+# androidHasPermission and androidRequestPermission ask first): a
+# difference from every Classes compare knows
+PERMISSION_EXISTS = {
+    'code com/runrev/android/Engine.checkPermissionExists:(Ljava/lang/String;)Z':
+        'the package manager is asked of the name first (permissionIsKnown, getPermissionInfo), and the walk of '
+        'the permission groups is done only when it does not know it: Android 10 and newer list most permissions '
+        'in no group (INTERNET, ACCESS_NETWORK_STATE), so the walk alone answered false for them, '
+        'androidHasPermission returned empty and androidRequestPermission asked for nothing. A name either way '
+        'knew is answered true as before, and one neither knows false',
+}
+
+# compare: whether the keyboard shows, where the stack is laid out by the
+# window's insets (LiveCodeActivity.laysOutByInsets): a difference from
+# LiveCode 9.6.3's Classes and from every one built here before it alike
+KEYBOARD_BY_INSETS = {
+    'code com/runrev/android/Engine.keyboardIsVisible:()Z':
+        'on Android 11 and newer, where the activity lays the stack out by the window\'s insets '
+        '(keepOutOfSystemBars, drawEdgeToEdge), the insets say whether the keyboard shows: there the window '
+        'goes under the navigation bar, which Android 15\'s display metrics count in, so the sum took the '
+        'navigation bar for a keyboard, the stack was told the keyboard showed at launch, and its working area '
+        'fell back to the whole screen, the bottom of a stack under the navigation bar. Any other window is '
+        'measured as before',
+}
+KEYBOARD_BY_INSETS_KEEP_OUT = (
+    'it marks the stack laid out by the window\'s insets (laysOutByInsets), where the engine\'s view asks them '
+    'whether the keyboard shows (Engine.keyboardIsVisible); the padding is as before')
+KEYBOARD_BY_INSETS_DRAW = (
+    'it marks the stack laid out by the window\'s insets (laysOutByInsets), as keepOutOfSystemBars does; the '
+    'window is drawn as before')
+
 # compare: what a build from this repository's sources does differently
 # from a released runtime's Classes, by the released jar's SHA-256, each
 # with the reason. A key is "class X", "member X.name:descriptor" (gone or
@@ -314,6 +345,8 @@ EXPECTED = {
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
+        **KEYBOARD_BY_INSETS,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
             RELAUNCH_GUARDS['code com/runrev/android/LiveCodeActivity.onConfigurationChanged:'
                             '(Landroid/content/res/Configuration;)V'] + '. And ' + EDGE_TO_EDGE_ON_CONFIGURATION,
@@ -336,6 +369,9 @@ EXPECTED = {
         **RELAUNCH_GUARDS,
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
+        **KEYBOARD_BY_INSETS,
+        'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V': KEYBOARD_BY_INSETS_KEEP_OUT,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
         'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
@@ -347,10 +383,34 @@ EXPECTED = {
     '328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d': {
         **FINISH_DRAWING,
         **EDGE_TO_EDGE,
+        **PERMISSION_EXISTS,
+        **KEYBOARD_BY_INSETS,
+        'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V': KEYBOARD_BY_INSETS_KEEP_OUT,
         'code com/runrev/android/LiveCodeActivity.onDestroy:()V': FINISH_DRAWING_ON_DESTROY,
         'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V': EDGE_TO_EDGE_ON_CREATE,
         'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V':
             EDGE_TO_EDGE_ON_CONFIGURATION,
+    },
+    # oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes (android-java.yml
+    # compared against it with ADDITIONS_ONLY until the keyboard change).
+    # Since it, also added: Engine.getDNSServers, the dnsServers on Android
+    # (MCAndroidSystem::GetDNSservers), which 9.6.3's engine and dp.1's did
+    # not have (the function threw there), and LiveCodeActivity's
+    # laysOutByInsets
+    '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe': {
+        **PERMISSION_EXISTS,
+        **KEYBOARD_BY_INSETS,
+        'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V': KEYBOARD_BY_INSETS_KEEP_OUT,
+        'code com/runrev/android/LiveCodeActivity.drawEdgeToEdge:()V': KEYBOARD_BY_INSETS_DRAW,
+    },
+    # oxt-runtimes-0.2.8-dp.2's Runtime/Android/Classes, built from commit
+    # 24c8e5bae (the runtimes asset pinned now): dp.1's code with
+    # getDNSServers added, so the same changes since; laysOutByInsets added
+    '763a89804b090c24e4916f3fb753e36c2b49e2fa1971d47f01a9e233f0f81e54': {
+        **PERMISSION_EXISTS,
+        **KEYBOARD_BY_INSETS,
+        'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V': KEYBOARD_BY_INSETS_KEEP_OUT,
+        'code com/runrev/android/LiveCodeActivity.drawEdgeToEdge:()V': KEYBOARD_BY_INSETS_DRAW,
     },
 }
 
@@ -359,10 +419,8 @@ EXPECTED = {
 # the released jar's SHA-256, each with what the builds since have added.
 # (EXPECTED's entries are the jars that predate changes still named there.)
 ADDITIONS_ONLY = {
-    # oxt-runtimes-0.2.8-dp.1's Runtime/Android/Classes
-    '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe':
-        'Engine.getDNSServers, the dnsServers on Android (MCAndroidSystem::GetDNSservers), which 9.6.3\'s '
-        'engine and dp.1\'s did not have (the function threw there)',
+    # (none now: dp.1's and dp.2's differ in checkPermissionExists and in
+    # the keyboard's insets, so they are in EXPECTED)
 }
 
 

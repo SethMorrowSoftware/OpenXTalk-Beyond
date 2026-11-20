@@ -105,11 +105,12 @@ put tSecret is not "meet at noon"
 decrypt tSecret using "aes-256-cbc" with password "a long passphrase"
 put it
 decrypt tSecret using "aes-256-cbc" with password "a wrong guess"
-put "with the wrong password:" &amp;&amp; word 1 to -1 of the result</code></pre>
+put "the text back:" &amp;&amp; (the result is empty and it is "meet at noon")</code></pre>
 <pre class="out">true
 meet at noon
-with the wrong password: (SSL error: bad decrypt)</pre>
+the text back: false</pre>
 </figure>
+<p>With the wrong password, <code>decrypt</code> nearly always puts an error into <code>the result</code> (<code>bad decrypt</code>) and leaves <code>it</code> as it was. Now and then, about one try in 256, it puts no error at all and gives a few bytes of nonsense instead: these ciphers do not seal the data as <code>sxSecretBox</code> does, so check both, and never take no error to mean the password was right.</p>
 <aside class="warn"><p>Encryption is easy to get subtly wrong. Use these ready-made, complete tools as they are, keep keys out of your scripts (a key written in a stack can be read by anyone who has the stack), and do not invent your own scheme.</p></aside>
 
 <section class="try" aria-labelledby="try-it">

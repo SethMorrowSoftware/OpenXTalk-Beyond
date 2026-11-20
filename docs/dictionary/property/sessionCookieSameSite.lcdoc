@@ -1,0 +1,73 @@
+Name: sessionCookieSameSite
+
+Type: property
+
+Syntax: set the sessionCookieSameSite to {empty | "lax" | "strict" | "none"}
+
+Syntax: get the sessionCookieSameSite
+
+Summary:
+Specifies the SameSite attribute of the cookie that stores the session
+id, which says whether browsers return it with requests that come from
+other sites.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: server
+
+Example:
+set the sessionCookieSameSite to "lax"
+start session
+
+Example:
+-- a session used from pages of another site (HTTPS only)
+set the sessionCookieSecure to true
+set the sessionCookieSameSite to "none"
+start session
+
+Value (enum):
+The SameSite attribute of the session cookie. By default, it is empty.
+
+-   empty: the cookie has no SameSite attribute (the default), and the
+    browser applies its own rule, which in current browsers is that of
+    "lax"
+-   "lax": the cookie is not sent with requests another site makes,
+    such as its images, frames and form posts, but is sent when the
+    user follows a link to the site
+-   "strict": the cookie is sent only with requests that come from the
+    site's own pages
+-   "none": the cookie is sent with every request, whichever site makes
+    it. Browsers accept this only for a cookie that is also Secure, so
+    set the <sessionCookieSecure> to true as well
+
+Description:
+Use the <sessionCookieSameSite> property to say how the session cookie
+is treated in requests from other sites, as a protection against
+cross-site request forgery, where a page of another site makes the
+user's browser send a request with the user's session.
+
+When a session is started, a cookie is created in the browser to
+identify the ongoing session. By default that cookie has no SameSite
+attribute, as it never had. Setting the <sessionCookieSameSite> adds
+the attribute with the value given. Setting it to anything but one of
+the four values is an error.
+
+Set the <sessionCookieSameSite> before the <start session> command (and
+before <delete session>, whose expired cookie takes the same
+attributes). It is not saved anywhere: a site that wants it sets it on
+every request, for example in a file every page includes.
+
+>*Note:* You do not need to alter any of the session properties in order
+> to start and use sessions. They provide a way for advanced users to
+> configure the way session work.
+
+>*Note:* The sessionCookieSameSite property can be read and set in
+> every engine, and has an effect only when running in CGI mode
+> (Server).
+
+References: sessionCookieSecure (property),
+sessionCookieName (property), sessionSavePath (property),
+sessionLifetime (property), sessionID (property),
+start session (command), delete session (command), put cookie (command)

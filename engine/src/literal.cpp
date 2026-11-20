@@ -201,6 +201,16 @@ void MCArrayLiteral::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 		}
 	}
 
+	// A sequence or a dictionary, as LiveCode 11 says: "[...]" is marked a
+	// sequence, and "{...}" a dictionary (MCArrayKindMark). The mark changes
+	// nothing the array was before; only what reads it ("is strictly a
+	// sequence" and the like, MCIs) tells the two apart
+	if (!MCArraySetKindMark(*t_array, m_keyed ? kMCArrayKindMarkDictionary : kMCArrayKindMarkSequence))
+	{
+		ctxt . Throw();
+		return;
+	}
+
 	MCArrayRef t_result;
 	if (!MCArrayCopy(*t_array, t_result))
 	{

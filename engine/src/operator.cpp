@@ -245,6 +245,222 @@ void MCMatches::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
     MCExecValueTraits<bool>::set(r_value, t_result);
 }
 
+// OXT-Beyond: "as a <kind>" (MCAsType). Reads "a" or "an" and a kind from
+// sp; whether they were there
+static bool MCAsTypeReadKind(MCScriptPoint &sp, MCAsType::Kind &r_kind)
+{
+    Symbol_type t_type;
+    if (sp . next(t_type) != PS_NORMAL || t_type != ST_ID ||
+            !(sp . token_is_cstring("a") || sp . token_is_cstring("an")))
+        return false;
+
+    if (sp . next(t_type) != PS_NORMAL || t_type != ST_ID)
+        return false;
+
+    if (sp . token_is_cstring("array"))
+        r_kind = MCAsType::kKindArray;
+    else if (sp . token_is_cstring("sequence"))
+        r_kind = MCAsType::kKindSequence;
+    else if (sp . token_is_cstring("dictionary"))
+        r_kind = MCAsType::kKindDictionary;
+    else if (sp . token_is_cstring("name"))
+        r_kind = MCAsType::kKindName;
+    else if (sp . token_is_cstring("string"))
+        r_kind = MCAsType::kKindString;
+    else if (sp . token_is_cstring("number"))
+        r_kind = MCAsType::kKindNumber;
+    else if (sp . token_is_cstring("integer"))
+        r_kind = MCAsType::kKindInteger;
+    else if (sp . token_is_cstring("boolean"))
+        r_kind = MCAsType::kKindBoolean;
+    else if (sp . token_is_cstring("binary"))
+    {
+        if (sp . next(t_type) != PS_NORMAL || t_type != ST_ID ||
+                !sp . token_is_cstring("string"))
+            return false;
+        r_kind = MCAsType::kKindBinaryString;
+    }
+    else
+        return false;
+
+    return true;
+}
+
+bool MCAsType::isahead(MCScriptPoint& sp)
+{
+    if (!sp . token_is_cstring("as"))
+        return false;
+
+    // (A copy, so that sp is as it was whatever comes next)
+    MCScriptPoint t_sp(sp);
+    Kind t_kind;
+    return MCAsTypeReadKind(t_sp, t_kind);
+}
+
+Parse_stat MCAsType::parse(MCScriptPoint& sp, Boolean the)
+{
+    initpoint(sp);
+
+    if (!MCAsTypeReadKind(sp, m_kind))
+    {
+        // (MCScriptPoint::parseexp has seen one: MCAsType::isahead)
+        MCperror -> add(PE_EXPRESSION_NOTFACT, sp);
+        return PS_ERROR;
+    }
+
+    return PS_BREAK;
+}
+
+// An array with the given mark: a copy of an array, or, of an empty value,
+// an empty array; false (and nothing thrown) where the value is neither
+static bool MCAsTypeMarkArray(MCValueRef p_value, MCArrayKindMark p_mark, MCArrayRef &r_array, bool &r_is_array)
+{
+    MCArrayRef t_array;
+    if (MCValueGetTypeCode(p_value) == kMCValueTypeCodeArray)
+        t_array = static_cast<MCArrayRef>(p_value);
+    else if (MCValueIsEmpty(p_value))
+        t_array = kMCEmptyArray;
+    else
+    {
+        r_is_array = false;
+        return true;
+    }
+
+    r_is_array = true;
+    return MCArrayCopyWithKindMark(t_array, p_mark, r_array);
+}
+
+void MCAsType::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
+{
+    MCAutoValueRef t_value;
+    if (!ctxt . EvalExprAsValueRef(right, EE_AS_BADVALUE, &t_value))
+        return;
+
+    // Text from an array with elements would be empty, its elements lost
+    bool t_text = m_kind == kKindName || m_kind == kKindString || m_kind == kKindBinaryString;
+    if (t_text && MCValueGetTypeCode(*t_value) == kMCValueTypeCodeArray &&
+            !MCArrayIsEmpty(static_cast<MCArrayRef>(*t_value)))
+    {
+        ctxt . LegacyThrow(EE_AS_NOTTEXT);
+        return;
+    }
+
+    MCAutoValueRef t_result;
+    bool t_success = true;
+    switch (m_kind)
+    {
+        case kKindArray:
+        case kKindDictionary:
+        case kKindSequence:
+        {
+            // A sequence's keys are 1 to N; an empty array is any kind
+            if (m_kind == kKindSequence &&
+                    MCValueGetTypeCode(*t_value) == kMCValueTypeCodeArray &&
+                    !MCArrayIsEmpty(static_cast<MCArrayRef>(*t_value)) &&
+                    !MCArrayIsSequence(static_cast<MCArrayRef>(*t_value)))
+            {
+                ctxt . LegacyThrow(EE_AS_NOTSEQUENCE);
+                return;
+            }
+
+            MCArrayKindMark t_mark = kMCArrayKindMarkNone;
+            if (m_kind == kKindSequence)
+                t_mark = kMCArrayKindMarkSequence;
+            else if (m_kind == kKindDictionary)
+                t_mark = kMCArrayKindMarkDictionary;
+
+            MCArrayRef t_array = nil;
+            bool t_is_array = false;
+            t_success = MCAsTypeMarkArray(*t_value, t_mark, t_array, t_is_array);
+            if (t_success && !t_is_array)
+            {
+                ctxt . LegacyThrow(m_kind == kKindSequence ? EE_AS_NOTSEQUENCE : EE_AS_NOTARRAY);
+                return;
+            }
+            if (t_success)
+                t_result . Give(t_array);
+        }
+        break;
+
+        case kKindName:
+        {
+            MCNameRef t_name;
+            t_success = ctxt . ConvertToName(*t_value, t_name);
+            if (t_success)
+                t_result . Give(t_name);
+        }
+        break;
+
+        case kKindString:
+        {
+            MCStringRef t_string;
+            t_success = ctxt . ConvertToString(*t_value, t_string);
+            if (t_success)
+                t_result . Give(t_string);
+        }
+        break;
+
+        case kKindBinaryString:
+        {
+            MCDataRef t_data;
+            t_success = ctxt . ConvertToData(*t_value, t_data);
+            if (t_success)
+                t_result . Give(t_data);
+        }
+        break;
+
+        case kKindNumber:
+        case kKindInteger:
+        {
+            MCNumberRef t_number;
+            if (!ctxt . ConvertToNumber(*t_value, t_number))
+            {
+                ctxt . LegacyThrow(m_kind == kKindNumber ? EE_AS_NOTNUMBER : EE_AS_NOTINTEGER);
+                return;
+            }
+            if (m_kind == kKindNumber)
+            {
+                t_result . Give(t_number);
+                break;
+            }
+
+            // A whole number that fits an integer, as "is an integer" asks
+            real64_t t_real = MCNumberFetchAsReal(t_number);
+            MCValueRelease(t_number);
+            if (!(t_real == floor(t_real)) ||
+                    t_real < INTEGER_MIN || t_real > INTEGER_MAX)
+            {
+                ctxt . LegacyThrow(EE_AS_NOTINTEGER);
+                return;
+            }
+            t_success = MCNumberCreateWithInteger(static_cast<integer_t>(t_real), t_number);
+            if (t_success)
+                t_result . Give(t_number);
+        }
+        break;
+
+        case kKindBoolean:
+        {
+            MCBooleanRef t_boolean;
+            if (!ctxt . ConvertToBoolean(*t_value, t_boolean))
+            {
+                ctxt . LegacyThrow(EE_AS_NOTBOOLEAN);
+                return;
+            }
+            t_result . Give(t_boolean);
+        }
+        break;
+    }
+
+    if (!t_success)
+    {
+        ctxt . Throw();
+        return;
+    }
+
+    MCExecValueTraits<MCValueRef>::set(r_value, t_result . Take());
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 //  Numeric operators
@@ -315,6 +531,45 @@ void MCGrouping::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
         ctxt . LegacyThrow(EE_GROUPING_BADRIGHT);
 }
 
+// OXT-Beyond: LiveCode 11's kinds of array, after "is [not] [strictly] a":
+// "sequence" and "dictionary", and "numeric sequence" (not strictly). None
+// is a word of the validation table, so that "x is sequence" with a
+// variable of that name means what it did; each was an error here, and is
+// read only where what holds it did not compile without it (MCNewSyntax).
+// Whether sp's next words are one; if so, sp is past them
+static bool MCIsReadArrayKind(MCScriptPoint &sp, bool p_strictly, Is_validation &r_valid)
+{
+	// (A copy, so that sp is as it was if they are not)
+	MCScriptPoint t_sp(sp);
+	Symbol_type t_type;
+	if (t_sp.next(t_type) != PS_NORMAL || t_type != ST_ID)
+		return false;
+
+	Is_validation t_valid;
+	uint32_t t_words = 1;
+	if (t_sp.token_is_cstring("sequence"))
+		t_valid = IV_SEQUENCE;
+	else if (t_sp.token_is_cstring("dictionary"))
+		t_valid = IV_DICTIONARY;
+	else if (!p_strictly && t_sp.token_is_cstring("numeric") &&
+			 t_sp.next(t_type) == PS_NORMAL && t_type == ST_ID &&
+			 t_sp.token_is_cstring("sequence"))
+	{
+		t_valid = IV_NUMERIC_SEQUENCE;
+		t_words = 2;
+	}
+	else
+		return false;
+
+	if (!MCNewSyntax::Read())
+		return false;
+
+	while (t_words-- > 0)
+		sp.next(t_type);
+	r_valid = t_valid;
+	return true;
+}
+
 Parse_stat MCIs::parse(MCScriptPoint &sp, Boolean the)
 {
 	Symbol_type type;
@@ -335,7 +590,10 @@ Parse_stat MCIs::parse(MCScriptPoint &sp, Boolean the)
                 return PS_ERROR;
             }
             
-            if (sp.skip_token(SP_SORT, TT_UNDEFINED, ST_BINARY) == PS_NORMAL)
+            Is_validation t_kind;
+            if (MCIsReadArrayKind(sp, true, t_kind))
+                valid = t_kind;
+            else if (sp.skip_token(SP_SORT, TT_UNDEFINED, ST_BINARY) == PS_NORMAL)
             {
                 if (sp.skip_token(SP_SUGAR, TT_UNDEFINED, SG_STRING) != PS_NORMAL)
                 {
@@ -385,6 +643,13 @@ Parse_stat MCIs::parse(MCScriptPoint &sp, Boolean the)
 		}
 		if (te->which == IV_UNDEFINED)
 		{
+			Is_validation t_kind;
+			if (MCIsReadArrayKind(sp, false, t_kind))
+			{
+				valid = t_kind;
+				return PS_BREAK;
+			}
+
 			if (sp.next(type) != PS_NORMAL)
 			{
 				MCperror->add(PE_IS_NOVALIDTYPE, sp);
@@ -600,6 +865,17 @@ void MCIs::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
                 else
                     MCEngineEvalIsNotStrictlyAnArray(ctxt, *t_value, t_result);
                 break;
+            // OXT-Beyond: LiveCode 11's kinds of array (MCIsReadArrayKind)
+            case IV_SEQUENCE:
+                MCArraysEvalIsStrictlyASequence(ctxt, *t_value, t_result);
+                if (form == IT_NOT_STRICTLY)
+                    t_result = !t_result;
+                break;
+            case IV_DICTIONARY:
+                MCArraysEvalIsStrictlyADictionary(ctxt, *t_value, t_result);
+                if (form == IT_NOT_STRICTLY)
+                    t_result = !t_result;
+                break;
 			default:
 				MCUnreachable();
 		}
@@ -675,6 +951,22 @@ void MCIs::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
                 MCStringsEvalIsAscii(ctxt, *t_value, t_result);
             else
                 MCStringsEvalIsNotAscii(ctxt, *t_value, t_result);
+            break;
+        // OXT-Beyond: LiveCode 11's kinds of array (MCIsReadArrayKind)
+        case IV_SEQUENCE:
+            MCArraysEvalIsASequence(ctxt, *t_value, t_result);
+            if (form != IT_NORMAL)
+                t_result = !t_result;
+            break;
+        case IV_DICTIONARY:
+            MCArraysEvalIsADictionary(ctxt, *t_value, t_result);
+            if (form != IT_NORMAL)
+                t_result = !t_result;
+            break;
+        case IV_NUMERIC_SEQUENCE:
+            MCArraysEvalIsANumericSequence(ctxt, *t_value, t_result);
+            if (form != IT_NORMAL)
+                t_result = !t_result;
             break;
 
 		default:

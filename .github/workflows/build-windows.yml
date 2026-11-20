@@ -113,6 +113,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/web-host/**'
@@ -121,10 +122,13 @@ on:
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
       - 'tools/ci/release_notes.py'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
@@ -990,6 +994,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # What the runtimes asset (oxt-runtimes-<label>, made by runtimes.yml
+      # with make_runtimes_asset.py --builds) takes from this build, checked
+      # as --builds checks it, from the binaries zip that runtimes.yml takes:
+      # a file it wants that this build no longer makes, a binary of another
+      # architecture, or a Standalone without this tree's engine version
+      # fails here, the day it happens, not in the runtimes run before a
+      # release. After the uploads, so that a failure leaves the build to
+      # look at.
+      - name: Check what the runtimes asset takes from this build
+        id: runtimes_check
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $zip = "dist/OXT-Beyond-$env:VERSION-win-x86_64-binaries.zip"
+          if (-not (Test-Path -LiteralPath $zip -PathType Leaf)) { throw "$zip was not written" }
+          python tools/oxt/make_runtimes_asset.py --check-bin "win-x86_64=$zip"
+          if ($LASTEXITCODE -ne 0) { throw "make_runtimes_asset.py --check-bin failed with exit code $LASTEXITCODE" }
+
       # The IDE's own windows, as a user sees them with Windows light and
       # dark: tools/ci/ui_tour.py starts the staged IDE with
       # tools/ci/ui-tour.livecodescript, which opens the palettes, the
@@ -1192,6 +1214,7 @@ jobs:
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
           TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
+          RUNTIMES_CHECK_OUTCOME: ${{ steps.runtimes_check.outcome }}
         run: |
           $outcomes = [ordered]@{
             'Lint IDE sources' = $env:IDE_LINT_OUTCOME
@@ -1213,6 +1236,7 @@ jobs:
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
             'Test installer' = $env:TEST_INSTALLER_OUTCOME
+            'Runtimes asset check' = $env:RUNTIMES_CHECK_OUTCOME
           }
           Write-Host 'Step outcomes:'
           $summary = @('### Failure diagnostics', '', '| Step | Outcome |', '| --- | --- |')
@@ -1627,6 +1651,15 @@ jobs:
       - name: Standalone check (build output)
         timeout-minutes: 15
         run: python tools/ci/standalone_check.py --engine win-x86-bin/LiveCode-Community.exe --runtime win-x86-bin/standalone-community.exe --platform win-x86 --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
+
+      # What the runtimes asset takes from this build (make_runtimes_asset.py
+      # --check-bin; see the win-x86_64 job's step of that name), from the
+      # archive runtimes.yml takes; after the tests, so that a failure here
+      # leaves their results
+      - name: Check what the runtimes asset takes from this build
+        run: |
+          python tools/oxt/make_runtimes_asset.py --check-bin "win-x86=OXT-Beyond-win-x86-bin.zip"
+          if ($LASTEXITCODE -ne 0) { throw "make_runtimes_asset.py --check-bin failed with exit code $LASTEXITCODE" }
 
       - name: Collect logs
         if: always()

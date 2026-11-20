@@ -2984,7 +2984,30 @@ MC_DLLEXPORT bool MCArrayIterate(MCArrayRef array, uintptr_t& iterator, MCNameRe
 
 // Returns true if the given array is the empty array.
 MC_DLLEXPORT bool MCArrayIsEmpty(MCArrayRef self);
-    
+
+// OXT-Beyond: an array's kind mark, as LiveCode 11's script knows it: the
+// array was made a sequence or a dictionary ("[...]" and "{...}", "as a
+// sequence" and "as a dictionary"), or neither, as every array made before
+// was. The mark is only that: nothing that compares, hashes, copies the
+// elements of, or saves an array reads it, and an array with keys 1 to N
+// is no less a sequence for having none. Copies of an array (MCArrayCopy,
+// MCArrayMutableCopy and their 'and release' forms) keep its mark;
+// arrays built anew have none.
+enum MCArrayKindMark
+{
+    kMCArrayKindMarkNone,
+    kMCArrayKindMarkSequence,
+    kMCArrayKindMarkDictionary,
+};
+
+MC_DLLEXPORT MCArrayKindMark MCArrayGetKindMark(MCArrayRef self);
+// Sets the mark of a mutable array.
+MC_DLLEXPORT bool MCArraySetKindMark(MCArrayRef self, MCArrayKindMark p_mark);
+// An immutable copy of the array with the given mark (the array itself,
+// retained, when it is immutable and has that mark already). An empty one
+// is never kMCEmptyArray unless the mark is none.
+MC_DLLEXPORT bool MCArrayCopyWithKindMark(MCArrayRef self, MCArrayKindMark p_mark, MCArrayRef& r_new_array);
+
 #if defined(__HAS_CORE_FOUNDATION__)
 // If p_use_lists is true, then any arrays which look like sequences will be
 // converted to MCProperListRef / CFArrayRef (depending on direction).

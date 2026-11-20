@@ -41,6 +41,8 @@ on TestSetup
          "on orientationChanged" & return & "   put ~orientation~ & return after gGot" & return & "end orientationChanged" & return & \
          "on keyboardActivated" & return & "   put ~keyboard up~ & return after gGot" & return & "end keyboardActivated" & return & \
          "on keyboardDeactivated" & return & "   put ~keyboard down~ & return after gGot" & return & "end keyboardDeactivated" & return & \
+         "on fullScreenChanged pFull" & return & "   put ~fullscreen ~ & pFull & return after gGot" & return & "end fullScreenChanged" & return & \
+         "on fullScreenError pError" & return & "   put ~fullscreen error ~ & pError & return after gGot" & return & "end fullScreenError" & return & \
          "on touchStart pId, pX, pY" & return & "   put ~touchstart ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchStart" & return & \
          "on touchMove pId, pX, pY" & return & "   put ~touchmove ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchMove" & return & \
          "on touchEnd pId, pX, pY" & return & "   put ~touchend ~ & pId & comma & pX & comma & pY & return after gGot" & return & "end touchEnd" & return & \
@@ -221,6 +223,31 @@ on TestOrientationAndKeyboard
    _FromBrowser "viewport", "664,390,0,0,47,21,47,landscape"
    TestAssert "the same again sends nothing", _Got() is empty
 end TestOrientationAndKeyboard
+
+-- The whole screen, gained or lost whoever did it, and a request the
+-- browser refused after the call: the card is told, so that a button
+-- that says which to ask for can follow it where no resizeStack comes
+on TestFullScreenMessages
+   _ClearGot
+   _FromBrowser "fullscreen", "true"
+   _FromBrowser "fullscreenerror", "refused"
+   TestAssert "nothing is sent before mwStart", _Got() is empty
+   mwStart "MobileWebTest"
+   _ClearGot
+   _FromBrowser "fullscreen", "true"
+   _FromBrowser "fullscreen", "false"
+   TestAssert "the card is told the whole screen came and went, as true or false", \
+         _Got() is "fullscreen true" & return & "fullscreen false" & return
+   _ClearGot
+   _FromBrowser "fullscreenerror", "Permissions check failed"
+   TestAssert "and of a request the browser refused, with its words", \
+         _Got() is "fullscreen error Permissions check failed" & return
+   mwStop
+   _ClearGot
+   _FromBrowser "fullscreen", "true"
+   _FromBrowser "fullscreenerror", "refused"
+   TestAssert "nothing is sent after mwStop", _Got() is empty
+end TestFullScreenMessages
 
 on TestNoMessagesAfterStop
    mwStart "MobileWebTest"

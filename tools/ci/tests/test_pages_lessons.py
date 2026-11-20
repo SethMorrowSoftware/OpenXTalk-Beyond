@@ -110,6 +110,21 @@ class TheLessons(unittest.TestCase):
         compiled = [e['id'] for e in examples if e['run'] == 'compile' and e['id'] not in later]
         self.assertLess(len(compiled), 0.08 * len(runs))
 
+    def test_no_example_held_to_what_it_puts_shows_a_chance(self):
+        # decrypt with the wrong password puts "bad decrypt" into the
+        # result only when what it decrypted does not end as padding ends,
+        # and with a new random salt at each encrypt, about one try in 256
+        # ends so: then it puts no error at all, and a few bytes of
+        # nonsense into it. The Lessons check of #597 on 20 Nov 2026 met
+        # that (ex-sec-aes), and 0.2.8-dp.2's engine did it in 10 of 3000
+        # tries. So no example that the check holds to what it puts shows
+        # that error.
+        for lesson in self.lessons:
+            for example in lesson['examples']:
+                if example['run'] == 'output':
+                    self.assertNotIn('bad decrypt', example['out'] or '',
+                                     '%s, %s' % (lesson['file'], example['id']))
+
     def test_every_picture_is_there_at_twice_the_stage(self):
         shots = [e for x in self.lessons for e in x['examples'] if e['shot'] is not None]
         self.assertGreaterEqual(len(shots), 40)
