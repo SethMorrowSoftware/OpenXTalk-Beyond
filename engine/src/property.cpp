@@ -418,6 +418,10 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
 	// OXT-Beyond: the systemAppearance on Linux follows the desktop's light
 	// or dark setting
 	DEFINE_RW_PROPERTY(P_USE_DESKTOP_APPEARANCE, Bool, Interface, UseDesktopAppearance)
+	
+	// OXT-Beyond: the session cookie's Secure and SameSite attributes
+	DEFINE_RW_PROPERTY(P_SESSION_COOKIE_SECURE, Bool, Server, SessionCookieSecure)
+	DEFINE_RW_ENUM_PROPERTY(P_SESSION_COOKIE_SAME_SITE, ServerSessionCookieSameSite, Server, SessionCookieSameSite)
 };
 
 static bool MCPropertyInfoTableLookup(Properties p_which, Boolean p_effective, const MCPropertyInfo*& r_info, bool p_is_array_prop)
@@ -977,6 +981,8 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 	case P_SESSION_LIFETIME:
 	case P_SESSION_COOKIE_NAME:
 	case P_SESSION_ID:
+	case P_SESSION_COOKIE_SECURE:
+	case P_SESSION_COOKIE_SAME_SITE:
 	
 	case P_SCRIPT_EXECUTION_ERRORS:
 	case P_SCRIPT_PARSING_ERRORS:

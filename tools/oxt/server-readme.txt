@@ -103,16 +103,33 @@ Before putting it on the internet
   file paths. On a public site, set the errorMode to "quiet" (or
   "stderr", which goes to the web server's error log) at the top of
   each page or in an included file.
-- Sessions are kept in the system's temporary folder, in files other
-  users of the machine can read. On a shared server, set the
+- Sessions are kept in the system's temporary folder. From 0.2.8 the
+  session files and their index can be read by the user the web server
+  runs the engine as and by no other (on Linux and macOS; on Windows
+  they take the folder's access list), but every site of that user
+  still shares the one folder. On a shared server, set the
   sessionSavePath to a folder of the site's own, outside the web site,
   before "start session".
-- Session cookies are HttpOnly, but not Secure: on an HTTPS-only site,
-  set your own cookies with "put secure httponly cookie".
+- The session cookie is HttpOnly and nothing else by default, as
+  LiveCode's was. On an HTTPS site, before "start session":
+
+      set the sessionCookieSecure to true
+      set the sessionCookieSameSite to "lax"
+
+  The first has browsers return the cookie over HTTPS only; the second
+  (or "strict") keeps it out of requests other sites make, against
+  cross-site request forgery. Both are new in 0.2.8.
+- A session ID a browser sends that could not be a file's name (one
+  with a "/" in it, or a "\" on Windows) is not used: the session gets
+  a new ID. Before 0.2.8 such an ID could name a file outside the
+  session folder on Windows.
 - Each request starts the engine anew; there is no FastCGI mode.
 - HTTPS (url "https://...") and the database drivers' encrypted
-  connections use OpenSSL 3, which needs TLS 1.2 or later. The MySQL
-  driver's encrypted connections speak TLS 1.0 only and no longer work.
+  connections use OpenSSL 3, which needs TLS 1.2 or later. From 0.2.8
+  the MySQL driver is built on MariaDB Connector/C 3.4 and the
+  PostgreSQL driver on libpq 17 (THIRD-PARTY-NOTICES.md), which log in
+  to current servers; before, the MySQL driver's encrypted connections
+  spoke TLS 1.0 only.
 
 
 Differences from LiveCode Community 9.6.3's server

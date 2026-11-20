@@ -1801,6 +1801,10 @@ enum Properties {
     // OXT-Beyond: the global useDesktopAppearance
     P_USE_DESKTOP_APPEARANCE,
     
+    // OXT-Beyond: the server's sessionCookieSecure and sessionCookieSameSite
+    P_SESSION_COOKIE_SECURE,
+    P_SESSION_COOKIE_SAME_SITE,
+    
     // OXT-Beyond: an image's frameDurations (its playRate is P_PLAY_RATE,
     // the player's)
     P_FRAME_DURATIONS,

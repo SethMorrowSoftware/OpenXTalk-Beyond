@@ -1317,5 +1317,8 @@ bool MCSystemLockFile(MCSystemFileHandle *p_file, bool p_shared, bool p_wait)
 	return t_success;
 }
 
-
-
+// OXT-Beyond: Windows has no file modes; a file takes the access list of the
+// folder it is made in (the sessionSavePath).
+void MCSystemMakeFilePrivate(MCSystemFileHandle *p_file)
+{
+}
