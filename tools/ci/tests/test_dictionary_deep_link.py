@@ -101,6 +101,20 @@ const { chromium } = require('playwright');
         out.push({ title: await page.evaluate(() =>
           document.querySelector('#api_entry h1').childNodes[0].textContent.trim()) });
       }
+      if (address === '?entry=answer') {
+        // the reader moves on (as the viewer's related-entry links do: they
+        // open an entry and are href="#"), and the empty # must not send
+        // the page back to the word in its query
+        await page.evaluate(() => {
+          goEntryName('livecode_script', 'put', '');
+          const a = document.createElement('a');
+          a.href = '#'; a.textContent = 'x'; document.body.appendChild(a); a.click();
+        });
+        await page.waitForTimeout(300);
+        out.push({ title: await page.evaluate(() =>
+          document.querySelector('#api_entry h1').childNodes[0].textContent.trim()),
+          hash: await page.evaluate(() => location.href.slice(-1)) });
+      }
       await page.close();
     }
   } finally {
@@ -164,7 +178,7 @@ class Page(unittest.TestCase):
                               timeout=180, env=dict(os.environ, NODE_PATH=self.node_path()))
         self.assertEqual(done.returncode, 0, done.stderr)
         shown = json.loads(done.stdout.strip().splitlines()[-1])
-        plain, put, after, emptied, answer, upper, keyword, function, spaced, plus, builder, nothing, bad = shown
+        plain, put, after, emptied, answer, moved_on, upper, keyword, function, spaced, plus, builder, nothing, bad = shown
         for each in (plain, put, answer, upper, keyword, function, spaced, plus, builder, nothing, bad):
             self.assertEqual(each['errors'], [])
         # with no word, the page opens as it did: at its list, no entry drawn
@@ -176,6 +190,10 @@ class Page(unittest.TestCase):
         self.assertEqual(emptied['title'], 'answer')
         self.assertEqual(emptied.get('errors', []), [])
         self.assertEqual(answer['title'], 'answer')
+        # opened from ?entry=, a later empty # (the viewer's href="#") keeps
+        # the entry the reader went to, not the query's
+        self.assertEqual(moved_on['hash'], '#')
+        self.assertEqual(moved_on['title'], 'put')
         self.assertEqual(upper['title'], 'put')
         self.assertEqual((keyword['title'], keyword['type']), ('date', 'keyword'))
         self.assertEqual((function['title'], function['type']), ('date', 'function'))

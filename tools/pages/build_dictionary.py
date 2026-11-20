@@ -127,7 +127,9 @@ DARK_SHEET = 'css/oxt-dark.css'
 # page is the page it was, and it runs after the template's own ready
 # handler (jQuery runs them in order), so the page is drawn first. A new
 # #word in the address, as a link on the page itself makes, opens that
-# word too; an empty one (the viewer's own href="#" links) is let be.
+# word too; an empty one (the viewer's own href="#" links) is let be,
+# and ?entry= is read only when the page opens, so such a link does not
+# send a reader who came by ?entry= back to that word.
 # The viewer draws an entry only when it is not the one it has selected
 # (displayEntryAtIndex), and it keeps that across loads ($.session), so the
 # script forgets the selection first: else a reader whose last entry was
@@ -144,12 +146,12 @@ DEEP_LINK = (
     '\t\t\ttry { text = decodeURIComponent(text.replace(/\\+/g, " ")); } catch (e) { return ""; }\n'
     '\t\t\treturn text.replace(/^\\s+|\\s+$/g, "").slice(0, 100);\n'
     '\t\t}\n'
-    '\t\tfunction word() {\n'
+    '\t\tfunction word(later) {\n'
     '\t\t\tvar hash = window.location.hash.replace(/^#/, "");\n'
-    '\t\t\treturn plain(hash || asked("entry"));\n'
+    '\t\t\treturn plain(hash || (later ? "" : asked("entry")));\n'
     '\t\t}\n'
-    '\t\tfunction open() {\n'
-    '\t\t\tvar name = word();\n'
+    '\t\tfunction open(later) {\n'
+    '\t\t\tvar name = word(later === true);\n'
     '\t\t\tif (name == "" || typeof goEntryName !== "function") return;\n'
     '\t\t\tvar api = plain(asked("api")).toLowerCase() == "builder" ? "livecode_builder" : "livecode_script";\n'
     '\t\t\tvar type = plain(asked("type")).toLowerCase().replace(/[^a-z ]/g, "");\n'
@@ -158,8 +160,8 @@ DEEP_LINK = (
     '\t\t\tgoEntryName(api, name, type);\n'
     '\t\t}\n'
     '\t\tif (window.jQuery) {\n'
-    '\t\t\tjQuery(open);\n'
-    '\t\t\tjQuery(window).on("hashchange", open);\n'
+    '\t\t\tjQuery(function () { open(false); });\n'
+    '\t\t\tjQuery(window).on("hashchange", function () { open(true); });\n'
     '\t\t}\n'
     '\t})();</script>\n' % DEEP_LINK_MARK)
 
