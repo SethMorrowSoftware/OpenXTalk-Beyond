@@ -67,7 +67,12 @@ end startup
 -- button is, so that the Python side sees it go on after the release and
 -- sees the drag
 on grabMenuAlive
-   logLine "ALIVE" && the loc of button "Plain" of stack "GrabMenu"
+   if $OXT_GRAB_MENU_MODE is "nomouse" then
+      -- (and where the engine has the mouse, for a run that failed)
+      logLine "ALIVE" && the loc of button "Plain" of stack "GrabMenu" && "mouseStack [" & the mouseStack & "] mouseLoc" && the mouseLoc && "screenMouseLoc" && the screenMouseLoc
+   else
+      logLine "ALIVE" && the loc of button "Plain" of stack "GrabMenu"
+   end if
    send "grabMenuAlive" to me in 500 milliseconds
 end grabMenuAlive
 

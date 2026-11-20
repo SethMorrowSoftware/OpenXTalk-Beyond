@@ -176,23 +176,56 @@ def run_popup(engine_path, shots):
     try:
         xvfb, display = start_xvfb()
         env = dict(os.environ, DISPLAY=display, OXT_GRAB_MENU_LOG=log_path, OXT_GRAB_MENU_MODE='nomouse')
-        # away from the stack before there is one, and it stays there
-        x(['xdotool', 'mousemove', str(FAR[0]), str(FAR[1])], env)
         engine = subprocess.Popen([engine_path, SCRIPT], env=env, cwd=work,
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if not wait_for(log_path, 'READY', engine):
             return [(False, 'nomouse: the stack opened', 'no READY line (engine exit code %s)' % engine.poll())]
+        # away from the stack, well before its timer pops the menu up, and
+        # it stays there. (Moved before the engine had started, on a new
+        # Xvfb, the mouse stayed in the middle of the screen: the menu then
+        # opened there, and the click here missed it.)
+        where = ''
+        for _ in range(10):
+            x(['xdotool', 'mousemove', str(FAR[0]), str(FAR[1])], env)
+            where = x(['xdotool', 'getmouselocation'], env)
+            if where.startswith('x:%d y:%d ' % FAR):
+                break
+            time.sleep(0.1)
+        else:
+            return [(False, 'nomouse: the mouse moved away from the stack', where)]
         wait_for(log_path, 'POPUP opening', engine, 20)
         time.sleep(1.5)
         if shots:
             x(['import', '-window', 'root', os.path.join(shots, 'grab-menu-nomouse.png')], env)
-        # the menu's top left is at the mouse; its first item is just inside
-        x(['xdotool', 'mousemove', str(FAR[0] + 14), str(FAR[1] + 12)], env)
+        windows = x(['xwininfo', '-root', '-tree'], env) if shutil.which('xwininfo') else ''
+        # the menu's top left is at the mouse; its first item is just
+        # inside. As a hand does it: the mouse moves there, and the button
+        # is down for a moment.
+        for step in range(1, 8):
+            x(['xdotool', 'mousemove', str(FAR[0] + 2 * step), str(FAR[1] + 2 * step - (2 if step == 7 else 0))], env)
+            time.sleep(0.05)
         time.sleep(0.4)
-        x(['xdotool', 'click', '1'], env)
+        x(['xdotool', 'mousedown', '1'], env)
+        time.sleep(0.15)
+        x(['xdotool', 'mouseup', '1'], env)
         time.sleep(2)
         lines = read_lines(log_path)
-        return with_lines(popup_verdict(lines, engine.poll()), lines, 'nomouse')
+        results = with_lines(popup_verdict(lines, engine.poll()), lines, 'nomouse')
+        if not all(ok for ok, _, _ in results if ok is not None):
+            # what the screen held when the menu was open, and what a
+            # second click, on the second item, does: for the next reader
+            kept = [' '.join(l.split()) for l in windows.splitlines() if '+' in l and 'x' in l]
+            results.append((None, 'nomouse: the windows with the menu open', ' | '.join(kept)[:1200] or '(no xwininfo)'))
+            results.append((None, 'nomouse: the mouse', x(['xdotool', 'getmouselocation'], env)))
+            x(['xdotool', 'mousemove', str(FAR[0] + 16), str(FAR[1] + 34)], env)
+            time.sleep(0.4)
+            x(['xdotool', 'mousedown', '1'], env)
+            time.sleep(0.15)
+            x(['xdotool', 'mouseup', '1'], env)
+            time.sleep(1.5)
+            more = read_lines(log_path)[len(lines):]
+            results.append((None, 'nomouse: after a second click, on the second item', ' | '.join(more)[:600]))
+        return results
     except RuntimeError as e:
         return [(False, 'nomouse: the run', str(e))]
     finally:
