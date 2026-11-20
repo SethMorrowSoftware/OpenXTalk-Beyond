@@ -56,8 +56,8 @@ with `put url`; **Web Audio Piano**, sound made through `do ... as
 **Talking Robot**, the browser's speech voices; **2048**, a game of
 sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
 **Beat Box**, a drum machine timed by Web Audio; **Beyond Beats**, a
-pattern studio of up to twelve channels and sixteen patterns, its kit
-made by Web Audio; **Kanban Board**,
+beat studio with a channel rack, a playlist, a piano roll and a mixer,
+its sounds made by Web Audio; **Kanban Board**,
 cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
@@ -769,28 +769,59 @@ check can ask the game how it is.
 
 ## Beyond Beats
 
-A pattern studio for a browser, grown from Beat Box (which stays as it
-is, the short example). Up to twelve channels, each a sound of a kit of
-sixteen with its own volume, pan, mute and solo; up to sixteen patterns
-of 16 or 32 steps, a step off or on at a velocity from 1 to 9 (a click
-puts one on, a drag paints a row, a shift-click or right-click makes it
-loud, soft or normal); a tempo from 40 to 240 and a swing. The song is
-kept in the browser's storage and is there on the next visit; New (twice)
-starts an empty one and Demo brings the first one back. Song mode, a piano
-roll, effects and export are to come, each a change of its own.
+A beat studio for a browser, grown from Beat Box (which stays as it is,
+the short example). Four views, one at a time:
+
+- **Channels**, the rack: up to twelve channels, each a sound with its
+  own volume, pan, mute and solo, and a row of pads for the pattern
+  shown. A pattern has 16 or 32 steps, a step off or on at a velocity
+  from 1 to 9 (a click puts one on, a drag paints a row, a shift-click or
+  right-click makes it loud, soft or normal). A channel's name opens the
+  sound picker; its colour chooses it for the piano roll.
+- **Piano roll**: notes for the chosen channel in the pattern shown, two
+  octaves at a time from C1 to B6. A click adds a note and a drag makes it
+  longer; a drag moves one by steps and semitones, or its right end makes
+  it longer or shorter; a click takes it away and a shift-click makes it
+  louder or softer. A key plays its note.
+- **Playlist**: eight tracks of 128 bars, 32 shown at a time. A click puts
+  the chosen pattern in (a 32-step pattern takes two bars) or takes a
+  block out, a drag paints or clears a track, a shift-click chooses a
+  block's pattern, and a click on the ruler is where Song mode starts.
+- **Mixer**: a strip a channel, with a filter, a reverb send, a delay
+  send, pan, a fader with its meter, mute, solo and a tuning, and the
+  master's volume and meter; the reverb is a room or a hall and the delay
+  an eighth, a dotted eighth or a quarter, with its feedback.
+
+Up to sixteen patterns are made, cloned, cleared, deleted and renamed in
+the list beside the views. Pattern mode plays the pattern shown; Song mode
+plays the playlist. The sounds are a kit of sixteen, five synths (a saw
+lead, a square bass, a soft pad, a pluck and keys) and up to eight samples
+of the user's own (a WAV, MP3 or OGG file of up to 4 MB, loaded from the
+picker or the File menu). Undo and Redo (also Ctrl+Z and Ctrl+Shift+Z or
+Ctrl+Y) go back over the last sixty changes, a drag being one. The song is
+kept in the browser's storage and is there on the next visit; the File
+menu saves it as a file to download (its samples inside it) and opens one
+again, exports the song or pattern as a WAV file, loads a sample, starts a
+new song (pressed twice) or brings the demo back. Songs saved by the first
+version still open.
 
 The stack owns the song and the screen; the page owns the sound and the
 clock. `beyond-beats/audio-core.js`, kept in the stack as the custom
 property `cAudioCore` and run once with `do ... as "JavaScript"`, makes
 `window.beyondBeats`: the kit, made sample by sample from oscillators and
-seeded noise (no sound files, so nothing to license, and the same sounds
-in every browser), a gain and a stereo panner for each channel, a master
-limiter, and a scheduler that books each step on the audio clock a tenth
-of a second ahead, so a slow frame of the engine never moves the beat.
-Swing moves every second sixteenth later by up to half a step. The stack
-tells the core the pattern playing after every change (`beyondBeats.set`)
-and asks it which step is sounding about sixty times a second, to move
-the playhead. It never calls back into the stack. Outside a browser the
+seeded noise, and the synths, made of oscillators, a filter and envelopes
+(no sound files, so nothing to license, and the same sounds in every
+browser); for each channel a filter, a fader, a stereo panner, a meter and
+sends to a reverb (a convolver with a made impulse) and a tempo-synced
+delay; a master gain, a limiter and a soft clip; and a scheduler that
+books each step on the audio clock a tenth of a second ahead, so a slow
+frame of the engine never moves the beat. Swing moves every second
+sixteenth later by up to half a step. The stack tells the core the song
+after every change (`beyondBeats.set`) and asks it about sixty times a
+second which step is sounding and how loud each channel is, to move the
+playhead and the meters. Export renders the song again offline
+(`OfflineAudioContext`) through the same mixer and hands the browser a
+WAV file. The core never calls back into the stack. Outside a browser the
 stack opens and edits as well and its playhead runs, without sound.
 
 The stack is never edited by hand. Its script is
@@ -803,17 +834,24 @@ again with any OXT-Beyond engine:
 ```
 
 `tests/lcs/webplayer/beyond-beats.livecodescript` drives the song, the
-screen and the file on a desktop engine (and in the web engine, with
-`tools/ci/web_tests.py`): pads and the points they are at, velocity, a
-painted row, 16 and 32 steps, tempo and swing, the sliders, mute and
-solo, channels and the sound picker, patterns, New and Demo, what the
-page is told, a file that is not a song, and Play.
+screen and the files on a desktop engine (and in the web engine, with
+`tools/ci/web_tests.py`): the rack (pads and the points they are at,
+velocity, a painted row, 16 and 32 steps, tempo and swing, the sliders,
+mute and solo, channels and the sound picker), patterns, the views and
+the layout, the playlist (blocks, drags, scrolling, Song mode and where
+it starts), the piano roll (adding, stretching, moving and deleting
+notes, velocity, the channel and octaves), the mixer and the master,
+undo and redo, New and Demo, what the page is told, song files and
+samples, a file that is not a song, and Play in both modes.
 `tools/ci/beyond_beats_check.py` checks the rest in headless Chromium: the
-audio core alone, its song rendered offline and measured sample by sample
-(the kit, each step on its sample, swing, volume, velocity, pan, mute,
-solo, the limiter, the live clock), and the stack in a Stack Player (Play
-starts the page's core with the stack's pattern, a pad clicked is in it at
-once, and Stop stops it). `build_player.py --check` runs both;
+audio core alone, its songs rendered offline and measured sample by sample
+(the kit and the synths, each step on its sample, swing, volume, velocity,
+pan, mute, solo, notes and tuning, the filter, the reverb and the delay,
+the playlist, user samples, the limiter, the meters, the live clock and
+the WAV export), and the stack in a Stack Player (Play starts the page's
+core with the stack's song, a pad clicked is in it at once, the views and
+the pattern list answer, Song mode plays the playlist, and Stop stops
+it). `build_player.py --check` runs both;
 `tools/ci/tests/test_beyond_beats.py` holds the stack to its files. To run
 the browser check yourself, with a Stack Player you have built or
 downloaded:

@@ -47,9 +47,11 @@ blank page, with the song rendered offline and measured sample by sample:
 
 The stack in a Stack Player (with --player, a built player's folder; or
 from build_player.py --check, check_player): it opens without a script
-error, Play starts the page's core at the stack's tempo with its pattern
-and the playhead follows, a click on a pad is in the page's pattern at
-once, and Stop stops it.
+error, Play starts the page's core at the stack's tempo with its song
+(ten channels, four patterns, twelve blocks in the playlist), a click on
+a pad is in the page's pattern at once, the playlist, piano roll and
+mixer show while it plays, Song mode plays the whole playlist, and Stop
+stops it.
 
 It prints "BEYOND BEATS CHECK OK" or the checks that failed.
 """
@@ -71,8 +73,12 @@ STACK = os.path.join(REPO, 'tools', 'web-player', 'stacks', 'Beyond Beats.oxtsta
 TITLE = 'Beyond Beats'
 
 # the stack's Play button and pads, in its card's points (btLayout)
-PLAY = (239, 30)
-GRID_LEFT, GRID_WIDTH, ROW_TOP, ROW_H, PAD_H = 500, 444, 108, 34, 28
+PLAY = (224, 30)
+MODE_SONG = (362, 30)
+CHORDS = (100, 181)
+PIANO_PREV = (216, 113)
+TABS = {'rack': (246, 86), 'piano': (338, 86), 'song': (426, 86), 'mixer': (503, 86)}
+GRID_LEFT, GRID_WIDTH, ROW_TOP, ROW_H, PAD_H = 500, 444, 122, 34, 28
 
 
 def log(msg=''):
@@ -105,6 +111,26 @@ async (src) => {
   // the first sample of each hit: louder than 0.01 after 50 ms of quiet
   const onsets = (a) => { const o = []; let quiet = 1e9; for (let i = 0; i < a.length; i++) {
       if (Math.abs(a[i]) > 0.01) { if (quiet > 0.05 * rate) o.push(i); quiet = 0; } else quiet++; } return o; };
+  // the last sample louder than 0.001
+  const lastLoud = (a) => { for (let i = a.length - 1; i >= 0; i--) if (Math.abs(a[i]) > 0.001) return i; return -1; };
+  // the frequency of a sine, from its rising zero crossings (each placed
+  // between its two samples) from `from` to `to`
+  const crossings = (a, from, to) => { const t = []; from = Math.round(from); to = Math.round(to);
+      for (let i = from; i < to; i++) if (a[i] <= 0 && a[i + 1] > 0) t.push(i + a[i] / (a[i] - a[i + 1]));
+      return t.length < 3 ? 0 : (t.length - 1) * rate / (t[t.length - 1] - t[0]); };
+  // the pitch of a note with harmonics: the shortest lag at which 4096
+  // samples from `from` match themselves best (normalised), refined
+  // between its neighbours
+  const pitch = (a, from) => { from = Math.round(from); const N = 4096, c = [];
+      for (let lag = 0; lag < 1400; lag++) { let s = 0, e1 = 0, e2 = 0;
+        for (let i = from; i < from + N; i++) { s += a[i] * a[i + lag]; e1 += a[i] * a[i]; e2 += a[i + lag] * a[i + lag]; }
+        c.push(s / Math.sqrt(e1 * e2 + 1e-30)); }
+      let k = 1; while (k < c.length && c[k] > 0) k++;
+      let best = 0; for (let i = k; i < c.length; i++) best = Math.max(best, c[i]);
+      for (let i = k + 1; i < c.length - 1; i++) if (c[i] >= 0.9 * best && c[i] >= c[i - 1] && c[i] >= c[i + 1]) {
+        const d = (c[i - 1] - c[i + 1]) / (2 * (c[i - 1] - 2 * c[i] + c[i + 1]));
+        return rate / (i + d); }
+      return 0; };
 
   // the kit
   out.kit = B.kit.slice();
@@ -144,6 +170,97 @@ async (src) => {
 
   // a song made safe
   out.clean = B.cleanSong({bpm: 9999, swing: -3, steps: 16, ch: [[99, 300, -500, 1, 0], [2]], rows: ['9x7']});
+  out.clean2 = B.cleanSong({bpm: 100, mode: 'song', cur: 7, from: -4, master: [500, 1, 9, 95],
+      ch: [[16, 50, 0, 0, 0, -10, 140, 50, 99]],
+      pats: [{steps: 16, rows: ['9'], notes: [[[0, 99, 200, 0], [16, 2, 60, 7], [3, 2, 64, 5], 'x']]},
+             {steps: 99, rows: []}],
+      song: [[0, 0], [1, 1], [2, 5], [-1, 0], [3, 1.5]]});
+  out.cutoffs = [B.cutoff(0), B.cutoff(100)];
+
+  // song mode: pattern A (a bar) at bar 1 and bar 5, pattern B (two bars,
+  // a clave on each) at bar 2; and the song started from bar 2
+  const pa = {steps: 16, rows: ['9000000000000000']}, pb = {steps: 32, rows: ['90000000000000009000000000000000']};
+  const arranged = {bpm: 120, swing: 0, mode: 'song', ch: [ch(13)], pats: [pa, pb], song: [[0, 0], [1, 1], [4, 0]]};
+  out.timeline = B.timeline(B.cleanSong(arranged)).length;
+  r = await B.render(arranged, 1, rate, true);
+  out.songOnsets = onsets(r.left);
+  out.songSeconds = r.seconds;
+  r = await B.render(Object.assign({}, arranged, {from: 16}), 1, rate, true);
+  out.fromOnsets = onsets(r.left);
+  // pattern mode plays the pattern chosen, alone
+  r = await B.render({bpm: 120, swing: 0, mode: 'pattern', cur: 1, ch: [ch(13)], pats: [pa, pb], song: [[0, 0]]}, 1, rate, true);
+  out.curOnsets = onsets(r.left);
+
+  // pitch: a synth note at its pitch, a step at the synth's own note
+  // (moved by the channel's tune), a sample higher by an octave at C5
+  const synthAt = (sound, tune, row, notes) => ({bpm: 120, swing: 0, steps: 16,
+      ch: [[sound, 100, 0, 0, 0, 100, 0, 0, tune || 0]], pats: [{steps: 16, rows: [row || empty], notes: [notes || []]}]});
+  out.pitch = {};
+  r = await B.render(synthAt(20, 0, empty, [[0, 4, 69, 9]]), 1, rate, true); out.pitch.keys69 = pitch(r.left, 0.1 * rate);
+  r = await B.render(synthAt(20, 0, empty, [[0, 4, 57, 9]]), 1, rate, true); out.pitch.keys57 = pitch(r.left, 0.1 * rate);
+  r = await B.render(synthAt(17, 0, '9000000000000000'), 1, rate, true); out.pitch.bassStep = pitch(r.left, 0.05 * rate);
+  r = await B.render(synthAt(16, 12, '9000000000000000'), 1, rate, true); out.pitch.leadTuned = pitch(r.left, 0.05 * rate);
+  r = await B.render(synthAt(13, 0, empty, [[0, 1, 60, 9]]), 1, rate, true); out.pitch.clave60 = crossings(r.left, 0.002 * rate, 0.03 * rate);
+  r = await B.render(synthAt(13, 0, empty, [[0, 1, 72, 9]]), 1, rate, true); out.pitch.clave72 = crossings(r.left, 0.002 * rate, 0.02 * rate);
+  out.noteLog = r.log.map((e) => e[3]);
+  r = await B.render(synthAt(13, -12, '9000000000000000'), 1, rate, true); out.pitch.claveDown = crossings(r.left, 0.002 * rate, 0.05 * rate);
+  // a synth note sounds for as long as it is held, then its release
+  r = await B.render(synthAt(20, 0, empty, [[0, 2, 60, 9]]), 1, rate, true, 2); out.held2 = lastLoud(r.left) / rate;
+  r = await B.render(synthAt(20, 0, empty, [[0, 8, 60, 9]]), 1, rate, true, 2); out.held8 = lastLoud(r.left) / rate;
+  // a pad shorter than its attack still ends
+  r = await B.render(synthAt(18, 0, empty, [[0, 1, 60, 9]]), 1, rate, true, 2);
+  out.padShort = {peak: peak(r.left), last: lastLoud(r.left) / rate};
+  // every synth: finite, heard, and under 1 alone
+  out.synths = [];
+  for (let k = 0; k < B.synths.length; k++) {
+    r = await B.render(synthAt(16 + k, 0, '9000000090000000', [[4, 2, 64, 9]]), 1, rate, true);
+    let finite = true; for (let i = 0; i < r.left.length; i++) if (!isFinite(r.left[i])) finite = false;
+    out.synths.push({name: B.synths[k], peak: peak(r.left), finite: finite});
+  }
+
+  // the channel's filter: the crash with it open and nearly shut
+  const crash = (cut, rev, dly, master) => ({bpm: 120, swing: 0, steps: 16, master: master,
+      ch: [[7, 100, 0, 0, 0, cut, rev || 0, dly || 0, 0]], rows: ['9000000000000000']});
+  r = await B.render(crash(100), 1, rate, true); out.open = rms(r.left, 0, rate);
+  r = await B.render(crash(20), 1, rate, true); out.shut = rms(r.left, 0, rate);
+  // the master's volume
+  r = await B.render(crash(100, 0, 0, [40, 0, 3, 35]), 1, rate, true); out.masterHalf = rms(r.left, 0, rate);
+  // the reverb: a clap (0.4 s) with no send, then a send to a room and to
+  // a hall; what is left after the clap and after the room has died
+  const clap = (rev, size) => ({bpm: 120, swing: 0, steps: 16, master: [80, size, 3, 0],
+      ch: [[4, 100, 0, 0, 0, 100, rev, 0, 0]], rows: ['9000000000000000']});
+  r = await B.render(clap(0, 0), 1, rate, true, 2); out.dryTail = rms(r.left, 0.6 * rate, 1.0 * rate);
+  out.dryClap = rms(r.left, 0, 0.4 * rate);
+  r = await B.render(clap(60, 0), 1, rate, true, 2);
+  out.roomTail = rms(r.left, 0.6 * rate, 1.0 * rate); out.roomLate = rms(r.left, 1.8 * rate, 2.4 * rate);
+  r = await B.render(clap(60, 1), 1, rate, true, 2);
+  out.hallLate = rms(r.left, 1.8 * rate, 2.4 * rate);
+  // the delay: a clave sent to a delay of 3 steps (0.375 s at 120), with
+  // no feedback (one echo) and with half (echoes that fade)
+  const echo = (fb) => ({bpm: 120, swing: 0, steps: 16, master: [80, 0, 3, fb],
+      ch: [[13, 100, 0, 0, 0, 100, 0, 50, 0]], rows: ['9000000000000000']});
+  r = await B.render(echo(0), 1, rate, true, 1);
+  out.echoOnsets = onsets(r.left);
+  out.echoPeaks = out.echoOnsets.map((o) => peak(r.left.subarray(o, o + 0.1 * rate)));
+  r = await B.render(echo(50), 1, rate, true, 1);
+  out.fbOnsets = onsets(r.left);
+  out.fbPeaks = out.fbOnsets.map((o) => peak(r.left.subarray(o, o + 0.1 * rate)));
+
+  // a sample of the user's own: a WAV of a 1 kHz sine, made here, loaded
+  // into slot 1 and played at C4 and C5; a slot given nonsense fails
+  const n = Math.round(0.3 * rate), sine = new Float32Array(n);
+  for (let i = 0; i < n; i++) sine[i] = 0.5 * Math.sin(2 * Math.PI * 1000 * i / rate) * (1 - i / n);
+  const file = new Uint8Array(B.wav(sine, sine, rate));
+  let bin = ''; for (let i = 0; i < file.length; i++) bin += String.fromCharCode(file[i]);
+  out.wavHead = bin.slice(0, 4) + bin.slice(8, 16) + ':' + new DataView(file.buffer).getUint32(24, true) + ':' + file.length;
+  out.loaded = [B.loadSample(1, btoa(bin)), B.loadSample(2, btoa('this is not a sound')), B.loadSample(0, '')];
+  for (let i = 0; i < 100 && (B.sampleState(1) === 'wait' || B.sampleState(2) === 'wait'); i++) await new Promise((ok) => setTimeout(ok, 20));
+  out.sampleStates = [B.sampleState(1), B.sampleState(2), B.sampleState(3)];
+  r = await B.render(synthAt(21, 0, '9000000000000000'), 1, rate, true); out.pitch.user60 = crossings(r.left, 0.01 * rate, 0.2 * rate);
+  r = await B.render(synthAt(21, 0, empty, [[0, 1, 72, 9]]), 1, rate, true); out.pitch.user72 = crossings(r.left, 0.01 * rate, 0.1 * rate);
+  r = await B.render(synthAt(22, 0, '9000000000000000'), 1, rate, true); out.failedSlot = peak(r.left);
+  B.clearSample(1);
+  out.cleared = B.sampleState(1);
 
   // live: the steps it books, on the audio clock
   B.set({bpm: 150, swing: 0, steps: 16, ch: [ch(0)], rows: ['9999999999999999']});
@@ -154,6 +271,9 @@ async (src) => {
   for (let i = 0; i < 12; i++) { await new Promise((ok) => setTimeout(ok, 60)); seen.push(B.now()); }
   out.seen = seen;
   out.booked = B.log.map((e) => e[2]);
+  out.levels = B.levels();
+  out.poll = B.poll();
+  out.hits = [B.hit(0, 9), B.hit(0, 9, 72), B.hit(3, 9)];
   B.stop();
   out.stopped = B.now();
   B.log = null;
@@ -207,8 +327,70 @@ def check_core(p, browser_name, expect):
 
         # 6 a song made safe
         c = m['clean']
-        expect('clean-song', c['bpm'] == 240 and c['swing'] == 0 and c['ch'][0][:3] == [15, 100, -100]
-               and c['ch'][1] == [2, 78, 0, 0, 0] and c['rows'] == ['9070000000000000', '0' * 16], '%s' % c)
+        expect('clean-song', c['bpm'] == 240 and c['swing'] == 0 and c['ch'][0][:3] == [28, 100, -100]
+               and c['ch'][1] == [2, 78, 0, 0, 0, 100, 0, 0, 0] and c['rows'] == ['9070000000000000', '0' * 16]
+               and c['mode'] == 'pattern' and c['master'] == [80, 0, 3, 35] and len(c['pats']) == 1
+               and c['song'] == [], '%s' % c)
+        c = m['clean2']
+        expect('clean-song-v2', c['mode'] == 'song' and c['cur'] == 1 and c['from'] == 0 and c['master'] == [100, 1, 4, 90]
+               and c['ch'] == [[16, 50, 0, 0, 0, 0, 100, 50, 24]]
+               and c['pats'][0]['notes'] == [[[0, 16, 127, 1], [3, 2, 64, 5]]]
+               and c['pats'][1]['steps'] == 64 and c['pats'][1]['rows'] == ['0' * 64]
+               and c['song'] == [[0, 0], [1, 1]], '%s' % c)
+        expect('filter-range', abs(m['cutoffs'][0] - 80) < 1e-6 and abs(m['cutoffs'][1] - 20000) < 1e-6, '%s' % m['cutoffs'])
+
+        # 8 song mode
+        step = rate * 60 / 120 / 4
+        expect('song-length', m['timeline'] == 80, '%s steps' % m['timeline'])
+        want = [round(k * step) for k in (0, 16, 32, 64)]
+        expect('song-plays-the-arrangement', close(m['songOnsets'], want, 2) and abs(m['songSeconds'] - 10) < 1e-9,
+               '%s, want %s; %s s' % (m['songOnsets'], want, m['songSeconds']))
+        want = [round(k * step) for k in (0, 16, 48)]
+        expect('song-starts-where-asked', close(m['fromOnsets'], want, 2), '%s, want %s' % (m['fromOnsets'], want))
+        want = [round(k * step) for k in (0, 16)]
+        expect('pattern-mode-plays-the-pattern', close(m['curOnsets'], want, 2), '%s, want %s' % (m['curOnsets'], want))
+
+        # 9 notes and synths
+        pt = m['pitch']
+
+        def near(f, want, cents=10):
+            return f > 0 and abs(1200 * __import__('math').log2(f / want)) < cents
+
+        for name, want in (('keys69', 440), ('keys57', 220), ('bassStep', 65.406), ('leadTuned', 523.25),
+                           ('clave60', 2500), ('clave72', 5000), ('claveDown', 1250), ('user60', 1000), ('user72', 2000)):
+            expect('pitch-' + name, near(pt[name], want), '%.2f Hz, want %s' % (pt[name], want))
+        expect('notes-logged', m['noteLog'] == [72], '%s' % m['noteLog'])
+        held = m['held8'] - m['held2']
+        expect('synth-holds-its-note', abs(held - 0.75) < 0.03 and 0.25 < m['held2'] < 0.6, '%.3f s longer; %.3f s'
+               % (held, m['held2']))
+        expect('synth-short-pad-ends', m['padShort']['peak'] > 0.01 and m['padShort']['last'] < 1.0, '%s' % m['padShort'])
+        bad = [s['name'] for s in m['synths'] if not (s['finite'] and 0.05 < s['peak'] < 1)]
+        expect('synths-sound', not bad and len(m['synths']) == 5, '%s' % m['synths'])
+
+        # 10 the mixer's filter, the master, the reverb and the delay
+        expect('filter-cuts', m['shut'] < 0.2 * m['open'], '%.4f of %.4f' % (m['shut'], m['open']))
+        expect('master-volume', abs(m['masterHalf'] / m['open'] - 0.25) < 0.01, '%.4f' % (m['masterHalf'] / m['open']))
+        # the room, 0.2 to 0.6 s after the clap: between 30 and 10 dB under
+        # the clap
+        tail = m['roomTail'] / m['dryClap']
+        expect('reverb-tail', m['dryTail'] == 0 and 0.03 < tail < 0.3, '%g; %.3f of the clap' % (m['dryTail'], tail))
+        expect('reverb-hall-is-longer', m['roomLate'] < 1e-4 and m['hallLate'] > 10 * max(m['roomLate'], 1e-6),
+               '%g, %g' % (m['roomLate'], m['hallLate']))
+        d = round(3 * step)
+        eo, ep = m['echoOnsets'], m['echoPeaks']
+        expect('delay-echoes', close(eo, [0, d], 3) and 0.3 < ep[1] / ep[0] < 0.8 if len(ep) == 2 else False,
+               '%s %s' % (eo, ep))
+        fo, fp = m['fbOnsets'], m['fbPeaks']
+        # (an echo of an echo may come a block, 128 samples, late: the
+        # browser runs a loop of nodes a block behind)
+        expect('delay-feedback', len(fo) >= 3 and close(fo[:2], [0, d], 3) and abs(fo[2] - fo[1] - d) <= 3 + 128
+               and fp[2] < fp[1] < fp[0], '%s %s' % (fo, fp))
+
+        # 11 the user's samples, and WAV files
+        expect('wav-file', m['wavHead'] == 'RIFFWAVEfmt :44100:%d' % (44 + round(0.3 * rate) * 4), m['wavHead'])
+        expect('samples-load', m['loaded'] == ['ok', 'ok', 'none'] and m['sampleStates'] == ['ready', 'error', '']
+               and m['failedSlot'] == 0 and m['cleared'] == '', '%s %s %s %s' % (m['loaded'], m['sampleStates'],
+                                                                              m['failedSlot'], m['cleared']))
 
         # 7 live, on the audio clock: 150 beats a minute is 0.1 s a step
         booked = m['booked']
@@ -219,6 +401,25 @@ def check_core(p, browser_name, expect):
         moved = [s for s in m['seen'] if s >= 0]
         expect('live-playhead-moves', len(set(moved)) >= 3 and all(0 <= s < 16 for s in moved), '%s' % m['seen'])
         expect('live-stops', m['stopped'] == -1, '%s' % m['stopped'])
+        lv = m['levels']
+        expect('meters', len(lv) == 2 and lv[0] > 40 and lv[1] > 40, '%s' % lv)
+        step_now, _, levels = m['poll'].partition('|')
+        expect('poll', step_now.lstrip('-').isdigit() and len(levels.split(',')) == 2, m['poll'])
+        expect('hit', m['hits'] == ['ok', 'ok', 'none'], '%s' % m['hits'])
+
+        # 12 a WAV export: the browser is handed a file to save
+        with page.expect_download() as info:
+            started = page.evaluate('''() => { beyondBeats.set({bpm: 120, swing: 0, steps: 16,
+                ch: [[0, 100, 0, 0, 0]], rows: ['9000900090009000']}); return beyondBeats.exportWav('loop.wav'); }''')
+        download = info.value
+        data = open(download.path(), 'rb').read()
+        state = page.evaluate('beyondBeats.exportState()')
+        # two seconds of a bar at 120 and a tail of two
+        frames = round((2 + 2) * 44100)
+        expect('export-wav', started == 'ok' and state == 'done' and download.suggested_filename == 'loop.wav'
+               and data[:4] == b'RIFF' and data[8:12] == b'WAVE' and len(data) == 44 + frames * 4
+               and max(abs(int.from_bytes(data[i:i + 2], 'little', signed=True)) for i in range(44, 44 + 4 * 4410, 2)) > 3000,
+               '%s %s %s %d bytes' % (started, state, download.suggested_filename, len(data)))
         expect('core-no-page-errors', not errors, ' | '.join(errors))
     finally:
         browser.close()
@@ -262,16 +463,42 @@ def check_player(p, browser, url, shots, expect, wait_for):
     playing = wait_for(page, lambda: page.evaluate('!!(window.beyondBeats && beyondBeats.playing && beyondBeats.now() >= 0)'),
                        'Beyond Beats playing', 10)
     song = page.evaluate('window.beyondBeats ? beyondBeats.song : null') or {}
-    expect('beyond-beats-plays', playing and song.get('bpm') == 122 and len(song.get('rows', [])) == 8
-           and song.get('rows', [''])[0] == '9000900090009000', '%s' % song)
+    pats = song.get('pats') or [{}]
+    expect('beyond-beats-plays', playing and song.get('bpm') == 122 and len(song.get('ch', [])) == 10
+           and len(pats) == 4 and (pats[0].get('rows') or [''])[0] == '9000900090009000'
+           and len(song.get('song', [])) == 12, '%s' % song)
     page.wait_for_timeout(1500)
     if shots:
         page.screenshot(path=os.path.join(shots, '31-beyond-beats-playing.png'))
     # the snare's step 3, off in the demo: a click puts it in the page's pattern
     click(*pad_point(2, 3))
     page.wait_for_timeout(600)
-    row = page.evaluate("window.beyondBeats ? beyondBeats.song.rows[1] : ''")
+    row = page.evaluate("window.beyondBeats ? beyondBeats.song.pats[0].rows[1] : ''")
     expect('beyond-beats-pad-heard', row[2:3] == '7', row)
+    # each view, while it plays: the playlist, the piano roll, the mixer
+    for view in ('song', 'piano', 'mixer'):
+        click(*TABS[view])
+        page.wait_for_timeout(900)
+        if shots:
+            page.screenshot(path=os.path.join(shots, '3%d-beyond-beats-%s.png' % (('song', 'piano', 'mixer').index(view) + 2, view)))
+    # the fourth pattern from the list, and its chords in the piano roll
+    # (< from the first channel goes round to the last, the Keys)
+    click(*CHORDS)
+    click(*TABS['piano'])
+    click(*PIANO_PREV)
+    page.wait_for_timeout(900)
+    cur = page.evaluate('window.beyondBeats ? beyondBeats.song.cur : null')
+    expect('beyond-beats-pattern-chosen', cur == 3, '%s' % cur)
+    if shots:
+        page.screenshot(path=os.path.join(shots, '35-beyond-beats-chords.png'))
+    # Song mode: the page plays the playlist, from where it starts
+    click(*MODE_SONG)
+    page.wait_for_timeout(800)
+    state = page.evaluate("window.beyondBeats ? [beyondBeats.song.mode, beyondBeats.playing, beyondBeats.at.length] : null")
+    expect('beyond-beats-song-mode', state is not None and state[0] == 'song' and state[1] is True
+           and state[2] == 128, '%s' % state)
+    click(*TABS['rack'])
+    page.wait_for_timeout(300)
     click(*PLAY)
     page.wait_for_timeout(600)
     stopped = page.evaluate('window.beyondBeats ? beyondBeats.playing : null')

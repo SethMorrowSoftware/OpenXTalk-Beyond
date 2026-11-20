@@ -19,11 +19,16 @@ files it is made from, without a browser or an engine:
 - the committed stack is built from beyond-beats-stack.livecodescript and
   beyond-beats/audio-core.js: the stack file holds the script and the
   core, as they are (a change there that was never built fails here)
-- the kit is the same sixteen sounds, in the same order, in the core, the
-  stack's script and its builder; there is a colour for every channel
+- the kit is the same sixteen sounds, and the synths the same five, in
+  the same order, in the core, the stack's script and its builder; the
+  user's sample slots are counted alike; the limits the builder makes
+  controls for are the stack's; there is a colour for every channel and
+  every pattern
 - every control btLayout places is on the card, which is the size the
-  builder makes it, and the browser check clicks where the stack's Play
-  button and pads are
+  builder makes it; the rack, playlist, piano roll and mixer fit inside
+  the rack's panel; the views are placed before their controls; and the
+  browser check clicks where the stack's Play, Song and tab buttons and
+  pads are
 - the core answers "ok" as its last expression, and keeps to ASCII, as
   the stack's script does
 - it is offered: in the Stack Player's samples with its picture, checked
@@ -122,6 +127,34 @@ class OneKit(unittest.TestCase):
         self.assertEqual(int(constant('kKitSize', stack_script())), len(kit))
         self.assertEqual(beyond_beats_check.stack_kit(), kit)
 
+    def test_the_synths_and_slots_are_the_same_everywhere(self):
+        synths = re.findall(r"'([^']+)'", re.search(r"var SYNTHS = \[(.*?)\];", core()).group(1))
+        self.assertEqual(len(synths), 5)
+        script = stack_script()
+        self.assertEqual(constant('kSynths', script).split(','), synths)
+        self.assertEqual(constant('kSynths', builder()).split(','), synths)
+        slots = int(re.search(r'var USER_SLOTS = (\d+);', core()).group(1))
+        self.assertEqual(int(constant('kUserSlots', script)), slots)
+        self.assertEqual(int(constant('kUserSlots', builder())), slots)
+        # the stack counts sounds from 1, the core from 0: the kit, then
+        # the synths, then the user's slots
+        self.assertEqual(int(constant('kFirstSynth', script)), 16 + 1)
+        self.assertEqual(int(constant('kFirstUser', script)), 16 + len(synths) + 1)
+        self.assertEqual(int(constant('kSounds', script)), 16 + len(synths) + slots)
+
+    def test_the_builder_makes_what_the_stack_uses(self):
+        script, text = stack_script(), builder()
+        for name in ('kMaxChannels', 'kMaxPatterns', 'kMaxSteps', 'kMaxNotes', 'kTracks', 'kViewBars', 'kKeys'):
+            self.assertEqual(constant(name, script), constant(name, text), name)
+
+    def test_a_colour_for_every_pattern(self):
+        script = stack_script()
+        colours = constant('kPatColors', script).split(',')
+        self.assertEqual(len(colours), int(constant('kMaxPatterns', script)))
+        self.assertEqual(len(set(colours)), len(colours))
+        for c in colours:
+            self.assertRegex(c, r'^#[0-9A-F]{6}$')
+
     def test_every_sound_has_a_maker(self):
         makers = re.search(r'var MAKERS = \[(.*)\n  \];', core(), re.S).group(1)
         # each maker is "[seconds, function (n, r) {"
@@ -162,6 +195,24 @@ class Layout(unittest.TestCase):
         self.assertLessEqual(grid_left + grid_width, 952)
         self.assertLessEqual(row_top + channels * row_h, 560)
 
+    def test_every_view_fits_the_rack(self):
+        script = stack_script()
+        c = lambda name: int(constant(name, script))  # noqa: E731
+        # the rack's panel is 192..952 across and 68..560 down
+        self.assertLessEqual(c('kSongLeft') + c('kSongWidth'), 952)
+        self.assertLessEqual(c('kTrackTop') + c('kTracks') * c('kTrackH'), 560)
+        self.assertLessEqual(c('kPianoLeft') + c('kPianoWidth'), 952)
+        self.assertLessEqual(c('kKeyTop') + c('kKeys') * c('kKeyH'), 560)
+        self.assertLessEqual(c('kStripLeft') + (c('kMaxChannels')) * c('kStripW'), 880)
+        self.assertLessEqual(c('kFaderBottom'), 560)
+
+    def test_the_views_are_placed_first(self):
+        # a group whose rect is set after its controls carries them along
+        # (the engine test TestLaidOutAgainNothingMoves sees the result)
+        layout = stack_script().split('command btLayout', 1)[1].split('end btLayout', 1)[0]
+        first = layout.index('set the rect of ')
+        self.assertEqual(layout.index('set the rect of group tL to 192, 68, 952, 560'), first)
+
     def test_the_check_clicks_where_the_stack_is(self):
         script = stack_script()
         self.assertEqual(beyond_beats_check.GRID_LEFT, int(constant('kGridLeft', script)))
@@ -169,10 +220,14 @@ class Layout(unittest.TestCase):
         self.assertEqual(beyond_beats_check.ROW_TOP, int(constant('kRowTop', script)))
         self.assertEqual(beyond_beats_check.ROW_H, int(constant('kRowH', script)))
         self.assertEqual(beyond_beats_check.PAD_H, int(constant('kPadH', script)))
-        m = re.search(r'set the rect of button "Play" to (\d+), (\d+), (\d+), (\d+)', script)
-        left, top, right, bottom = map(int, m.groups())
-        x, y = beyond_beats_check.PLAY
-        self.assertTrue(left < x < right and top < y < bottom)
+        points = [('Play', beyond_beats_check.PLAY), ('Mode Song', beyond_beats_check.MODE_SONG)]
+        points += [('Tab ' + {'rack': 'Rack', 'piano': 'Piano', 'song': 'Song', 'mixer': 'Mixer'}[k], v)
+                   for k, v in beyond_beats_check.TABS.items()]
+        for button, (x, y) in points:
+            m = re.search(r'set the rect of button "%s" to (\d+), (\d+), (\d+), (\d+)' % button, script)
+            self.assertTrue(m, button)
+            left, top, right, bottom = map(int, m.groups())
+            self.assertTrue(left < x < right and top < y < bottom, button)
 
 
 class TheCore(unittest.TestCase):

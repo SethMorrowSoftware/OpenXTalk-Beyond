@@ -8,12 +8,15 @@
 // property cAudioCore, and the stack runs it once a page with
 // do ... as "JavaScript". It makes window.beyondBeats and never calls
 // back into the stack: the stack tells it the song with set(), and asks
-// it where the playhead is with now().
+// it where the playhead is and how loud each channel is with poll().
 //
-// The kit is made here, sample by sample, from oscillators and seeded
-// noise: there are no sound files, so nothing to license, and the same
-// sounds come out on every browser (tools/ci/beyond_beats_check.py
-// renders them and checks).
+// The sounds: a kit of sixteen made here, sample by sample, from
+// oscillators and seeded noise (no sound files, so nothing to license,
+// and the same sounds in every browser); five synths, played live from
+// oscillators, a filter and two envelopes; and up to eight samples of
+// the user's own (loadSample). A sample plays at its own pitch for C4
+// (MIDI 60) and higher or lower for other notes; a synth plays each note
+// for as long as it is held.
 //
 // Timing is the browser's audio clock's: a timer books each step about
 // a tenth of a second ahead, so a slow frame of the engine never makes
@@ -21,13 +24,29 @@
 // half a step (0 is straight; 100 puts the off-step three quarters of
 // the way through its pair, an MPC's 75%).
 //
-// The song, as set() takes it:
-//   {bpm: 40..240, swing: 0..100, steps: 1..64,
-//    ch: [[sound 0..15, volume 0..100, pan -100..100, mute 0|1, solo 0|1], ...],
-//    rows: ["0907...", ...]}     one string a channel, one digit a step:
-//                                0 is off, 1..9 the step's velocity
+// The mixer: each channel goes through a low-pass filter, its fader
+// (volume, mute and solo), a panner and a meter, and sends what comes out
+// to a reverb and a delay; the channels, the reverb and the delay meet in
+// the master, its volume, a limiter, a soft clip and a meter.
+//
+// The song, as set() takes it (every number is checked, cleanSong):
+//   {bpm: 40..240, swing: 0..100, mode: "pattern" | "song",
+//    cur: the pattern played in pattern mode (from 0),
+//    from: the step a song starts at (from 0),
+//    master: [volume 0..100, reverb 0 room | 1 hall, delay 2..4 steps,
+//             feedback 0..90],
+//    ch: [[sound, volume 0..100, pan -100..100, mute 0|1, solo 0|1,
+//          filter 0..100, reverb send 0..100, delay send 0..100,
+//          tune -24..24], ...],
+//    pats: [{steps: 1..64,
+//            rows: ["0907...", ...],    one string a channel, one digit a
+//                                       step: 0 off, 1..9 its velocity
+//            notes: [[[start, length, pitch, velocity], ...], ...]}, ...],
+//                                       a list a channel, steps from 0
+//    song: [[bar, pattern], ...]}      where each pattern starts, from 0
 // A channel is heard when it is not muted and, if any channel is soloed,
-// it is soloed too.
+// it is soloed too. The first phase's shape, {bpm, swing, steps, ch,
+// rows}, is still taken: it is one pattern.
 //
 // The file ends in an expression, so do ... as "JavaScript" answers
 // "ok" when the page can make sound and "none" when it cannot.
@@ -38,6 +57,10 @@
 
   var KIT = ['Kick', 'Boom', 'Snare', 'Rim', 'Clap', 'Closed hat', 'Open hat', 'Crash',
              'Ride', 'Low tom', 'High tom', 'Shaker', 'Cowbell', 'Clave', 'Snap', 'Bass'];
+  var SYNTHS = ['Saw lead', 'Square bass', 'Soft pad', 'Pluck', 'Keys'];
+  var USER_SLOTS = 8;
+  var FIRST_SYNTH = KIT.length, FIRST_USER = KIT.length + SYNTHS.length;
+  var SOUNDS = FIRST_USER + USER_SLOTS;
   var LOOKAHEAD = 0.12;   // seconds booked ahead of the clock
   var TICK = 25;          // milliseconds between bookings
   var Ctx = w.AudioContext || w.webkitAudioContext;
@@ -223,6 +246,69 @@
     return buffers;
   }
 
+  // ---- the synths -------------------------------------------------------
+
+  // Each synth: its oscillators ([wave, octave in semitones, detune in
+  // cents, level]), a low-pass filter (cut-off in Hz, how far its
+  // envelope opens it, how fast that closes, resonance), an envelope
+  // (attack, decay, sustain level, release, in seconds) and the note a
+  // step plays (a note of the piano roll plays its own).
+  var PRESETS = [
+    {osc: [['sawtooth', 0, -7, 0.5], ['sawtooth', 0, 7, 0.5]], cut: 1800, env: 2600, fdecay: 0.3, q: 4,
+     a: 0.005, d: 0.25, s: 0.7, r: 0.15, base: 60, level: 0.55},
+    {osc: [['square', 0, 0, 0.5], ['sine', 0, 0, 0.7]], cut: 380, env: 1500, fdecay: 0.12, q: 6,
+     a: 0.003, d: 0.18, s: 0.6, r: 0.08, base: 36, level: 0.8},
+    {osc: [['sawtooth', 0, -12, 0.35], ['sawtooth', 0, 12, 0.35], ['triangle', 12, 0, 0.3]], cut: 1100, env: 500,
+     fdecay: 0.8, q: 1, a: 0.35, d: 0.6, s: 0.8, r: 0.6, base: 60, level: 0.45},
+    {osc: [['triangle', 0, 0, 0.6], ['sawtooth', 0, 4, 0.4]], cut: 450, env: 4200, fdecay: 0.12, q: 3,
+     a: 0.002, d: 0.35, s: 0, r: 0.12, base: 60, level: 0.7},
+    {osc: [['sine', 0, 0, 0.75], ['triangle', 12, 0, 0.25]], cut: 5000, env: 2000, fdecay: 0.4, q: 0.7,
+     a: 0.003, d: 0.9, s: 0.3, r: 0.25, base: 60, level: 0.7}
+  ];
+
+  function hz(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+  // The level of an attack-decay-sustain envelope `t` seconds in.
+  function adsAt(P, t) {
+    if (t <= P.a) return P.level * t / P.a;
+    return P.level * (P.s + (1 - P.s) * Math.exp(-3 * (t - P.a) / P.d));
+  }
+
+  // One synth note into `out`: it sounds from `when` for `dur` seconds,
+  // then its release.
+  function synth(ctx, P, midi, when, dur, out) {
+    var f = hz(midi), amp = ctx.createGain(), filt = ctx.createBiquadFilter();
+    var hold = Math.max(dur, 0.01), end = when + hold, stop = end + P.r + 0.05;
+    filt.type = 'lowpass';
+    filt.Q.value = P.q;
+    filt.frequency.setValueAtTime(Math.min(18000, P.cut + P.env), when);
+    filt.frequency.setTargetAtTime(P.cut, when, P.fdecay / 3);
+    amp.gain.setValueAtTime(0, when);
+    if (hold <= P.a) {
+      // let go before the attack is over: the release starts from where
+      // the attack had got to
+      amp.gain.linearRampToValueAtTime(adsAt(P, hold), end);
+    } else {
+      amp.gain.linearRampToValueAtTime(P.level, when + P.a);
+      amp.gain.setTargetAtTime(P.level * P.s, when + P.a, P.d / 3);
+      amp.gain.setValueAtTime(adsAt(P, hold), end);
+    }
+    amp.gain.linearRampToValueAtTime(0, end + P.r);
+    filt.connect(amp);
+    amp.connect(out);
+    for (var k = 0; k < P.osc.length; k++) {
+      var o = P.osc[k], x = ctx.createOscillator(), g = ctx.createGain();
+      x.type = o[0];
+      x.frequency.value = f * Math.pow(2, o[1] / 12);
+      x.detune.value = o[2];
+      g.gain.value = o[3];
+      x.connect(g);
+      g.connect(filt);
+      x.start(when);
+      x.stop(stop);
+    }
+  }
+
   // ---- the song ------------------------------------------------------
 
   function clamp(v, lo, hi, dflt) {
@@ -231,21 +317,58 @@
     return Math.max(lo, Math.min(hi, v));
   }
 
+  function int(v, lo, hi, dflt) { return Math.round(clamp(v, lo, hi, dflt)); }
+
+  // A slot of the user's samples, from 1, as an index from 0; -1 when it
+  // is not one.
+  function slotOf(v) {
+    v = Number(v);
+    return v >= 1 && v <= USER_SLOTS && v === Math.floor(v) ? v - 1 : -1;
+  }
+
   // The song as set() was given it, made safe: numbers in their ranges,
-  // rows of digits as long as the pattern.
+  // rows of digits as long as their pattern, notes inside it.
   function cleanSong(s) {
     s = s || {};
     var song = {bpm: clamp(s.bpm, 40, 240, 120), swing: clamp(s.swing, 0, 100, 0),
-                steps: Math.round(clamp(s.steps, 1, 64, 16)), ch: [], rows: []};
-    var ch = s.ch || [], rows = s.rows || [];
+                mode: s.mode === 'song' ? 'song' : 'pattern', ch: [], pats: [], song: []};
+    var m = s.master || [];
+    song.master = [clamp(m[0], 0, 100, 80), m[1] ? 1 : 0, int(m[2], 2, 4, 3), clamp(m[3], 0, 90, 35)];
+    var ch = s.ch || [];
     for (var i = 0; i < ch.length; i++) {
       var c = ch[i] || [];
-      song.ch.push([Math.round(clamp(c[0], 0, MAKERS.length - 1, 0)), clamp(c[1], 0, 100, 78),
-                    clamp(c[2], -100, 100, 0), c[3] ? 1 : 0, c[4] ? 1 : 0]);
-      var row = String(rows[i] || '').replace(/[^0-9]/g, '0');
-      while (row.length < song.steps) row += '0';
-      song.rows.push(row.slice(0, song.steps));
+      song.ch.push([int(c[0], 0, SOUNDS - 1, 0), clamp(c[1], 0, 100, 78), clamp(c[2], -100, 100, 0),
+                    c[3] ? 1 : 0, c[4] ? 1 : 0, clamp(c[5], 0, 100, 100), clamp(c[6], 0, 100, 0),
+                    clamp(c[7], 0, 100, 0), int(c[8], -24, 24, 0)]);
     }
+    var pats = s.pats || [{steps: s.steps, rows: s.rows}];
+    for (var p = 0; p < pats.length; p++) {
+      var src = pats[p] || {}, pat = {steps: int(src.steps, 1, 64, 16), rows: [], notes: []};
+      for (var r = 0; r < song.ch.length; r++) {
+        var row = String((src.rows || [])[r] || '').replace(/[^0-9]/g, '0');
+        while (row.length < pat.steps) row += '0';
+        pat.rows.push(row.slice(0, pat.steps));
+        var notes = ((src.notes || [])[r]) || [], list = [];
+        for (var n = 0; n < notes.length && list.length < 64; n++) {
+          var x = notes[n] || [], start = int(x[0], 0, 63, -1);
+          if (start < 0 || start >= pat.steps) continue;
+          list.push([start, int(x[1], 1, pat.steps - start, 1), int(x[2], 0, 127, 60), int(x[3], 1, 9, 7)]);
+        }
+        pat.notes.push(list);
+      }
+      song.pats.push(pat);
+    }
+    if (!song.pats.length) song.pats.push({steps: 16, rows: [], notes: []});
+    song.cur = int(s.cur, 0, song.pats.length - 1, 0);
+    var arr = s.song || [];
+    for (var k = 0; k < arr.length; k++) {
+      var a = arr[k] || [], bar = int(a[0], 0, 255, -1), pp = int(a[1], 0, song.pats.length - 1, -1);
+      if (Number(a[0]) === bar && Number(a[1]) === pp) song.song.push([bar, pp]);
+    }
+    song.from = int(s.from, 0, 4095, 0);
+    // the first phase's names for the pattern played
+    song.steps = song.pats[song.cur].steps;
+    song.rows = song.pats[song.cur].rows;
     return song;
   }
 
@@ -263,7 +386,36 @@
     return step % 2 === 1 ? song.swing / 100 * stepLength(song) / 2 : 0;
   }
 
-  // ---- the mixer: a gain and a panner a channel, then the master -------
+  // What plays at each step: in pattern mode the pattern's own steps; in
+  // song mode the song from its first bar to the end of its last
+  // pattern, each step a list of [pattern, its step].
+  function timeline(song) {
+    var at = [], k;
+    if (song.mode !== 'song') {
+      var cur = song.pats[song.cur];
+      for (k = 0; k < cur.steps; k++) at.push([[song.cur, k]]);
+      return at;
+    }
+    var length = 16;
+    for (k = 0; k < song.song.length; k++) {
+      var c = song.song[k];
+      length = Math.max(length, c[0] * 16 + song.pats[c[1]].steps);
+    }
+    length = Math.ceil(length / 16) * 16;
+    for (k = 0; k < length; k++) at.push([]);
+    for (k = 0; k < song.song.length; k++) {
+      var bar = song.song[k][0], p = song.song[k][1], steps = song.pats[p].steps;
+      for (var s = 0; s < steps; s++) at[bar * 16 + s].push([p, s]);
+    }
+    return at;
+  }
+
+  // ---- the mixer -------------------------------------------------------
+
+  function volumeGain(v) { var a = v / 100; return a * a; }
+
+  // A filter at 100 is open (20 kHz); at 0, 80 Hz.
+  function cutoff(v) { return 80 * Math.pow(250, v / 100); }
 
   // The soft clip's curve, over an input halved first (so it reaches from
   // -2 to 2): straight up to 0.8, then bending to 0.99 at most.
@@ -276,13 +428,32 @@
     return c;
   }
 
-  function volumeGain(v) { var a = v / 100; return a * a; }
+  // The reverb's echo of a clap in a room (1.2 s) or a hall (2.8 s):
+  // stereo noise that dies away, the same every time. It is scaled here,
+  // not by the browser (normalize is off), so that it is the same in
+  // every browser: a long, steady sound sent to it at 100 comes back
+  // about as loud as it went in.
+  function impulse(ctx, hall) {
+    var seconds = hall ? 2.8 : 1.2, n = Math.round(seconds * ctx.sampleRate);
+    var b = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (var c = 0; c < 2; c++) {
+      var d = b.getChannelData(c), r = rng(hall ? 101 + c : 201 + c), power = 0;
+      for (var i = 0; i < n; i++) {
+        d[i] = (r() * 2 - 1) * Math.pow(1 - i / n, hall ? 2.2 : 3);
+        power += d[i] * d[i];
+      }
+      var scale = Math.sqrt(0.7 / power);
+      for (var j = 0; j < n; j++) d[j] *= scale;
+    }
+    return b;
+  }
 
   function makeMixer(ctx, raw) {
-    var mixer = {ctx: ctx, kit: kitFor(ctx), strips: [], master: ctx.createGain()};
-    mixer.master.gain.value = 0.8;
+    var m = {ctx: ctx, kit: kitFor(ctx), strips: [], master: ctx.createGain(), size: -1};
+    m.meter = ctx.createAnalyser();
+    m.meter.fftSize = 512;
     if (raw) {
-      mixer.master.connect(ctx.destination);
+      m.master.connect(m.meter);
     } else {
       // a limiter, so that many loud channels never clip: a compressor
       // that holds the level down, and after it a soft clip for what its
@@ -293,56 +464,138 @@
       var half = ctx.createGain(), clip = ctx.createWaveShaper();
       half.gain.value = 0.5;
       clip.curve = softClip();
-      mixer.master.connect(lim); lim.connect(half); half.connect(clip); clip.connect(ctx.destination);
+      m.master.connect(lim); lim.connect(half); half.connect(clip); clip.connect(m.meter);
     }
-    return mixer;
+    m.meter.connect(ctx.destination);
+    // the reverb and the delay, each fed by the channels' sends
+    m.revIn = ctx.createGain();
+    m.reverb = ctx.createConvolver();
+    m.reverb.normalize = false;
+    m.revIn.connect(m.reverb); m.reverb.connect(m.master);
+    m.dlyIn = ctx.createGain();
+    m.delay = ctx.createDelay(4);
+    m.fb = ctx.createGain();
+    var dark = ctx.createBiquadFilter();
+    dark.type = 'lowpass'; dark.frequency.value = 3500;
+    m.dlyIn.connect(m.delay); m.delay.connect(dark); dark.connect(m.fb); m.fb.connect(m.delay);
+    m.delay.connect(m.master);
+    // (a browser may add one block, 128 samples, to every echo after the
+    // first: the loop is one block late)
+    return m;
   }
 
-  function strip(mixer, i) {
-    while (mixer.strips.length <= i) {
-      var ctx = mixer.ctx, g = ctx.createGain(), p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-      if (p) { g.connect(p); p.connect(mixer.master); } else g.connect(mixer.master);
-      mixer.strips.push({gain: g, pan: p});
+  function strip(m, i) {
+    while (m.strips.length <= i) {
+      var ctx = m.ctx, s = {input: ctx.createGain(), filter: ctx.createBiquadFilter(), fader: ctx.createGain(),
+                            pan: ctx.createStereoPanner ? ctx.createStereoPanner() : null,
+                            meter: ctx.createAnalyser(), rev: ctx.createGain(), dly: ctx.createGain()};
+      s.filter.type = 'lowpass';
+      s.filter.frequency.value = ctx.sampleRate / 2;
+      s.filter.Q.value = 0;
+      s.meter.fftSize = 512;
+      s.input.connect(s.filter); s.filter.connect(s.fader);
+      var out = s.fader;
+      if (s.pan) { s.fader.connect(s.pan); out = s.pan; }
+      out.connect(s.meter); s.meter.connect(m.master);
+      out.connect(s.rev); s.rev.connect(m.revIn);
+      out.connect(s.dly); s.dly.connect(m.dlyIn);
+      s.rev.gain.value = 0; s.dly.gain.value = 0;
+      m.strips.push(s);
     }
-    return mixer.strips[i];
+    return m.strips[i];
   }
 
-  // Each strip's gain and pan, from the song: mute and solo are gains too,
-  // so a change is heard at once, even on a note already sounding.
-  function applyMix(mixer, song, when) {
+  // Every setting of the song on the mixer, from `when`: mute and solo are
+  // gains too, so a change is heard at once, even on a note that sounds.
+  function applyMix(m, song, when) {
     for (var i = 0; i < song.ch.length; i++) {
-      var s = strip(mixer, i), g = audible(song, i) ? volumeGain(song.ch[i][1]) : 0;
-      s.gain.gain.setValueAtTime(g, when);
-      if (s.pan) s.pan.pan.setValueAtTime(song.ch[i][2] / 100, when);
+      var s = strip(m, i), c = song.ch[i];
+      s.fader.gain.setValueAtTime(audible(song, i) ? volumeGain(c[1]) : 0, when);
+      if (s.pan) s.pan.pan.setValueAtTime(c[2] / 100, when);
+      // at 100 the filter stands at the top of the band, where it lets
+      // everything through as it is
+      s.filter.frequency.setValueAtTime(c[5] >= 100 ? m.ctx.sampleRate / 2 : cutoff(c[5]), when);
+      s.rev.gain.setValueAtTime(c[6] / 100, when);
+      s.dly.gain.setValueAtTime(c[7] / 100, when);
     }
-    for (var k = song.ch.length; k < mixer.strips.length; k++) mixer.strips[k].gain.gain.setValueAtTime(0, when);
+    for (var k = song.ch.length; k < m.strips.length; k++) m.strips[k].fader.gain.setValueAtTime(0, when);
+    var master = song.master;
+    m.master.gain.setValueAtTime(volumeGain(master[0]) * 1.25, when);
+    if (m.size !== master[1]) { m.size = master[1]; m.reverb.buffer = impulse(m.ctx, master[1]); }
+    m.delay.delayTime.setValueAtTime(master[2] * stepLength(song), when);
+    m.fb.gain.setValueAtTime(master[3] / 100, when);
   }
 
-  function play(mixer, channel, sound, velocity, when) {
-    var ctx = mixer.ctx, src = ctx.createBufferSource(), v = ctx.createGain();
-    src.buffer = mixer.kit[sound];
-    v.gain.value = velocity / 9;
-    src.connect(v); v.connect(strip(mixer, channel).gain);
+  // One sound of channel i: a sample (at its pitch for C4, MIDI 60) or a
+  // synth note held for `dur` seconds. `pitch` is null for a step: then a
+  // sample plays as it is and a synth plays its own note.
+  function voice(m, song, i, pitch, vel, when, dur, user, direct) {
+    var ctx = m.ctx, c = song.ch[i], sound = c[0], g = ctx.createGain();
+    g.gain.value = vel / 9;
+    g.connect(direct || strip(m, i).input);
+    if (sound >= FIRST_SYNTH && sound < FIRST_USER) {
+      var P = PRESETS[sound - FIRST_SYNTH];
+      synth(ctx, P, (pitch === null ? P.base : pitch) + c[8], when, dur, g);
+      return true;
+    }
+    var buf = sound < FIRST_SYNTH ? m.kit[sound] : (user || [])[sound - FIRST_USER];
+    if (!buf || buf === 'wait') return false;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = Math.pow(2, ((pitch === null ? 60 : pitch) - 60 + c[8]) / 12);
+    src.connect(g);
     src.start(when);
+    return true;
   }
 
-  // Every note of one step, at `when`.
-  function playStep(mixer, song, step, when, log) {
-    for (var i = 0; i < song.ch.length; i++) {
-      var vel = song.rows[i].charCodeAt(step) - 48;
-      if (vel > 0 && vel <= 9 && audible(song, i)) {
-        play(mixer, i, song.ch[i][0], vel, when);
-        if (log) log.push([i, step, when]);
+  // Every sound of one step of the timeline, at `when`.
+  function playStep(m, song, entries, step, when, user, log) {
+    var len = stepLength(song);
+    for (var e = 0; e < entries.length; e++) {
+      var pat = song.pats[entries[e][0]], s = entries[e][1];
+      for (var i = 0; i < song.ch.length; i++) {
+        if (!audible(song, i)) continue;
+        var vel = pat.rows[i].charCodeAt(s) - 48;
+        if (vel > 0 && vel <= 9 && voice(m, song, i, null, vel, when, len, user) && log) log.push([i, step, when, null]);
+        var notes = pat.notes[i];
+        for (var n = 0; n < notes.length; n++) {
+          var x = notes[n];
+          if (x[0] === s && voice(m, song, i, x[2], x[3], when, x[1] * len, user) && log) log.push([i, step, when, x[2]]);
+        }
       }
     }
+  }
+
+  // ---- WAV files -------------------------------------------------------
+
+  // Two channels of samples as a 16-bit WAV file.
+  function wav(left, right, rate) {
+    var n = left.length, buf = new ArrayBuffer(44 + n * 4), v = new DataView(buf), o = 0;
+    function str(t) { for (var i = 0; i < t.length; i++) v.setUint8(o++, t.charCodeAt(i)); }
+    function u32(x) { v.setUint32(o, x, true); o += 4; }
+    function u16(x) { v.setUint16(o, x, true); o += 2; }
+    str('RIFF'); u32(36 + n * 4); str('WAVE'); str('fmt '); u32(16); u16(1); u16(2); u32(rate); u32(rate * 4); u16(4);
+    u16(16); str('data'); u32(n * 4);
+    for (var i = 0; i < n; i++) {
+      v.setInt16(o, Math.max(-1, Math.min(1, left[i])) * 32767, true); o += 2;
+      v.setInt16(o, Math.max(-1, Math.min(1, right[i])) * 32767, true); o += 2;
+    }
+    return buf;
+  }
+
+  function fromBase64(text) {
+    var s = atob(String(text).replace(/[^A-Za-z0-9+\/=]/g, '')), u = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return u.buffer;
   }
 
   // ---- the live studio --------------------------------------------------
 
   var B = w.beyondBeats = {
-    kit: KIT,
-    ctx: null, mixer: null, song: cleanSong({}),
+    kit: KIT, synths: SYNTHS, userSlots: USER_SLOTS,
+    ctx: null, mixer: null, song: cleanSong({}), at: null, user: [],
     playing: false, step: 0, next: 0, queue: [], shown: -1, log: null,
+    exporting: '', lastExport: null,
 
     // The page can make sound only after a click or a key: the context is
     // made, or woken, by the first one (the stack's clicks reach the page
@@ -362,15 +615,19 @@
 
     set: function (s) {
       B.song = cleanSong(typeof s === 'string' ? JSON.parse(s) : s);
-      if (B.step >= B.song.steps) B.step = 0;
+      B.at = timeline(B.song);
+      if (B.step >= B.at.length) B.step = 0;
       if (B.mixer) applyMix(B.mixer, B.song, B.ctx.currentTime);
       return 'ok';
     },
 
+    // Plays from the start of the pattern, or from the song's `from` step.
     start: function () {
       B.unlock();
       if (!B.ctx) return 'none';
-      B.playing = true; B.step = 0; B.queue = []; B.shown = -1;
+      if (!B.at) B.at = timeline(B.song);
+      B.playing = true; B.queue = []; B.shown = -1;
+      B.step = B.song.mode === 'song' ? Math.min(B.song.from, B.at.length - 1) : 0;
       B.next = B.ctx.currentTime + 0.06;
       B.book();
       return 'ok';
@@ -378,7 +635,8 @@
 
     stop: function () { B.playing = false; B.queue = []; B.shown = -1; return 'ok'; },
 
-    // The step sounding now (counted from 0), or -1 when stopped.
+    // The step sounding now (counted from 0: of the pattern, or of the
+    // song), or -1 when stopped.
     now: function () {
       if (!B.playing || !B.ctx) return -1;
       var t = B.ctx.currentTime;
@@ -386,58 +644,131 @@
       return B.shown;
     },
 
-    // One channel's sound now, at a velocity: a pad clicked, a name tried.
-    hit: function (channel, velocity) {
+    // How loud each channel and the master are now, 0..100 (a meter's
+    // scale: 48 dB of it).
+    levels: function () {
+      var out = [], m = B.mixer, data = new Float32Array(512);
+      function level(an) {
+        an.getFloatTimeDomainData(data);
+        var p = 0;
+        for (var i = 0; i < data.length; i++) p = Math.max(p, Math.abs(data[i]));
+        return p <= 0 ? 0 : Math.max(0, Math.min(100, Math.round((20 * Math.log(p) / Math.LN10 + 48) / 48 * 100)));
+      }
+      for (var i = 0; i < B.song.ch.length; i++) out.push(m && m.strips[i] ? level(m.strips[i].meter) : 0);
+      out.push(m ? level(m.meter) : 0);
+      return out;
+    },
+
+    // What the stack asks many times a second: "step|level,level,...".
+    poll: function () { return B.now() + '|' + B.levels().join(','); },
+
+    // One channel's sound now, at a velocity and a pitch (null or
+    // nothing: as a step plays it): a pad clicked, a key of the piano
+    // roll, a sound tried. Heard even when the channel is muted.
+    hit: function (channel, velocity, pitch) {
       B.unlock();
       if (!B.ctx || channel < 0 || channel >= B.song.ch.length) return 'none';
-      var mixer = B.mixer;
-      strip(mixer, channel);
-      // heard even when the channel is muted: the user asked for it
-      var ctx = B.ctx, src = ctx.createBufferSource(), v = ctx.createGain(), c = B.song.ch[channel];
-      src.buffer = mixer.kit[c[0]];
-      v.gain.value = (velocity || 7) / 9 * volumeGain(c[1]);
-      var p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-      src.connect(v);
-      if (p) { p.pan.value = c[2] / 100; v.connect(p); p.connect(mixer.master); } else v.connect(mixer.master);
-      src.start(ctx.currentTime + 0.005);
-      return 'ok';
+      var ctx = B.ctx, c = B.song.ch[channel], g = ctx.createGain(), p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      g.gain.value = volumeGain(c[1]);
+      if (p) { p.pan.value = c[2] / 100; g.connect(p); p.connect(B.mixer.master); } else g.connect(B.mixer.master);
+      var ok = voice(B.mixer, B.song, channel, pitch === undefined || pitch === null || pitch === '' ? null : Number(pitch),
+                     velocity || 7, ctx.currentTime + 0.005, 0.3, B.user, g);
+      return ok ? 'ok' : 'none';
     },
 
     // Books every step that starts before the clock is LOOKAHEAD ahead.
     book: function () {
       if (!B.playing || !B.ctx) return;
-      var ahead = B.ctx.currentTime + LOOKAHEAD, song = B.song;
+      var ahead = B.ctx.currentTime + LOOKAHEAD, song = B.song, at = B.at;
       while (B.next < ahead) {
-        var at = B.next + swingDelay(song, B.step);
-        playStep(B.mixer, song, B.step, at, B.log);
-        B.queue.push([B.step, at]);
+        var when = B.next + swingDelay(song, B.step);
+        playStep(B.mixer, song, at[B.step], B.step, when, B.user, B.log);
+        B.queue.push([B.step, when]);
         B.next += stepLength(song);
-        B.step = (B.step + 1) % song.steps;
+        B.step = (B.step + 1) % at.length;
       }
     },
 
-    // The song, rendered faster than real time: `loops` times through the
-    // pattern, then a second for the last sounds to ring out. Resolves to
-    // {rate, left, right, log}. raw leaves out the master's limiter (the
-    // check measures levels with it out).
-    render: function (s, loops, rate, raw) {
+    // A sample of the user's own, as the base64 of its file (WAV, MP3,
+    // OGG...), into a slot from 1: decoded by the browser, which takes a
+    // moment (sampleState says when).
+    loadSample: function (slot, data) {
+      slot = slotOf(slot);
+      if (slot < 0) return 'none';
+      B.user[slot] = 'wait';
+      var ctx = B.ctx || (Offline ? new Offline(1, 1, 44100) : null);
+      if (!ctx) { B.user[slot] = null; return 'none'; }
+      var done = function (b) { B.user[slot] = b; }, fail = function () { B.user[slot] = null; };
+      try {
+        var p = ctx.decodeAudioData(fromBase64(data), done, fail);
+        if (p && p.catch) p.catch(fail);
+      } catch (e) { fail(); }
+      return 'ok';
+    },
+
+    // "ready", "wait", "error", or "" for a slot with nothing in it.
+    sampleState: function (slot) {
+      var b = B.user[slotOf(slot)];
+      return b === undefined ? '' : b === 'wait' ? 'wait' : b ? 'ready' : 'error';
+    },
+
+    clearSample: function (slot) {
+      slot = slotOf(slot);
+      if (slot < 0) return 'none';
+      B.user[slot] = undefined;
+      return 'ok';
+    },
+
+    // The song (or the pattern), rendered faster than real time: `loops`
+    // times through, then `tail` seconds for the reverb and the delay to
+    // ring out (1 by default). Resolves to {rate, left, right, log,
+    // seconds}. raw leaves out the master's limiter (the check measures
+    // levels with it out).
+    render: function (s, loops, rate, raw, tail) {
       if (!Offline) return Promise.reject(new Error('no OfflineAudioContext'));
-      var song = cleanSong(s), n = Math.max(1, loops || 1) * song.steps;
-      var seconds = n * stepLength(song) + 1, r = rate || 44100;
-      var ctx = new Offline(2, Math.ceil(seconds * r), r), mixer = makeMixer(ctx, !!raw), log = [];
-      applyMix(mixer, song, 0);
-      for (var k = 0; k < n; k++) {
-        var step = k % song.steps;
-        playStep(mixer, song, step, k * stepLength(song) + swingDelay(song, step), log);
+      var song = cleanSong(s), at = timeline(song), n = Math.max(1, loops || 1) * at.length;
+      var first = song.mode === 'song' ? Math.min(song.from, at.length - 1) : 0;
+      var seconds = (n - first) * stepLength(song), r = rate || 44100;
+      var ctx = new Offline(2, Math.ceil((seconds + (tail === undefined ? 1 : tail)) * r), r);
+      var m = makeMixer(ctx, !!raw), log = [];
+      applyMix(m, song, 0);
+      for (var k = first; k < n; k++) {
+        var step = k % at.length;
+        playStep(m, song, at[step], step, (k - first) * stepLength(song) + swingDelay(song, step), B.user, log);
       }
       return ctx.startRendering().then(function (buf) {
-        return {rate: r, left: buf.getChannelData(0), right: buf.getChannelData(1), log: log};
+        return {rate: r, left: buf.getChannelData(0), right: buf.getChannelData(1), log: log, seconds: seconds};
       });
     },
 
+    // Renders the song as it is set (the song from its start, or the
+    // pattern once) with two seconds of tail, and hands the browser a WAV
+    // file of it to save as `name`. exportState says how it goes:
+    // "working", "done" or "error: why".
+    exportWav: function (name) {
+      if (B.exporting === 'working') return 'busy';
+      B.exporting = 'working';
+      var song = JSON.parse(JSON.stringify(B.song));
+      song.from = 0;
+      B.render(song, 1, 44100, false, 2).then(function (r) {
+        var data = wav(r.left, r.right, r.rate), blob = new Blob([data], {type: 'audio/wav'});
+        B.lastExport = {bytes: data.byteLength, seconds: r.left.length / r.rate, name: String(name || 'beyond-beats.wav')};
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = B.lastExport.name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 60000);
+        B.exporting = 'done';
+      }, function (e) { B.exporting = 'error: ' + (e && e.message || e); });
+      return 'ok';
+    },
+
+    exportState: function () { return B.exporting; },
+
     // for the check
-    makeSound: makeSound, cleanSong: cleanSong, audible: audible,
-    stepLength: stepLength, swingDelay: swingDelay
+    makeSound: makeSound, cleanSong: cleanSong, audible: audible, timeline: timeline,
+    stepLength: stepLength, swingDelay: swingDelay, cutoff: cutoff, wav: wav
   };
 
   if (Ctx) {
