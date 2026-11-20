@@ -16,14 +16,17 @@
 
 """tools/ci/mac_menu_backdrop.py's verdict on the window server's order of
 the IDE's windows, with made-up lists: the backdrop behind them, in front
-of them, missing, or with nothing of its layer to be behind; and the
-lines of the window list as the driver reads them.
+of them, missing, or with nothing of its layer to be behind; the lines of
+the window list as the driver reads them; and its look at the IDE's beat
+after a step, with a made-up clock and a real beat.txt.
 
   python3 -m unittest discover -s tools/ci/tests
 """
 
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -111,6 +114,100 @@ class WindowOrder(unittest.TestCase):
         with mock.patch.object(mb, 'osascript', return_value=(-1, 'no answer in 30 s')), \
                 mock.patch.object(mb, 'log'):
             self.assertIsNone(mb.window_order(1))
+
+
+class Clock:
+    """A made-up clock for Run.look: sleep moves it on and calls tick with
+    the time, which writes beat.txt as the engine would."""
+
+    def __init__(self, start, tick):
+        self.now, self.tick = start, tick
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+        self.tick(self.now)
+
+
+class Look(unittest.TestCase):
+    START = 1795167020.0
+
+    def setUp(self):
+        self.out = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.out)
+        self.run_ = mb.Run(self.out, None, 1, None)
+
+    def write(self, text):
+        with open(os.path.join(self.out, 'beat.txt'), 'w', encoding='utf-8') as f:
+            f.write(text)
+
+    def beat(self, when):
+        self.write('%d\tmenubar-visible=true\tpending=\n' % round(when * 1000))
+
+    def look(self, tick):
+        clock = Clock(self.START, tick)
+        with mock.patch.object(mb, 'time', clock), mock.patch.object(mb, 'log') as log:
+            answers = self.run_.look('backdrop')
+        return answers, log.call_args.args[0]
+
+    def test_a_beat_that_goes_on_answers(self):
+        self.beat(self.START)
+        answers, said = self.look(self.beat)
+        self.assertIs(answers, True)
+        self.assertIn('backdrop: the last beat 0.0 s ago: ', said)
+
+    def test_a_beat_read_while_the_engine_writes_it_is_not_a_stop(self):
+        # put into URL "binfile:" empties beat.txt before it writes the new
+        # beat: a read between the two finds nothing, though the beat goes
+        # on (the Intel Mac's menu and backdrop check of #585's run on 20
+        # Nov 2026, whose engine was sampled in that very put)
+        def tick(now):
+            if now >= self.START + mb.LOOK:
+                self.write('')
+            else:
+                self.beat(now)
+        answers, said = self.look(tick)
+        self.assertIs(answers, True, said)
+        self.assertIn('backdrop: the last beat 0.5 s ago: ', said)
+
+    def test_a_beat_half_written_is_not_a_stop(self):
+        # the first digits of the new beat only: an older time, or none
+        def tick(now):
+            if now >= self.START + mb.LOOK:
+                self.write('17951')
+            else:
+                self.beat(now)
+        answers, said = self.look(tick)
+        self.assertIs(answers, True, said)
+
+    def test_a_beat_that_stopped_is_a_stop(self):
+        self.beat(self.START - 1)
+        answers, said = self.look(lambda now: None)
+        self.assertIs(answers, False)
+        self.assertIn('backdrop: the last beat 11.0 s ago: ', said)
+
+    def test_a_beat_that_stopped_mid_write_is_a_stop(self):
+        # the engine stopped in the put itself: the file stays empty
+        self.beat(self.START - 1)
+        answers, said = self.look(lambda now: self.write(''))
+        self.assertIs(answers, False)
+
+    def test_no_beat_at_all_is_a_stop(self):
+        answers, said = self.look(lambda now: None)
+        self.assertIs(answers, False)
+        self.assertIn('backdrop: the last beat none', said)
+
+    def test_a_beat_that_stops_within_the_look_is_a_stop(self):
+        # beats for the first second, then none: 9 s old at the end
+        def tick(now):
+            if now <= self.START + 1:
+                self.beat(now)
+            else:
+                self.write('')
+        answers, said = self.look(tick)
+        self.assertIs(answers, False, said)
 
 
 if __name__ == '__main__':
