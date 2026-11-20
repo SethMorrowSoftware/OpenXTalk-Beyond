@@ -147,7 +147,13 @@ class TheAction(unittest.TestCase):
         # the fetch's apt-get calls have a time limit; Playwright's install
         # (and any install) none
         self.assertIn('timeout "$limit" "${apt[@]}" update', h)
-        self.assertIn('timeout "$limit" "${apt[@]}" install -y --no-install-recommends --download-only "$@"', h)
+        self.assertIn('timeout "$limit" "${apt[@]}" install -y "${recommends[@]}" --download-only "$@"', h)
+        # (without the packages they only recommend, as Playwright's own
+        # install asks: only --with-recommends, which is not the playwright
+        # mode, takes them; #597's review)
+        self.assertIn('recommends=(--no-install-recommends)\n', h)
+        self.assertEqual(h.count('recommends=()'), 1)
+        self.assertIn('--with-recommends) recommends=(); shift ;;', h)
         self.assertNotIn('timeout "$limit" "$python"', h)
         # the playwright mode installs after the fetch whatever it did: the
         # script does not stop on a failure (no set -e), and the fetch is
