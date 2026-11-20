@@ -86,6 +86,18 @@ class CheckVerdicts(unittest.TestCase):
                          [True, False])
         self.assertEqual([ok for ok, _, _ in gmc.drag_verdict([])], [False, False])
 
+    def test_popup_with_no_mouse_stack(self):
+        good = ['READY', 'MOUSESTACK []', 'POPUP opening', 'POPUP returned', 'PICK One']
+        self.assertTrue(all(ok for ok, _, _ in gmc.popup_verdict(good, None)))
+        # as up to 0.2.8-dp.2: error 583 and no menu
+        old = ['READY', 'MOUSESTACK []', 'POPUP opening', 'POPUP ERROR 583']
+        results = gmc.popup_verdict(old, None)
+        self.assertEqual([ok for ok, _, _ in results], [True, False, False, True])
+        self.assertIn('583', results[1][2])
+        # the mouse was over the stack after all: the run proved nothing
+        self.assertFalse(gmc.popup_verdict(['MOUSESTACK [GrabMenu]'] + good[2:], None)[0][0])
+        self.assertFalse(gmc.popup_verdict(good, 255)[3][0])
+
     def test_runs_in_the_linux_build(self):
         self.assertIn('python3 tools/ci/grab_menu_check.py --engine', read(LINUX_WORKFLOW))
         # the three menu kinds of the reports, each in the group that grabs

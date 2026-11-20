@@ -1809,8 +1809,9 @@ jobs:
       # pulldown menu button in it, pressed and released with the system's
       # mouse: the engine runs on (up to 0.2.8-dp.2, and in LiveCode
       # Community 9.6.3, it crashed on the release), and a plain button
-      # that grabs itself still follows the mouse
-      # (tools/ci/grab_menu_check.py)
+      # that grabs itself still follows the mouse; and "popup button" from
+      # a timer with the mouse over none of the program's stacks opens its
+      # menu (it was error 583) (tools/ci/grab_menu_check.py)
       - name: Grab from a menu button check
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
         timeout-minutes: 10

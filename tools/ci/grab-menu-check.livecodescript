@@ -23,6 +23,12 @@ script "oxt_grab_menu_check"
 -- p=9443, p=9448). A plain button beside it, grabbed by its own script,
 -- shows that a grab still drags.
 --
+-- A second thing is checked from the same stack, with OXT_GRAB_MENU_MODE
+-- "nomouse": "popup button" from a timer while the mouse is over none of
+-- the program's stacks. Up to 0.2.8-dp.2, and in LiveCode Community, that
+-- ended in error 583 (no such stack) and no menu; the menu now opens at
+-- the mouse and its pick arrives.
+--
 -- Environment: OXT_GRAB_MENU_LOG (the file the lines go to) and
 -- OXT_GRAB_MENU_MODE (the menuMode of the button: popup, option or
 -- pulldown). The window is at 100,100 on the screen, the menu button's
@@ -35,7 +41,11 @@ on startup
    set the defaultStack to "GrabMenu"
    create button "Menu"
    set the style of button "Menu" to "menu"
-   set the menuMode of button "Menu" to $OXT_GRAB_MENU_MODE
+   if $OXT_GRAB_MENU_MODE is "nomouse" then
+      set the menuMode of button "Menu" to "popup"
+   else
+      set the menuMode of button "Menu" to $OXT_GRAB_MENU_MODE
+   end if
    set the text of button "Menu" to "One" & return & "Two" & return & "Three"
    set the rect of button "Menu" to 50,50,200,80
    create group "Dragged"
@@ -44,6 +54,10 @@ on startup
    create button "Plain"
    set the rect of button "Plain" to 50,150,200,180
    set the script of button "Plain" to "on mouseDown" & return & "logLine " & quote & "PLAIN mouseDown" & quote & return & "grab me" & return & "end mouseDown"
+   if $OXT_GRAB_MENU_MODE is "nomouse" then
+      set the script of button "Menu" to "on menuPick pItem" & return & "logLine " & quote & "PICK " & quote & " & pItem" & return & "end menuPick"
+      send "grabMenuPopup" to me in 3 seconds
+   end if
    go stack "GrabMenu"
    logLine "READY"
    send "grabMenuAlive" to me in 500 milliseconds
@@ -56,6 +70,17 @@ on grabMenuAlive
    logLine "ALIVE" && the loc of button "Plain" of stack "GrabMenu"
    send "grabMenuAlive" to me in 500 milliseconds
 end grabMenuAlive
+
+on grabMenuPopup
+   logLine "MOUSESTACK [" & the mouseStack & "]"
+   try
+      logLine "POPUP opening"
+      popup button "Menu" of stack "GrabMenu"
+      logLine "POPUP returned"
+   catch tError
+      logLine "POPUP ERROR" && item 1 of line 1 of tError
+   end try
+end grabMenuPopup
 
 on logLine pLine
    open file $OXT_GRAB_MENU_LOG for append

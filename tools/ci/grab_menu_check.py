@@ -30,6 +30,13 @@ its mouseDown and the engine is still running, and writing its lines,
 three seconds after. A last run drags a plain button that grabs itself,
 which must follow the mouse as it always did.
 
+A run more is for "popup button" with the mouse over none of the program's
+stacks (the script pops the menu up from a timer, three seconds after its
+stack opened, with the mouse far from it): up to 0.2.8-dp.2 and in LiveCode
+Community that was error 583 and no menu. It passes when there was no
+error and a click on the menu's first item, at the mouse, arrived as
+menuPick.
+
 Needs Xvfb and xdotool (ImageMagick's import for the pictures). Exit status
 0 when every check passed, 1 otherwise.
 """
@@ -49,6 +56,8 @@ MODES = ('popup', 'option', 'pulldown')
 MENU_BUTTON = (225, 165)
 PLAIN_BUTTON = (225, 265)
 BESIDE = (450, 380)
+# Far from the stack's window (100,100 to 500,400)
+FAR = (800, 600)
 
 
 def log(msg=''):
@@ -129,6 +138,52 @@ def drag_verdict(lines):
              'its loc stayed at %s' % (places[-1] if places else '(no lines)'))]
 
 
+def popup_verdict(lines, exit_code):
+    """The checks of the popup with no mouse stack."""
+    name = 'popup button with the mouse over no stack'
+    errors = [l for l in lines if l.startswith('POPUP ERROR')]
+    return [('MOUSESTACK []' in lines, '%s: the mouse was over no stack' % name,
+             'no "MOUSESTACK []" line; the check did not test what it is for'),
+            ('POPUP opening' in lines and not errors, '%s: no error' % name,
+             errors[0] if errors else 'the script did not reach the popup'),
+            ('PICK One' in lines, '%s: the menu opened at the mouse and its pick arrived' % name,
+             'no "PICK One" line'),
+            (exit_code is None, '%s: the engine runs on' % name, 'the engine ended with exit code %s' % exit_code)]
+
+
+def run_popup(engine_path, shots):
+    work = tempfile.mkdtemp(prefix='oxt-grab-menu-')
+    log_path = os.path.join(work, 'log.txt')
+    xvfb = engine = None
+    try:
+        xvfb, display = start_xvfb()
+        env = dict(os.environ, DISPLAY=display, OXT_GRAB_MENU_LOG=log_path, OXT_GRAB_MENU_MODE='nomouse')
+        # away from the stack before there is one, and it stays there
+        x(['xdotool', 'mousemove', str(FAR[0]), str(FAR[1])], env)
+        engine = subprocess.Popen([engine_path, SCRIPT], env=env, cwd=work,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not wait_for(log_path, 'READY', engine):
+            return [(False, 'nomouse: the stack opened', 'no READY line (engine exit code %s)' % engine.poll())]
+        wait_for(log_path, 'POPUP opening', engine, 20)
+        time.sleep(1.5)
+        if shots:
+            x(['import', '-window', 'root', os.path.join(shots, 'grab-menu-nomouse.png')], env)
+        # the menu's top left is at the mouse; its first item is just inside
+        x(['xdotool', 'mousemove', str(FAR[0] + 14), str(FAR[1] + 12)], env)
+        time.sleep(0.4)
+        x(['xdotool', 'click', '1'], env)
+        time.sleep(2)
+        return popup_verdict(read_lines(log_path), engine.poll())
+    except RuntimeError as e:
+        return [(False, 'nomouse: the run', str(e))]
+    finally:
+        for proc in (engine, xvfb):
+            if proc is not None and proc.poll() is None:
+                proc.kill()
+                proc.wait()
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run_once(engine_path, mode, shots, drag=False):
     work = tempfile.mkdtemp(prefix='oxt-grab-menu-')
     log_path = os.path.join(work, 'log.txt')
@@ -196,6 +251,7 @@ def main(argv=None):
     for mode in MODES:
         results.extend(run_once(engine, mode, args.shots))
     results.extend(run_once(engine, 'popup', args.shots, drag=True))
+    results.extend(run_popup(engine, args.shots))
 
     lines = ['%s %s%s' % ('PASS' if ok else 'FAIL', what, (': ' + detail) if detail and not ok else '')
              for ok, what, detail in results]
