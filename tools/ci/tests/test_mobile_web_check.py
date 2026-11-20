@@ -586,7 +586,17 @@ global.getComputedStyle = () => ({ paddingTop: '0px', paddingRight: '0px', paddi
 new Function(src)();
 const mw = window.__oxtMobileWeb, el = doc.documentElement;
 const fire = n => (listeners[n] || []).forEach(f => f());
-const settle = () => new Promise(r => setTimeout(r, 10));
+// A wait for what the page's timers do: 10 ms, then rounds of a timer of
+// 0 ms. A wait of 10 ms alone lost the library's call where a timer made
+// it: an older WebKit's event comes from a timer, and the library's flush
+// of its calls is a second one, made only when the first has run; a loop
+// that wakes late (Windows) runs the wait's timer before the second. A
+// round's timer, made after it, runs after it, however late the loop.
+const tick = () => new Promise(r => setTimeout(r, 0));
+const settle = async () => {
+  await new Promise(r => setTimeout(r, 10));
+  for (let i = 0; i < 4; i++) await tick();
+};
 // a browser of today: a request and a leave each a promise, and both the
 // plain and the prefixed event for each change (as WebKit sends them)
 function today() {
@@ -596,10 +606,18 @@ function today() {
   doc.exitFullscreen = function() {
     doc.fullscreenElement = null; fire('fullscreenchange'); fire('webkitfullscreenchange'); return Promise.resolve(); };
 }
+// "coarse": the event loop wakes 16 ms late after each step's call, as on
+// Windows, whose clock ticks about every 15.6 ms: every timer made in the
+// call, and settle's own, are then due at the same look
+const coarse = process.argv[2] === 'coarse';
+function hold(ms) { const until = Date.now() + ms; while (Date.now() < until) {} }
 const out = {};
 async function step(name, f) {
   await settle(); calls.length = 0;
-  const r = await f(); await settle();
+  const r = await f();
+  const settled = settle();
+  if (coarse) setImmediate(() => hold(16));
+  await settled;
   out[name] = {result: r === undefined ? null : r, calls: calls.slice()};
 }
 (async () => {
@@ -668,17 +686,31 @@ class LibraryFullScreen(unittest.TestCase):
     and the library sends the card fullScreenChanged and fullScreenError
     (the engine's side: extensions/script-libraries/mobileweb/tests)."""
 
-    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
-    def test_each_change_and_each_refusal_once(self):
+    def page(self, *more):
+        """What FULL_SCREEN_PAGE saw of the library's browser script."""
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, 'mobileweb.js')
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(browser_script(read(*LIBRARY[len(REPO) + 1:].split(os.sep))))
-            out = subprocess.run([shutil.which('node'), '-e', FULL_SCREEN_PAGE, path], capture_output=True,
-                                 text=True, timeout=60)
+            out = subprocess.run([shutil.which('node'), '-e', FULL_SCREEN_PAGE, path] + list(more),
+                                 capture_output=True, text=True, timeout=60)
         self.assertEqual(out.returncode, 0, out.stderr)
-        got = json.loads(out.stdout)
+        return json.loads(out.stdout)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_each_change_and_each_refusal_once(self):
+        self.check(self.page())
+
+    @unittest.skipUnless(shutil.which('node'), 'node is not installed')
+    def test_each_change_and_each_refusal_once_on_a_coarse_clock(self):
+        # Windows' clock: main's "CI scripts on windows-latest" lost "an
+        # older WebKit grants" on 20 Nov 2026 (its change comes from a
+        # timer, and the library's call from a second one, which a wait of
+        # 10 ms, due at the same look, did not wait for)
+        self.check(self.page('coarse'))
+
+    def check(self, got):
         full, back = [['fullscreen', 'true']], [['fullscreen', 'false']]
         want = {
             'before mwStart': (None, []),
