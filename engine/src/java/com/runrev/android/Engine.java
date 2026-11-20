@@ -2141,10 +2141,21 @@ public class Engine extends View implements EngineApi
     }
     
     
+    // OXT-Beyond: whether Android knows a permission of this name. Android 10
+    // and newer put most permissions in no permission group (INTERNET,
+    // ACCESS_NETWORK_STATE, ...), so a walk of the groups alone answered
+    // false for them, androidHasPermission returned empty and
+    // androidRequestPermission asked for nothing (the engine's "bad
+    // permission name" error stops no script on Android). The package
+    // manager is asked of the name first; the walk of the groups stays
+    // after it, so that no name it knew is answered false now.
     public boolean checkPermissionExists(String p_permission)
     {
         if (Build.VERSION.SDK_INT >= 23)
         {
+            if (permissionIsKnown(p_permission))
+                return true;
+            
             List<PermissionGroupInfo> t_group_info_list = getAllPermissionGroups();
             if (t_group_info_list == null)
                 return false;
@@ -2167,6 +2178,22 @@ public class Engine extends View implements EngineApi
             return false;
         }
         return true;
+    }
+    
+    private boolean permissionIsKnown(String p_permission)
+    {
+        final PackageManager t_package_manager = getContext().getPackageManager();
+        if (t_package_manager == null || p_permission == null || p_permission.length() == 0)
+            return false;
+        
+        try
+        {
+            return t_package_manager.getPermissionInfo(p_permission, 0) != null;
+        }
+        catch (PackageManager.NameNotFoundException e)
+        {
+            return false;
+        }
     }
     
     private List<PermissionGroupInfo> getAllPermissionGroups()

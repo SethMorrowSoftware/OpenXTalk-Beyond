@@ -201,11 +201,12 @@ constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQV
 -- the id, then "ok:", "unexpected:" or "threw:" and what it got;
 -- android_check.py device --xtalk reads them) and turns kFailColor when
 -- any is not ok, green otherwise. A permission is not the probe's to
--- ask: androidHasPermission throws "bad permission name" (and the value
--- is empty) for one Android lists in no permission group, as INTERNET
--- is on Android 10 and newer (Engine.java, checkPermissionExists), so
--- device --xtalk asks the package manager (dumpsys package) that the
--- app holds it.
+-- ask: with LiveCode's Java layer, and OXT-Beyond's until 0.2.8-dp.3,
+-- androidHasPermission returns empty, neither true nor false, for one
+-- Android lists in no permission group, as INTERNET is on Android 10 and
+-- newer (Engine.java, checkPermissionExists; the engine's "bad
+-- permission name" error stops no script on Android), so device --xtalk
+-- asks the package manager (dumpsys package) that the app holds it.
 constant kXtalkSays = "OXT-Beyond probe: xtalk"
 constant kProbeCopyName = "oxt-probe.txt"
 constant kProbeCopy = "OXT-Beyond probe copy file"

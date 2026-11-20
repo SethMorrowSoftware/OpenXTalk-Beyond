@@ -55,6 +55,18 @@ def read(*path):
 # ---------------------------------------------------------------------------
 # Made-up class files
 
+# The released runtimes' Classes that compare knows, by SHA-256: 9.6.3's
+# (oxt-runtimes-1.15's), then those built here, from 0.2.7-rc.6.18b's
+LC963_CLASSES = 'c10841215d429fdc084025805c1abfcaef2e2f8086da4af9cf5935f36159dbc0'
+RC6_18B_CLASSES = 'e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'
+RC6_19_CLASSES = '328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d'
+DP1_CLASSES = '21d7e424af1d19470144f84382ba0ec0a2792e49ee513997dfd3f1c1cb306abe'
+DP2_CLASSES = '763a89804b090c24e4916f3fb753e36c2b49e2fa1971d47f01a9e233f0f81e54'
+# those from before the engine finished drawing first and a stack could be
+# drawn edge to edge, which every later one does
+BEFORE_EDGE_TO_EDGE = (LC963_CLASSES, RC6_18B_CLASSES, RC6_19_CLASSES)
+
+
 class ClassWriter(object):
     """A class file, written as javac writes one, from what a test gives:
     fields, and methods whose code is a list of items, each a byte, or a
@@ -481,18 +493,22 @@ class Compare(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn('PROBLEM: the code of a/A.m:()Ljava/lang/Object; differs', out)
 
-    def test_dp1_classes_expect_the_keyboard_change(self):
-        # the released dp.1 runtime's Classes (android-java.yml compares
-        # against it) took only additions (the dnsServers' Java method)
-        # until the keyboard was read from the window's insets: now that
-        # change is expected of it, with its reasons, and no jar is in both
-        # lists
+    def test_dp_classes_differ_in_whether_a_permission_exists_and_the_keyboard(self):
+        # the released dp.1 and dp.2 runtimes' Classes (android-java.yml
+        # compares against the one external-assets.json pins, dp.2's): each
+        # differs from a build in checkPermissionExists and in the keyboard
+        # read from the window's insets (the dnsServers' Java method, new
+        # since dp.1, is an addition), with their reasons, and no jar is in
+        # both lists
         dp1 = DP1_CLASSES
         self.assertNotIn(dp1, aj.ADDITIONS_ONLY)
         self.assertEqual(set(aj.EXPECTED[dp1]), {
+            'code com/runrev/android/Engine.checkPermissionExists:(Ljava/lang/String;)Z',
             'code com/runrev/android/Engine.keyboardIsVisible:()Z',
             'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V',
             'code com/runrev/android/LiveCodeActivity.drawEdgeToEdge:()V'})
+        for key, reason in aj.PERMISSION_EXISTS.items():
+            self.assertEqual(aj.EXPECTED[dp1][key], reason)
         # dp.2's (the runtimes asset pinned now) differs from dp.1's only by
         # getDNSServers, so the same changes are expected of it
         self.assertEqual(aj.EXPECTED[DP2_CLASSES], aj.EXPECTED[dp1])
@@ -1935,6 +1951,35 @@ class OneSystem(unittest.TestCase):
                     'code com/runrev/android/Engine.checkHasPermissionGranted:(Ljava/lang/String;)Z'):
             self.assertTrue([sha for sha, entries in aj.EXPECTED.items() if key in entries], key)
 
+    def test_a_permission_in_no_group_exists(self):
+        # Android 10 and newer list most permissions in no permission group
+        # (INTERNET), so a walk of the groups alone said they did not exist
+        # and androidHasPermission returned empty for them: the package
+        # manager is asked of the name first, and the walk is still done
+        # after it, so no name the walk knew is answered false now
+        engine = read('engine', 'src', 'java', 'com', 'runrev', 'android', 'Engine.java')
+        exists = re.search(r'(?s)public boolean checkPermissionExists\(String p_permission\)\n    {\n(.*?)\n    }\n',
+                           engine).group(1)
+        code = [x.strip() for x in exists.splitlines() if x.strip()]
+        self.assertEqual(code[:5], ['if (Build.VERSION.SDK_INT >= 23)', '{', 'if (permissionIsKnown(p_permission))',
+                                    'return true;', 'List<PermissionGroupInfo> t_group_info_list = '
+                                    'getAllPermissionGroups();'])
+        self.assertIn('if (t_permission_name_list.contains(p_permission))', exists)
+        self.assertEqual(code[-1], 'return true;')
+        known = re.search(r'(?s)private boolean permissionIsKnown\(String p_permission\)\n    {\n(.*?)\n    }\n',
+                          engine).group(1)
+        for part in ('getContext().getPackageManager();',
+                     'if (t_package_manager == null || p_permission == null || p_permission.length() == 0)',
+                     'return t_package_manager.getPermissionInfo(p_permission, 0) != null;',
+                     'catch (PackageManager.NameNotFoundException e)'):
+            self.assertIn(part, known)
+        self.assertEqual(engine.count('permissionIsKnown('), 2)
+        # named, with its reason, against every Classes compare knows
+        for sha, entries in aj.EXPECTED.items():
+            for key in aj.PERMISSION_EXISTS:
+                self.assertEqual(entries[key], aj.PERMISSION_EXISTS[key], (sha, key))
+        self.assertEqual(sorted(aj.EXPECTED), sorted(BEFORE_EDGE_TO_EDGE + (DP1_CLASSES, DP2_CLASSES)))
+
     def test_export_to_album_through_media_store(self):
         # Android 10 and newer: the picture goes into the shared Pictures
         # folder through MediaStore, by the name and type the older code
@@ -2070,7 +2115,7 @@ class OneSystem(unittest.TestCase):
         # and the keyboard read from the insets
         # (test_keyboard_from_the_insets_where_the_stack_is_laid_out_by_them)
         self.assertEqual(aj.EXPECTED['e28f35a674222e798ed824ab2a22b0c6370dc37e86573a34565af0dbd6050360'],
-                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE,
+                         dict(aj.RELAUNCH_GUARDS, **aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS,
                               **aj.KEYBOARD_BY_INSETS, **{
                              'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V':
                                  aj.KEYBOARD_BY_INSETS_KEEP_OUT,
@@ -2148,11 +2193,10 @@ class OneSystem(unittest.TestCase):
                                     's_main_view.onDestroy();'])
         self.assertEqual(activity.count('finishDrawing()'), 1)
         self.assertEqual(engine.count('finishDrawing()'), 1)
-        # named, with its reason, against every Classes compare knows
-        # that predates it (dp.1's has it: test_dp1_classes_expect_the_keyboard_change)
-        for sha, entries in aj.EXPECTED.items():
-            if sha in (DP1_CLASSES, DP2_CLASSES):
-                continue
+        # named, with its reason, against every Classes compare knows from
+        # before it
+        for sha in BEFORE_EDGE_TO_EDGE:
+            entries = aj.EXPECTED[sha]
             for key in aj.FINISH_DRAWING:
                 self.assertEqual(entries[key], aj.FINISH_DRAWING[key], (sha, key))
             self.assertIn(aj.FINISH_DRAWING_ON_DESTROY, entries['code com/runrev/android/LiveCodeActivity.onDestroy:()V'])
@@ -2160,7 +2204,7 @@ class OneSystem(unittest.TestCase):
         # (test_edge_to_edge_when_the_app_asks) and the keyboard read from
         # the insets (test_keyboard_from_the_insets_where_the_stack_is_laid_out_by_them)
         self.assertEqual(aj.EXPECTED['328a531ae3d1f5845fbaa4174760187f2e7435855a5481541f9f8927880e414d'],
-                         dict(aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.KEYBOARD_BY_INSETS, **{
+                         dict(aj.FINISH_DRAWING, **aj.EDGE_TO_EDGE, **aj.PERMISSION_EXISTS, **aj.KEYBOARD_BY_INSETS, **{
                              'code com/runrev/android/LiveCodeActivity.keepOutOfSystemBars:()V':
                                  aj.KEYBOARD_BY_INSETS_KEEP_OUT,
                              'code com/runrev/android/LiveCodeActivity.onDestroy:()V': aj.FINISH_DRAWING_ON_DESTROY,
@@ -2397,12 +2441,12 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(code, ['super.onConfigurationChanged(p_new_config);', 'if (!m_engine_started)', 'return;',
                                 'if (s_edge_to_edge != null)', 'showBarsForAppearance(p_new_config);',
                                 's_main_view.onConfigurationChanged(p_new_config);'])
-        # named, with its reason, against every Classes compare knows
+        # named, with its reason, against every Classes compare knows from
+        # before it
         create_key = 'code com/runrev/android/LiveCodeActivity.onCreate:(Landroid/os/Bundle;)V'
         changed_key = 'code com/runrev/android/LiveCodeActivity.onConfigurationChanged:(Landroid/content/res/Configuration;)V'
-        for sha, entries in aj.EXPECTED.items():
-            if sha in (DP1_CLASSES, DP2_CLASSES):
-                continue
+        for sha in BEFORE_EDGE_TO_EDGE:
+            entries = aj.EXPECTED[sha]
             for key in aj.EDGE_TO_EDGE:
                 self.assertEqual(entries[key], aj.EDGE_TO_EDGE[key], (sha, key))
             self.assertTrue(entries[create_key].endswith(aj.EDGE_TO_EDGE_ON_CREATE), sha)

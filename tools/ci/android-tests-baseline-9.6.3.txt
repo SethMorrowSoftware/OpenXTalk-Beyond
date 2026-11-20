@@ -88,6 +88,9 @@ lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile th
 lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
