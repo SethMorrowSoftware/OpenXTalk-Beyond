@@ -135,6 +135,8 @@ on:
       - 'tools/ci/backdrop_focus_check.py'
       - 'tools/ci/browser-wm-check.livecodescript'
       - 'tools/ci/browser_wm_check.py'
+      - 'tools/ci/grab-menu-check.livecodescript'
+      - 'tools/ci/grab_menu_check.py'
       - 'tools/ci/check_elf_floor.py'
       - 'tools/ci/check_linux_libraries.py'
       - 'tools/ci/check_macho_floor.py'
