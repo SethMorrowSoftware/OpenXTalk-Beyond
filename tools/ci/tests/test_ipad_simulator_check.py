@@ -441,6 +441,56 @@ class Pictures(unittest.TestCase):
         self.assertEqual(said, ['  no screenshot 1-home.png: simctl did not take it within 60 s'])
 
 
+class Opening(unittest.TestCase):
+    def simulate(self, run):
+        said = []
+        was_run, was_log = isc.subprocess.run, isc.log
+        isc.subprocess.run, isc.log = run, said.append
+        try:
+            isc.Simulator('UDID').open_url('http://localhost:8765/PhoneStarter.html')
+        finally:
+            isc.subprocess.run, isc.log = was_run, was_log
+        return said
+
+    def test_an_openurl_that_does_not_answer_leaves_it_to_the_page(self):
+        # the iOS 18.5 run of #603 (20 Nov 2026): simctl openurl did not
+        # answer in 120 s on a newly booted iPad, where green runs had the
+        # page loaded 31 to 64 s after asking; whether the page opened is
+        # the page's to say (it posts "loaded"), not simctl's
+        asked = []
+
+        def hang(cmd, **kwargs):
+            asked.append((cmd, kwargs.get('timeout')))
+            raise subprocess.TimeoutExpired(cmd, kwargs.get('timeout'))
+
+        said = self.simulate(hang)
+        self.assertEqual(asked, [(['xcrun', 'simctl', 'openurl', 'UDID', 'http://localhost:8765/PhoneStarter.html'],
+                                  isc.OPEN_WAIT)])
+        self.assertEqual(said, ['  simctl openurl did not answer within %d s: the page has %d s more to say it '
+                                'opened' % (isc.OPEN_WAIT, isc.LOAD_WAIT)])
+
+    def test_an_openurl_that_fails_fails(self):
+        def refuse(cmd, **kwargs):
+            return subprocess.CompletedProcess(cmd, 1, 'An error was encountered', '')
+
+        with self.assertRaisesRegex(isc.CheckError, 'simctl openurl failed: An error was encountered'):
+            self.simulate(refuse)
+
+    def test_a_page_that_never_says_it_opened_fails(self):
+        class Silent(FakeIPad):
+            def open_url(self, url):
+                pass
+
+        record, commands = isc.Record(), isc.Commands()
+        was = isc.LOAD_WAIT
+        isc.LOAD_WAIT = 0.2
+        try:
+            with self.assertRaisesRegex(isc.CheckError, r'the page posted nothing within 0\.2 s of opening'):
+                isc.check(Silent(record, commands), record, commands, 'http://localhost/' + isc.PAGE)
+        finally:
+            isc.LOAD_WAIT = was
+
+
 class Driving(unittest.TestCase):
     def setUp(self):
         self.pauses = dict(isc.PAUSES)

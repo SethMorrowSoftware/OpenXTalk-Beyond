@@ -46,7 +46,9 @@ what the page does to this script's server, and takes its commands.
   drive --site DIR --udid UDID [--out DIR] [--port N]
       (on the Mac, the iPad booted and the Simulator's window open)
       serves the folder and checks, in order:
-        1. the page opens and the stack fills the window; two clicks on
+        1. the page opens (it says so itself, within LOAD_WAIT: a simctl
+           openurl that does not answer within OPEN_WAIT is no failure by
+           itself) and the stack fills the window; two clicks on
            its Home card give where a click on the window lands in the
            page (each axis: the window's points = a * the page's CSS
            pixels + b); a click that reaches the page as no touch is
@@ -135,6 +137,15 @@ TAP_TRIES = 3
 # had a click the Simulator did not pass on; one posting nothing had
 # stopped, and no click will help.
 TOUCH_WAIT = 6
+
+# Seconds simctl openurl has to answer, and then the page to post that it
+# loaded. On a newly booted iPad Safari's first start is slow: green runs
+# had the page loaded 31 to 64 s after asking, and in the iOS 18.5 run of
+# #603 (20 Nov 2026) simctl openurl did not answer in 120 s at all. An
+# openurl that does not answer is not a failure by itself: whether the
+# page opened is the page's to say (it posts "loaded"), within LOAD_WAIT.
+OPEN_WAIT = 120
+LOAD_WAIT = 90
 
 # Where the calibration clicks go, as fractions of the Simulator's window:
 # inside the iPad's screen, on the Home card's text (or its Buzz button,
@@ -541,8 +552,13 @@ class Simulator:
         self.udid = udid
 
     def open_url(self, url):
-        r = subprocess.run(['xcrun', 'simctl', 'openurl', self.udid, url], capture_output=True, text=True,
-                           timeout=120)
+        try:
+            r = subprocess.run(['xcrun', 'simctl', 'openurl', self.udid, url], capture_output=True, text=True,
+                               timeout=OPEN_WAIT)
+        except subprocess.TimeoutExpired:
+            log('  simctl openurl did not answer within %d s: the page has %d s more to say it opened'
+                % (OPEN_WAIT, LOAD_WAIT))
+            return
         if r.returncode != 0:
             raise CheckError('simctl openurl failed: %s' % (r.stdout + r.stderr).strip()[:300])
 
@@ -634,9 +650,9 @@ def check(sim, record, commands, url, out=None):
     # 1. the page, the stack, and where it is on the screen
     log('Opening %s in Safari' % url)
     sim.open_url(url)
-    loaded = record.wait(lambda e: e.get('kind') == 'loaded', 90)
+    loaded = record.wait(lambda e: e.get('kind') == 'loaded', LOAD_WAIT)
     if not loaded:
-        raise CheckError('the page posted nothing within 90 s of opening')
+        raise CheckError('the page posted nothing within %s s of opening' % LOAD_WAIT)
     log('  the page: %s, %s, %s touch points, %sx%s' % (loaded.get('agent'), loaded.get('platform'),
                                                        loaded.get('touchPoints'), loaded.get('w'), loaded.get('h')))
     home = record.wait(lambda e: is_state(e) and e.get('card') == 'Home' and fills(e), 240)
