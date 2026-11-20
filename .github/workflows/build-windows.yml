@@ -125,6 +125,7 @@ on:
       - 'tools/ci/android-check.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
