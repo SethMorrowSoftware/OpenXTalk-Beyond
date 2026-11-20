@@ -418,6 +418,17 @@ def known_failures(family, player_backend='auto', missing_media_foundation=()):
     return known
 
 
+# The variables Chromium reads the desktop's name from (base/nix/xdg_util.cc,
+# GetDesktopEnvironment), and what the sessions of three desktops give them:
+# Ubuntu's GNOME (24.04 and 26.04), Xubuntu's Xfce and Kubuntu's Plasma
+DESKTOP_VARIABLES = ('XDG_CURRENT_DESKTOP', 'DESKTOP_SESSION', 'GNOME_DESKTOP_SESSION_ID', 'KDE_FULL_SESSION')
+DESKTOPS = {
+    'gnome': {'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'DESKTOP_SESSION': 'ubuntu',
+              'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated'},
+    'xfce': {'XDG_CURRENT_DESKTOP': 'XFCE', 'DESKTOP_SESSION': 'xubuntu'},
+    'kde': {'XDG_CURRENT_DESKTOP': 'KDE', 'DESKTOP_SESSION': 'plasma', 'KDE_FULL_SESSION': 'true'},
+}
+
 # What glibc prints when a function returns with a changed stack canary
 STACK_SMASHED = 'stack smashing detected'
 
@@ -453,6 +464,11 @@ def main(argv=None):
                          'looks for Chromium\'s X window in the stack\'s; "wayland-name" gives the engine '
                          'XDG_SESSION_TYPE=wayland alone, with no compositor (default: %(default)s, the display '
                          'there is, or xvfb-run)')
+    ap.add_argument('--desktop', choices=sorted(DESKTOPS), metavar='NAME',
+                    help='on Linux, name the desktop for the engine as that desktop\'s session does '
+                         '(XDG_CURRENT_DESKTOP, DESKTOP_SESSION and the rest; one of %(choices)s). Chromium asks for '
+                         'the theme of the desktop it is named: GTK\'s on gnome and xfce, which the GTK 2 engine '
+                         'cannot load, so the engine keeps the name from it')
     ap.add_argument('--desktop-scale', type=int, choices=(2, 3), metavar='N',
                     help='on Linux, run the engine on a screen of its own (Xvfb) with a desktop scaled N times: an '
                          'XSETTINGS manager (xsettingsd) publishing Gdk/WindowScalingFactor N, Xft/DPI N times 96 '
@@ -474,6 +490,8 @@ def main(argv=None):
 
     if args.session != 'own' and p.family != 'linux':
         ap.error('--session %s is for Linux' % args.session)
+    if args.desktop and p.family != 'linux':
+        ap.error('--desktop is for Linux')
     if args.desktop_scale and (p.family != 'linux' or args.session != 'own'):
         ap.error('--desktop-scale is for Linux, with a screen of its own (no --session)')
 
@@ -519,6 +537,15 @@ def main(argv=None):
                 env['OXT_BROWSER_BACKEND'] = args.browser_backend
             if 'widget' in what:
                 rlc.log('Browser : %s' % args.browser_backend)
+            # The desktop's name: the runner's own is taken away (a test
+            # runs on a desktop with no name unless it gives one)
+            for name in DESKTOP_VARIABLES:
+                env.pop(name, None)
+            if args.desktop:
+                env.update(DESKTOPS[args.desktop])
+                env['OXT_MEDIA_DESKTOP'] = DESKTOPS[args.desktop]['XDG_CURRENT_DESKTOP']
+                rlc.log('Desktop : named %s' % args.desktop)
+                lines.append('INFO desktop: %s' % ' '.join('%s=%s' % x for x in sorted(DESKTOPS[args.desktop].items())))
             if 'player' in what:
                 if args.player_backend == 'auto':
                     env.pop('OXT_PLAYER_BACKEND', None)

@@ -149,8 +149,22 @@ command checkWidget pUrl
       check "browser widget: its JavaScript calls a handler as the page is read", waitFor("oxtReport: inline ?again", 5), sEvents
       check "browser widget: its JavaScript calls a handler after the page loaded again", waitFor("oxtReport: loaded", 15), sEvents
    end if
+   checkDesktopName "browser widget"
    delete widget "Browser" of stack "MediaCheck"
 end checkWidget
+
+-- The desktop's name after a browser was made: as the session gave it
+-- (tools/ci/media_check.py --desktop). The engine keeps the name from
+-- Chromium while Chromium starts (libbrowser_cef_desktop_lnx.h: named
+-- GNOME or Xfce, Chromium 156 loaded GTK 3 into the GTK 2 engine and
+-- ended it, 0.2.8-dp.2), and puts it back for scripts and for the
+-- programs the engine starts.
+command checkDesktopName pWhat
+   if $OXT_MEDIA_DESKTOP is empty then exit checkDesktopName
+   check pWhat & ": the desktop's name is as it was once the browser is made", $XDG_CURRENT_DESKTOP is $OXT_MEDIA_DESKTOP and \
+         shell("printf %s " & quote & "$XDG_CURRENT_DESKTOP" & quote) is $OXT_MEDIA_DESKTOP, \
+         "XDG_CURRENT_DESKTOP=" & $XDG_CURRENT_DESKTOP && "DESKTOP_SESSION=" & $DESKTOP_SESSION
+end checkDesktopName
 
 -- The page is drawn at the stack's scale: as many CSS pixels wide as the
 -- widget is points (window.innerWidth), at the screen's pixels a point
@@ -215,6 +229,7 @@ command checkRevBrowser pUrl
    check "revBrowser: htmltext is the page", tHtml contains "<title>OXT media check</title>", char 1 to 120 of tHtml
    put revBrowserExecuteScript(tId, "result = document.getElementById('h').textContent;") into tText
    check "revBrowser: the page's JavaScript ran (revBrowserExecuteScript)", tText is "script ran: 3", tText
+   checkDesktopName "revBrowser"
    revBrowserClose tId
 end checkRevBrowser
 

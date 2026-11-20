@@ -1668,6 +1668,23 @@ jobs:
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
             --browser-backend cef --session wayland --log "$RUNNER_TEMP/logs/media-check-wayland.log"
 
+      # The same on a desktop that has a name, as every real one has:
+      # GNOME's (Ubuntu's session) and Xfce's (Xubuntu's). Chromium asks
+      # for the theme of the desktop it is named, GTK's on these, and loads
+      # GTK 3 for it into the engine, a GTK 2 program: 0.2.8-dp.2 ended
+      # there with a segmentation fault as its first browser was made (the
+      # checks above run with no name, where Chromium loads none). The
+      # engine keeps the name from Chromium while it starts, and scripts
+      # still see it afterwards (tools/ci/media_check.py --desktop).
+      - name: Browser check (a desktop named GNOME, then Xfce)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --desktop gnome --log "$RUNNER_TEMP/logs/media-check-desktop-gnome.log"
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --desktop xfce --log "$RUNNER_TEMP/logs/media-check-desktop-xfce.log"
+
       # What a script sees of the browser's htmlText and url (the url and
       # htmlText properties, the messages, and where the page's JavaScript
       # says it is) is what it saw in the release before, line by line
