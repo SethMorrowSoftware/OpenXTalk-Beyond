@@ -11246,7 +11246,16 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
          
          if pWhich is "superscript" then put -4 into tTextShiftAmount
          else put 4 into tTextShiftAmount
-         if the textShift of tTarget is a number AND the textShift of tTarget is not 0 then 
+         -- OXT-Beyond: the item is a toggle of its own direction only.
+         -- Before, any shift at all made either item take the shift off,
+         -- so Subscript on superscript text (or the other way round) did
+         -- nothing that could be seen until it was chosen a second time,
+         -- in LiveCode Community too. Text shifted the item's way loses
+         -- its shift, as before; anything else gets the item's shift.
+         local tTextShiftNow
+         put the textShift of tTarget into tTextShiftNow
+         if tTextShiftNow is a number and \
+               ((tTextShiftNow < 0 and tTextShiftAmount < 0) or (tTextShiftNow > 0 and tTextShiftAmount > 0)) then
             put 0 into tTextShiftAmount
          end if
          

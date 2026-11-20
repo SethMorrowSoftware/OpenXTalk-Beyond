@@ -2045,7 +2045,9 @@ private function revMenubarTextMenu pContext
          put the textColor of the selectedChunk into tColor
          local tShift
          put the textShift of the selectedChunk into tShift
-         if tShift is empty then put "0" into tShift
+         -- OXT-Beyond: a selection with more than one shift ("mixed")
+         -- ticks neither item; as text, "mixed" > "0" ticked Subscript
+         if tShift is not a number then put "0" into tShift
          if tShift > "0" then put "!cSubscript" into line 11 of tText
          else put "!nSubscript" into line 11 of tText
          if tShift < "0" then put "!cSuperscript" into line 12 of tText
