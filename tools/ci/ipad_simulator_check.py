@@ -46,17 +46,22 @@ what the page does to this script's server, and takes its commands.
   drive --site DIR --udid UDID [--out DIR] [--port N]
       (on the Mac, the iPad booted and the Simulator's window open)
       serves the folder and checks, in order:
-        1. the page opens and the stack fills the window; two clicks on
+        1. the page opens (it says so itself, within LOAD_WAIT: a simctl
+           openurl that does not answer within OPEN_WAIT is no failure by
+           itself) and the stack fills the window; two clicks on
            its Home card give where a click on the window lands in the
            page (each axis: the window's points = a * the page's CSS
-           pixels + b)
+           pixels + b); a click that reaches the page as no touch is
+           made again, TAP_TRIES times in all (TOUCH_WAIT)
         2. a tap on the Phone tab goes to Phone
         3. a tap on "Full screen": a touch the browser made reaches the
            page, the page asks for full screen with something else than
            the engine's input focused, goes full screen and STAYS so for
            HOLD seconds (the bug took it back after 1.2 to 1.4 s); the
            engine's input never has the focus, and the button then says
-           "Show the bars"
+           "Show the bars" (a tap that a busy Mac held so long that the
+           browser took it as a long press, which gives the page no user
+           activation, is tapped again, TAP_TRIES times in all: LONG_PRESS)
         4. a second press, on the Phone tab, while full screen: the page
            stays full screen (a press gave the input the focus)
         5. the page leaves full screen (its own call, no tap): the button
@@ -110,6 +115,37 @@ TAKEN_BACK_WITHIN = 8.0
 # again; after the tab, for the push effect, in which the engine takes no
 # touches
 PAUSES = {'click': 0.8, 'effect': 0.9, 'settle': 1.0}
+
+# A tap that must give the page the browser's user activation (Full
+# screen) is tapped again, up to TAP_TRIES times in all, when the browser
+# took it as a long press: no activation, and held LONG_PRESS ms of the
+# page's time or more (UIKit's long press starts at 500 ms). On a busy Mac
+# the Simulator can hold a click that long: in the iOS 26 run of #597 (20
+# Nov 2026) the tap on Full screen ended 874 ms after it began, gave no
+# activation, and the page (mobileweb's noTap()) rightly asked nothing.
+# A quick tap without activation is not tapped again: that is the page's.
+LONG_PRESS = 500
+TAP_TRIES = 3
+
+# Seconds of the wall clock a click has to reach the page as a touch. A
+# calibration click that reaches it as none is made again, TAP_TRIES
+# times in all, with the Simulator brought to the front again before
+# each: in the iOS 18.5 run of #603 (20 Nov 2026) the run's first click,
+# at the point of the Simulator's window where the three green runs
+# before it had clicked, reached the page as no touch. What the page
+# posted meanwhile is said: a page still posting its states (every 2 s)
+# had a click the Simulator did not pass on; one posting nothing had
+# stopped, and no click will help.
+TOUCH_WAIT = 6
+
+# Seconds simctl openurl has to answer, and then the page to post that it
+# loaded. On a newly booted iPad Safari's first start is slow: green runs
+# had the page loaded 31 to 64 s after asking, and in the iOS 18.5 run of
+# #603 (20 Nov 2026) simctl openurl did not answer in 120 s at all. An
+# openurl that does not answer is not a failure by itself: whether the
+# page opened is the page's to say (it posts "loaded"), within LOAD_WAIT.
+OPEN_WAIT = 120
+LOAD_WAIT = 90
 
 # Where the calibration clicks go, as fractions of the Simulator's window:
 # inside the iPad's screen, on the Home card's text (or its Buzz button,
@@ -373,6 +409,19 @@ def taken_back(events, start, seconds):
     return None, None
 
 
+def held_as_long_press(events, touchend):
+    """The ms the touch that ended in touchend was held, when the browser
+    took it as a long press (see LONG_PRESS); else None. A browser that
+    does not say whether it gave activation (null) is not judged."""
+    if not touchend or touchend.get('active') is not False:
+        return None
+    starts = [e for e in events if e.get('kind') == 'touchstart' and e.get('t', 0) <= touchend.get('t', 0)]
+    if not starts:
+        return None
+    held = touchend.get('t', 0) - starts[-1].get('t', 0)
+    return held if held >= LONG_PRESS else None
+
+
 def focused_input(events, after):
     """The page times the engine's hidden input had the focus, after the
     page time after"""
@@ -503,8 +552,13 @@ class Simulator:
         self.udid = udid
 
     def open_url(self, url):
-        r = subprocess.run(['xcrun', 'simctl', 'openurl', self.udid, url], capture_output=True, text=True,
-                           timeout=120)
+        try:
+            r = subprocess.run(['xcrun', 'simctl', 'openurl', self.udid, url], capture_output=True, text=True,
+                               timeout=OPEN_WAIT)
+        except subprocess.TimeoutExpired:
+            log('  simctl openurl did not answer within %d s: the page has %d s more to say it opened'
+                % (OPEN_WAIT, LOAD_WAIT))
+            return
         if r.returncode != 0:
             raise CheckError('simctl openurl failed: %s' % (r.stdout + r.stderr).strip()[:300])
 
@@ -528,7 +582,15 @@ class Simulator:
             log('  the click at %s: osascript %d: %s' % (point, code, out))
 
     def screenshot(self, path):
-        subprocess.run(['xcrun', 'simctl', 'io', self.udid, 'screenshot', path], capture_output=True, timeout=60)
+        """A picture of the iPad for the people who read the run, not a
+        step of the check: one that simctl does not take within 60 s is
+        left out and said so (the iOS 26 run on main of 20 Nov 2026 stopped
+        at the first, though nothing the check judges had failed)."""
+        try:
+            subprocess.run(['xcrun', 'simctl', 'io', self.udid, 'screenshot', path], capture_output=True,
+                           timeout=60)
+        except subprocess.TimeoutExpired:
+            log('  no screenshot %s: simctl did not take it within 60 s' % os.path.basename(path))
 
 
 # --------------------------------------------------------------- the drive
@@ -557,17 +619,40 @@ def check(sim, record, commands, url, out=None):
         s = record.state()
         return 'the page said %s' % json.dumps({k: s.get(k) for k in ('card', 'full', 'focus', 'labels', 'rect')})
 
-    def tap(point, kind='touchstart', seconds=6):
+    def tap(point, kind='touchstart', seconds=None):
         i = record.mark()
         sim.click(point)
-        return i, record.wait(lambda e: e.get('kind') == kind, seconds, since=i)
+        return i, record.wait(lambda e: e.get('kind') == kind, TOUCH_WAIT if seconds is None else seconds,
+                              since=i)
+
+    def meanwhile(i):
+        """What the page posted since the mark (see TOUCH_WAIT)"""
+        since = record.since(i)
+        if not since:
+            return 'the page posted nothing meanwhile'
+        return 'the page posted %d events meanwhile, the last %s' % (len(since), since[-1].get('kind'))
+
+    def tap_to_activate(point, what):
+        """(mark, touchend, held): a tap that must give the page the
+        browser's user activation, tapped again while the browser takes it
+        as a long press (see LONG_PRESS); held: the ms the last was held,
+        when it was still a long press, else None"""
+        for attempt in range(1, TAP_TRIES + 1):
+            i, touch = tap(point, 'touchend')
+            ms = held_as_long_press(record.since(i), touch)
+            if ms is None:
+                return i, touch, None
+            log('  the Simulator held the tap on %s %d ms, a long press to the browser (no user activation)%s'
+                % (what, ms, ': tapping again' if attempt < TAP_TRIES else ''))
+            time.sleep(PAUSES['click'])
+        return i, touch, ms
 
     # 1. the page, the stack, and where it is on the screen
     log('Opening %s in Safari' % url)
     sim.open_url(url)
-    loaded = record.wait(lambda e: e.get('kind') == 'loaded', 90)
+    loaded = record.wait(lambda e: e.get('kind') == 'loaded', LOAD_WAIT)
     if not loaded:
-        raise CheckError('the page posted nothing within 90 s of opening')
+        raise CheckError('the page posted nothing within %s s of opening' % LOAD_WAIT)
     log('  the page: %s, %s, %s touch points, %sx%s' % (loaded.get('agent'), loaded.get('platform'),
                                                        loaded.get('touchPoints'), loaded.get('w'), loaded.get('h')))
     home = record.wait(lambda e: is_state(e) and e.get('card') == 'Home' and fills(e), 240)
@@ -575,13 +660,21 @@ def check(sim, record, commands, url, out=None):
         return problems
     time.sleep(PAUSES['settle'])
     shot('1-home')
-    left, top, width, height = sim.window()
+    window = sim.window()
     pairs = []
     for fx, fy in CALIBRATION:
-        point = int(round(left + width * fx)), int(round(top + height * fy))
-        i, touch = tap(point)
-        if touch is None or touch.get('x') is None:
-            raise CheckError('a click on the Simulator\'s window at %s reached the page as no touch' % (point,))
+        for attempt in range(1, TAP_TRIES + 1):
+            left, top, width, height = window
+            point = int(round(left + width * fx)), int(round(top + height * fy))
+            i, touch = tap(point)
+            if touch is not None and touch.get('x') is not None:
+                break
+            if attempt == TAP_TRIES:
+                raise CheckError('a click on the Simulator\'s window at %s reached the page as no touch (%d %s; %s)'
+                                 % (point, attempt, 'click' if attempt == 1 else 'clicks', meanwhile(i)))
+            log('  a click at %s reached the page as no touch within %s s; %s: bringing the Simulator to the '
+                'front and clicking again' % (point, TOUCH_WAIT, meanwhile(i)))
+            window = sim.window()
         log('  a click at %s landed at %s, %s in the page' % (point, touch['x'], touch['y']))
         pairs.append(((touch['x'], touch['y']), point))
         time.sleep(PAUSES['click'])
@@ -602,9 +695,11 @@ def check(sim, record, commands, url, out=None):
     shot('2-phone')
 
     # 3. full screen from the tap, and it stays
-    i, touch = tap(full_button, 'touchend')
+    i, touch, long_held = tap_to_activate(full_button, 'Full screen')
     expect('the tap on Full screen reaches the page as a touch the browser made',
            touch is not None and touch.get('trusted') is True, json.dumps(touch))
+    expect('the tap on Full screen is a tap to the browser, not a long press (%d tries)' % TAP_TRIES,
+           long_held is None, 'the last held %s ms' % long_held)
     asked = record.wait(lambda e: e.get('kind') == 'asked', 6, since=i)
     expect('the page asks for full screen, with the engine\'s input without the focus',
            asked is not None and asked.get('focus') != 'engine-input', json.dumps(asked))
@@ -666,9 +761,11 @@ def check(sim, record, commands, url, out=None):
     done = record.wait(lambda e: e.get('kind') == 'done' and e.get('command') == 'unfix', 10, since=i)
     if not expect('the page is made to do what the engine did before 0.2.8-dp.2', done is not None, latest()):
         return problems
-    i, touch = tap(full_button, 'touchend')
+    i, touch, long_held = tap_to_activate(full_button, 'Full screen')
     came = record.wait(lambda e: e.get('kind') == 'fullscreenchange' and e.get('full') is True, 8, since=i)
-    if not expect('as before 0.2.8-dp.2, a tap on Full screen goes full screen', came is not None, latest()):
+    if not expect('as before 0.2.8-dp.2, a tap on Full screen goes full screen', came is not None,
+                  'the tap held %s ms, a long press, %d times' % (long_held, TAP_TRIES) if long_held
+                  else latest()):
         return problems
     back, t_back = record.until(lambda events: taken_back(events, came['t'], TAKEN_BACK_WITHIN),
                                 TAKEN_BACK_WITHIN + 8)
