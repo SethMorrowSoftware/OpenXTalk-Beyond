@@ -56,7 +56,9 @@ what the page does to this script's server, and takes its commands.
            the engine's input focused, goes full screen and STAYS so for
            HOLD seconds (the bug took it back after 1.2 to 1.4 s); the
            engine's input never has the focus, and the button then says
-           "Show the bars"
+           "Show the bars" (a tap that a busy Mac held so long that the
+           browser took it as a long press, which gives the page no user
+           activation, is tapped again, TAP_TRIES times in all: LONG_PRESS)
         4. a second press, on the Phone tab, while full screen: the page
            stays full screen (a press gave the input the focus)
         5. the page leaves full screen (its own call, no tap): the button
@@ -110,6 +112,17 @@ TAKEN_BACK_WITHIN = 8.0
 # again; after the tab, for the push effect, in which the engine takes no
 # touches
 PAUSES = {'click': 0.8, 'effect': 0.9, 'settle': 1.0}
+
+# A tap that must give the page the browser's user activation (Full
+# screen) is tapped again, up to TAP_TRIES times in all, when the browser
+# took it as a long press: no activation, and held LONG_PRESS ms of the
+# page's time or more (UIKit's long press starts at 500 ms). On a busy Mac
+# the Simulator can hold a click that long: in the iOS 26 run of #597 (20
+# Nov 2026) the tap on Full screen ended 874 ms after it began, gave no
+# activation, and the page (mobileweb's noTap()) rightly asked nothing.
+# A quick tap without activation is not tapped again: that is the page's.
+LONG_PRESS = 500
+TAP_TRIES = 3
 
 # Where the calibration clicks go, as fractions of the Simulator's window:
 # inside the iPad's screen, on the Home card's text (or its Buzz button,
@@ -373,6 +386,19 @@ def taken_back(events, start, seconds):
     return None, None
 
 
+def held_as_long_press(events, touchend):
+    """The ms the touch that ended in touchend was held, when the browser
+    took it as a long press (see LONG_PRESS); else None. A browser that
+    does not say whether it gave activation (null) is not judged."""
+    if not touchend or touchend.get('active') is not False:
+        return None
+    starts = [e for e in events if e.get('kind') == 'touchstart' and e.get('t', 0) <= touchend.get('t', 0)]
+    if not starts:
+        return None
+    held = touchend.get('t', 0) - starts[-1].get('t', 0)
+    return held if held >= LONG_PRESS else None
+
+
 def focused_input(events, after):
     """The page times the engine's hidden input had the focus, after the
     page time after"""
@@ -528,7 +554,15 @@ class Simulator:
             log('  the click at %s: osascript %d: %s' % (point, code, out))
 
     def screenshot(self, path):
-        subprocess.run(['xcrun', 'simctl', 'io', self.udid, 'screenshot', path], capture_output=True, timeout=60)
+        """A picture of the iPad for the people who read the run, not a
+        step of the check: one that simctl does not take within 60 s is
+        left out and said so (the iOS 26 run on main of 20 Nov 2026 stopped
+        at the first, though nothing the check judges had failed)."""
+        try:
+            subprocess.run(['xcrun', 'simctl', 'io', self.udid, 'screenshot', path], capture_output=True,
+                           timeout=60)
+        except subprocess.TimeoutExpired:
+            log('  no screenshot %s: simctl did not take it within 60 s' % os.path.basename(path))
 
 
 # --------------------------------------------------------------- the drive
@@ -561,6 +595,21 @@ def check(sim, record, commands, url, out=None):
         i = record.mark()
         sim.click(point)
         return i, record.wait(lambda e: e.get('kind') == kind, seconds, since=i)
+
+    def tap_to_activate(point, what):
+        """(mark, touchend, held): a tap that must give the page the
+        browser's user activation, tapped again while the browser takes it
+        as a long press (see LONG_PRESS); held: the ms the last was held,
+        when it was still a long press, else None"""
+        for attempt in range(1, TAP_TRIES + 1):
+            i, touch = tap(point, 'touchend')
+            ms = held_as_long_press(record.since(i), touch)
+            if ms is None:
+                return i, touch, None
+            log('  the Simulator held the tap on %s %d ms, a long press to the browser (no user activation)%s'
+                % (what, ms, ': tapping again' if attempt < TAP_TRIES else ''))
+            time.sleep(PAUSES['click'])
+        return i, touch, ms
 
     # 1. the page, the stack, and where it is on the screen
     log('Opening %s in Safari' % url)
@@ -602,9 +651,11 @@ def check(sim, record, commands, url, out=None):
     shot('2-phone')
 
     # 3. full screen from the tap, and it stays
-    i, touch = tap(full_button, 'touchend')
+    i, touch, long_held = tap_to_activate(full_button, 'Full screen')
     expect('the tap on Full screen reaches the page as a touch the browser made',
            touch is not None and touch.get('trusted') is True, json.dumps(touch))
+    expect('the tap on Full screen is a tap to the browser, not a long press (%d tries)' % TAP_TRIES,
+           long_held is None, 'the last held %s ms' % long_held)
     asked = record.wait(lambda e: e.get('kind') == 'asked', 6, since=i)
     expect('the page asks for full screen, with the engine\'s input without the focus',
            asked is not None and asked.get('focus') != 'engine-input', json.dumps(asked))
@@ -666,9 +717,11 @@ def check(sim, record, commands, url, out=None):
     done = record.wait(lambda e: e.get('kind') == 'done' and e.get('command') == 'unfix', 10, since=i)
     if not expect('the page is made to do what the engine did before 0.2.8-dp.2', done is not None, latest()):
         return problems
-    i, touch = tap(full_button, 'touchend')
+    i, touch, long_held = tap_to_activate(full_button, 'Full screen')
     came = record.wait(lambda e: e.get('kind') == 'fullscreenchange' and e.get('full') is True, 8, since=i)
-    if not expect('as before 0.2.8-dp.2, a tap on Full screen goes full screen', came is not None, latest()):
+    if not expect('as before 0.2.8-dp.2, a tap on Full screen goes full screen', came is not None,
+                  'the tap held %s ms, a long press, %d times' % (long_held, TAP_TRIES) if long_held
+                  else latest()):
         return problems
     back, t_back = record.until(lambda events: taken_back(events, came['t'], TAKEN_BACK_WITHIN),
                                 TAKEN_BACK_WITHIN + 8)
