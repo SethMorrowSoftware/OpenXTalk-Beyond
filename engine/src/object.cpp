@@ -1729,22 +1729,28 @@ bool MCObject::getwordsbackcolor(MCContextType p_type, MCColor &r_back)
  * (nothing from the control up to its stack has a foregroundColor or a
  * foregroundPattern) are drawn black, as LiveCode Community drew them,
  * when in the dark appearance that colour is light and the colour they are
- * drawn on is light too (getwordsbackcolor; light: black reads on it
- * better than white, MCObjectColorIsLight). x_words is the colour the
- * theme gave; it is left as it is everywhere else: in the light appearance,
- * on a dark colour (one of the stack's own, or the appearance's), on a
- * colour that cannot be told, for words with a colour of their own or one
- * inherited, for selected or disabled words (their colours are found before
- * the theme's), and for a menu (an option menu, a pulldown, a combo box, a
- * tab panel, a menu's item and the list a menu shows: getmenulistcolors),
- * which the theme draws in colours of its own. A control with no
- * background colour or pattern from itself up to its stack keeps them
- * before any theme is asked, so a stack that sets no colour at all is
- * drawn in the dark appearance's colours, as before, whatever the theme's
- * own backgrounds are. Called by
- * getforecolor where the theme or the engine gives a control's words their
- * colour, and by GetColor for the effective foregroundColor, which then
- * reads the colour the words are drawn in. */
+ * drawn on is light too (light: black reads on it better than white,
+ * MCObjectColorIsLight). What they are drawn on is a paragraph's or a text
+ * run's own backgroundColor while those words are drawn or read
+ * (MCField::getwordsback: a field with a white background of its own
+ * keeps white words on a dark line or run of its text), else what the
+ * control, the group under it or its card fills (getwordsbackcolor).
+ *
+ * x_words is the colour the theme gave; it is left as it is everywhere
+ * else: in the light appearance, on a dark colour (one of the stack's own,
+ * or the appearance's), on a colour that cannot be told, for words with a
+ * colour of their own or one inherited, for selected or disabled words
+ * (their colours are found before the theme's), and for a menu (an option
+ * menu, a pulldown, a combo box, a tab panel, a menu's item and the list a
+ * menu shows: getmenulistcolors), which the theme draws in colours of its
+ * own. A control with no background colour or pattern from itself up to
+ * its stack, and none under its words, keeps them before any theme is
+ * asked, so a stack that sets no colour at all is drawn in the dark
+ * appearance's colours, as before, whatever the theme's own backgrounds
+ * are. Called by getforecolor where the theme or the engine gives a
+ * control's words their colour, and by GetColor for the effective
+ * foregroundColor, which then reads the colour the words are drawn in (for
+ * a chunk of a field's text, MCBlock::GetEffectiveForeColor). */
 void MCObject::getlegacywords(uint2 p_di, MCContextType p_type, MCColor &x_words)
 {
 	if (p_di != DI_FORE && p_di != DI_PSEUDO_TEXT_COLOR && p_di != DI_PSEUDO_BUTTON_TEXT)
@@ -1768,25 +1774,38 @@ void MCObject::getlegacywords(uint2 p_di, MCContextType p_type, MCColor &x_words
 	if (!MCObjectColorIsLight(x_words))
 		return;
 
-	// A stack that sets no background colour or pattern from the control
-	// up keeps the appearance's colours, whatever its theme's backgrounds
-	// are, and no theme is asked for them (the chain getforecolor inherits
-	// along, or more of it)
-	bool t_own_back = false;
-	for (MCObject *t_object = this; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
-	{
-		uint2 t_index;
-		if (t_object -> getcindex(DI_BACK, t_index) || t_object -> getpindex(DI_BACK, t_index))
-		{
-			t_own_back = true;
-			break;
-		}
-	}
-	if (!t_own_back)
-		return;
-
+	// What the words are on: a paragraph's or a text run's own colour while
+	// those words are drawn or read (MCField::getwordsback), else what the
+	// control, the group under it or its card fills (getwordsbackcolor)
 	MCColor t_back;
-	if (!getwordsbackcolor(p_type, t_back) || !MCObjectColorIsLight(t_back))
+	const MCColor *t_words_back = nil;
+	if (gettype() == CT_FIELD)
+		t_words_back = static_cast<MCField *>(this) -> getwordsback();
+	if (t_words_back != nil)
+		t_back = *t_words_back;
+	else
+	{
+		// A stack that sets no background colour or pattern from the
+		// control up keeps the appearance's colours, whatever its theme's
+		// backgrounds are, and no theme is asked for them (the chain
+		// getforecolor inherits along, or more of it)
+		bool t_own_back = false;
+		for (MCObject *t_object = this; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+		{
+			uint2 t_index;
+			if (t_object -> getcindex(DI_BACK, t_index) || t_object -> getpindex(DI_BACK, t_index))
+			{
+				t_own_back = true;
+				break;
+			}
+		}
+		if (!t_own_back)
+			return;
+
+		if (!getwordsbackcolor(p_type, t_back))
+			return;
+	}
+	if (!MCObjectColorIsLight(t_back))
 		return;
 
 	MCSystemAppearance t_appearance;

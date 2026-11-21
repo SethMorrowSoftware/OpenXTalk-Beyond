@@ -28,14 +28,16 @@ keep its words readable in both appearances.
 The layout's standalone runtime is copied to a folder of its own
 (media_check.stage_runtime) and runs tools/ci/dark-switch-check.livecodescript,
 which opens a stack with the four controls, none with a colour of its own
-(FOLLOWING), and five with the colours of an older stack, none with a text
+(FOLLOWING), and six with the colours of an older stack, none with a text
 colour: a field with a white background of its own, a field with no
 background of its own in a group with a light one, a button with a light
-background of its own, a check box with a white one, checked (LEGACY), and
-a field with a dark background of its own (DARK_OWN). It measures each from a snapshot when this script tells it
-to: its face (the colour most of its inside has) and its ink (the colour
-there that differs most from the face: its label); and the effective
-foregroundColor of each field and button. This script sets Windows'
+background of its own, a check box with a white one, checked (LEGACY); a
+field with a dark background of its own, and a field with a white one
+whose line has a dark one, which fills it (DARK_OWN). It measures each
+from a snapshot when this script tells it to: its face (the colour most of
+its inside has) and its ink (the colour there that differs most from the
+face: its label); and the effective foregroundColor of each field and
+button (of the line, for the second of DARK_OWN). This script sets Windows'
 appearance, the value AppsUseLightTheme that applications follow, as
 Settings > Personalization > Colors does, and puts it back when it is done.
 The engine is started twice (RUNS):
@@ -98,7 +100,9 @@ check box (measured with 0.2.8-dp.1 on seth's Windows 11 PC, 2026-11-21,
 where the xTalk Suite's xlsxt and pdfxt demos showed it: the check box's
 face 255,255,255 and its ink 255,255,255), and their effective
 foregroundColor was 255,255,255; the engine now draws them black there
-(MCObject::getlegacywords), and DARK_OWN's as before.
+(MCObject::getlegacywords), and DARK_OWN's as before: the words of a line
+with a dark colour of its own are judged on that colour, not on the
+field's white (MCField::getwordsback).
 
 Up to OXT-Beyond 0.2.7 the dark appearance filled a button and an option
 menu with a background colour the engine kept from its start, under words
@@ -146,8 +150,10 @@ FOLLOWING = ('Push', 'Option', 'Combo', 'Plain')
 # check box, checked: its box is not measured
 LEGACY = ('Paper', 'Label', 'Key', 'Tick')
 # A dark background of its own and no text colour: the dark appearance's
-# light words in it
-DARK_OWN = ('Night',)
+# light words in it. Shade is a field with a white background of its own
+# whose line has a dark one, which its words are on (its effective
+# foregroundColor is its line's)
+DARK_OWN = ('Night', 'Shade')
 CONTROLS = FOLLOWING + LEGACY + DARK_OWN
 PERSONALIZE = r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 VALUE = 'AppsUseLightTheme'

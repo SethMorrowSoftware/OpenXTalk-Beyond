@@ -55,8 +55,11 @@ the <systemAppearance>, which is light in the dark appearance. Where
 that text would be drawn on a light <backgroundColor> of the field's or
 button's own, its <group|group's> or its <card|card's>, it is drawn
 black instead, as in the light appearance, so that a stack made before
-there was a dark appearance can still be read; the <effective>
-<foregroundColor> then reports the color the text is drawn in.
+there was a dark appearance can still be read. Text on a line or a run
+of text with a <backgroundColor> of its own goes by that color instead,
+so the light text on a dark line of a white field stays light. The
+<effective> <foregroundColor> of the field, of the button, or of a chunk
+of the field's text reports the color the text is drawn in.
 
 The setting of the <foregroundColor> <property> has different effects,
 depending on the <object type>:

@@ -23,10 +23,12 @@ group or its card, are dark in the dark appearance too, as LiveCode
 Community drew them (MCObject::getlegacywords). Up to 0.2.8-dp.2 they were
 the dark appearance's white: white on white in a field with a white
 background (seth's Windows 11 PC, 2026-11-21), and such a field's effective
-foregroundColor was 255,255,255. The effective foregroundColor reads the
-colour the words are drawn in. These tests read it in the appearance the
-tests run in (with no screen there is no theme, and every one is black);
-tools/ci/dark_switch_check.py measures what Windows shows, in both.
+foregroundColor was 255,255,255. Words on a line's or a text run's own
+background colour are judged on that colour, not on the field's
+(MCField::getwordsback). The effective foregroundColor reads the colour the
+words are drawn in, a chunk's too. These tests read it in the appearance
+the tests run in (with no screen there is no theme, and every one is
+black); tools/ci/dark_switch_check.py measures what Windows shows, in both.
 */
 
 on TestEffectiveLegacyWords
@@ -105,6 +107,53 @@ on TestEffectiveWordsOfTheirOwn
 
    __Done tDefault, tStack
 end TestEffectiveWordsOfTheirOwn
+
+on TestEffectiveWordsOnTheirLineOrRun
+   local tDefault, tStack, tPlain, tFore
+   put the defaultStack into tDefault
+   put "LegacyWordsLine" & the milliseconds into tStack
+   create invisible stack tStack
+   set the defaultStack to tStack
+
+   -- No colours: the appearance's words
+   create field "Plain"
+   put "Ab Cd" into field "Plain"
+   -- A field with a white background of its own and no text colour, its
+   -- second line on a dark colour of its own, and the first word of its
+   -- third on one of that word's own
+   create field "Paper"
+   set the backgroundColor of field "Paper" to "255,255,255"
+   put "Ab Cd" & return & "Ef Gh" & return & "Ij Kl" into field "Paper"
+   set the backgroundColor of line 2 of field "Paper" to "40,48,64"
+   set the backgroundColor of word 1 of line 3 of field "Paper" to "40,48,64"
+
+   put the effective foregroundColor of field "Plain" of stack tStack into tPlain
+   TestDiagnostic "Plain's effective foregroundColor:" && tPlain
+
+   -- Words on the field's white are dark, as the field's are
+   put the effective foregroundColor of line 1 of field "Paper" of stack tStack into tFore
+   TestDiagnostic "line 1's effective foregroundColor:" && tFore
+   TestAssert "words on the field's white are dark", __IsLight(tFore) is false
+   TestAssert "and so are the field's", \
+         __IsLight(the effective foregroundColor of field "Paper" of stack tStack) is false
+
+   -- Words on a line's or a run's dark colour of its own keep the
+   -- appearance's, as a field with a dark colour of its own does: they are
+   -- judged on that colour, not on the field's white
+   put the effective foregroundColor of line 2 of field "Paper" of stack tStack into tFore
+   TestDiagnostic "line 2's effective foregroundColor:" && tFore
+   TestAssert "words on a line's dark colour have the appearance's colour", tFore is tPlain
+   put the effective foregroundColor of word 1 of line 3 of field "Paper" of stack tStack into tFore
+   TestDiagnostic "word 1 of line 3's effective foregroundColor:" && tFore
+   TestAssert "words on a run's dark colour have the appearance's colour", tFore is tPlain
+
+   TestAssert "and none of them has a text colour of its own", \
+         the foregroundColor of field "Paper" of stack tStack is empty \
+         and the foregroundColor of line 2 of field "Paper" of stack tStack is empty \
+         and the foregroundColor of word 1 of line 3 of field "Paper" of stack tStack is empty
+
+   __Done tDefault, tStack
+end TestEffectiveWordsOnTheirLineOrRun
 
 -- The default stack as it was, and the test's stack deleted (an engine run
 -- with -ui and no default stack crashed at its next use up to 0.2.8-dp.1)

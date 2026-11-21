@@ -265,6 +265,7 @@ MCField::MCField()
     
     // MM-2014-08-11: [[ Bug 13149 ]] Used to flag if a recompute is required during the next draw.
     m_recompute = false;
+    m_words_back = nil;
     
     keyboard_type = kMCInterfaceKeyboardTypeNone;
     return_key_type = kMCInterfaceReturnKeyTypeNone;
@@ -350,6 +351,7 @@ MCField::MCField(const MCField &fref) : MCControl(fref)
     
     // MM-2014-08-11: [[ Bug 13149 ]] Used to flag if a recompute is required during the next draw.
     m_recompute = false;
+    m_words_back = nil;
 }
 
 MCField::~MCField()

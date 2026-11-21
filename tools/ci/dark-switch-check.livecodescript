@@ -54,7 +54,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                   its own, is left out (measureRect)
 --    EFFECTIVE <label> <control> <r,g,b>
 --                   for each field and button but the menus, its effective
---                   foregroundColor: the colour its words are drawn in
+--                   foregroundColor: the colour its words are drawn in (for
+--                   a field of kLineWords, its first line's)
 --    SCREEN <label> <control> face=<r,g,b> ink=<r,g,b> size=<w>x<h>
 --                   the same, read from the screen where the control is,
 --                   after it was drawn again (hidden and shown): what a
@@ -72,11 +73,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- Quits when it is told to, or when a step gets no answer in 60 seconds.
 
 constant kStack = "DarkSwitch"
-constant kControls = "Push,Option,Combo,Plain,Paper,Label,Key,Tick,Night"
+constant kControls = "Push,Option,Combo,Plain,Paper,Label,Key,Tick,Night,Shade"
 -- (measured from a snapshot of themselves, as the check always did)
 constant kOwnSnapshot = "Push,Option,Combo"
 -- (their words are a field's or a button's, not a menu's)
-constant kWords = "Plain,Paper,Label,Key,Tick,Night"
+constant kWords = "Plain,Paper,Label,Key,Tick,Night,Shade"
+-- (fields whose words are all on their first line's colour: the effective
+-- foregroundColor of that line is theirs)
+constant kLineWords = "Shade"
 -- (the frame, and the corners a theme rounds, are left out of a measurement)
 constant kInset = 4
 -- (a check box's box and the space after it: its label is in the middle)
@@ -138,6 +142,15 @@ private function readLastImage
    end repeat
    return "face=" & tFace && "ink=" & tInk && "size=" & tWidth & "x" & tHeight
 end readLastImage
+
+-- The effective foregroundColor of a control's words: of its first line
+-- for a field of kLineWords, else of the control
+private function effectiveWords pName
+   if pName is among the items of kLineWords then
+      return the effective foregroundColor of line 1 of field pName of stack kStack
+   end if
+   return the effective foregroundColor of control pName of stack kStack
+end effectiveWords
 
 -- Where a control is measured: its rect, but for a check box's box (the
 -- rect is the card's, as the control's is)
@@ -248,6 +261,19 @@ private command makeStack
    set the rect of field "Night" to 220,168,380,200
    put "Ab Cd" into field "Night"
 
+   -- A field with a white background of its own whose line has a dark one
+   -- of its own: the line's words are on the dark colour, and stay the
+   -- dark appearance's too (MCField::getwordsback). The line fills what
+   -- is measured: no margins, and one line as tall as the field's inside
+   create field "Shade"
+   set the backgroundColor of field "Shade" to "255,255,255"
+   set the margins of field "Shade" to "0,0,0,0"
+   set the fixedLineHeight of field "Shade" to true
+   set the textHeight of field "Shade" to 28
+   set the rect of field "Shade" to 220,218,380,250
+   put "Ab Cd" into field "Shade"
+   set the backgroundColor of line 1 of field "Shade" to "40,48,64"
+
    repeat for each item tName in kControls
       set the traversalOn of control tName to false
    end repeat
@@ -295,7 +321,7 @@ on startup
             logLine "MEASURE" && tLabel && tName && measureControl(tName)
          end repeat
          repeat for each item tName in kWords
-            logLine "EFFECTIVE" && tLabel && tName && the effective foregroundColor of control tName of stack kStack
+            logLine "EFFECTIVE" && tLabel && tName && effectiveWords(tName)
          end repeat
          wait 600 milliseconds with messages
 

@@ -519,13 +519,37 @@ class ThePlan(unittest.TestCase):
         self.assertEqual(sorted((prop, kind, name) for prop, kind, name in sets),
                          sorted([('backgroundColor', 'field', 'Paper'), ('backgroundColor', 'group', 'Panel'),
                                  ('backgroundColor', 'button', 'Key'), ('backgroundColor', 'button', 'Tick'),
-                                 ('backgroundColor', 'field', 'Night')]))
+                                 ('backgroundColor', 'field', 'Night'), ('backgroundColor', 'field', 'Shade'),
+                                 ('backgroundColor', 'line', '1')]))
         self.assertIn('create field "Label" in group "Panel"', script)
+        self.assertIn('set the backgroundColor of line 1 of field "Shade" to "40,48,64"', script)
         code = re.sub(r'/\*.*?\*/', '', script, flags=re.S)
         code = '\n'.join(x for x in code.split('\n') if not x.lstrip().startswith('--'))
-        self.assertIn('the effective foregroundColor of control tName of stack kStack', code)
+        self.assertIn('the effective foregroundColor of control pName of stack kStack', code)
+        self.assertIn('the effective foregroundColor of line 1 of field pName of stack kStack', code)
         self.assertIsNone(re.search(r'(?i)(foreground|text)colou?r', code.replace(
-            'the effective foregroundColor of control', '')))
+            'the effective foregroundColor of control', '').replace(
+            'the effective foregroundColor of line 1 of field', '')))
+
+    def test_the_dark_line_fills_what_is_measured(self):
+        # Shade's words are on its line's dark colour, and it is measured
+        # like Night: the line must be most of what is read, inside the
+        # inset (no margins, one line as tall as the field's inside, which
+        # its border of 2 leaves)
+        with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
+            script = f.read()
+        self.assertIn('Shade', dsc.DARK_OWN)
+        self.assertIn('set the margins of field "Shade" to "0,0,0,0"', script)
+        self.assertIn('set the fixedLineHeight of field "Shade" to true', script)
+        rect = [int(v) for v in re.search(r'set the rect of field "Shade" to (\d+),(\d+),(\d+),(\d+)', script).groups()]
+        height = int(re.search(r'set the textHeight of field "Shade" to (\d+)', script).group(1))
+        self.assertEqual(height, rect[3] - rect[1] - 2 * 2)
+        stack = [int(v) for v in re.search(r'set the rect of stack kStack to (\d+),(\d+),(\d+),(\d+)', script).groups()]
+        self.assertLessEqual(rect[3], stack[3] - stack[1])
+        # its effective foregroundColor is its line's, the colour its words
+        # are drawn in
+        self.assertIn('constant kLineWords = "Shade"', script)
+        self.assertIn('logLine "EFFECTIVE" && tLabel && tName && effectiveWords(tName)', script)
 
 
 # A stand-in for the engine running the script: it speaks the script's lines.
@@ -615,7 +639,8 @@ while True:
         changed += 1
     others = (('Plain', FACE[live], INK[live]), ('Paper', '255,255,255', WORDS[live]),
               ('Label', '240,242,246', WORDS[live]), ('Key', '225,229,236', WORDS[live]),
-              ('Tick', '255,255,255', WORDS[live]), ('Night', '40,48,64', INK[live]))
+              ('Tick', '255,255,255', WORDS[live]), ('Night', '40,48,64', INK[live]),
+              ('Shade', '40,48,64', INK[live]))
     for word in ('MEASURE', 'SCREEN'):
         for control in ('Push', 'Option', 'Combo'):
             face = FACE[live] if live == 'light' or control == 'Combo' else FACE[kept]

@@ -1412,6 +1412,15 @@ void MCParagraph::drawfound(MCDC *dc, MCLine *lptr, int2 x, int2 y, uint2 height
 }
 
 //draw text of paragraph
+// OXT-Beyond: the paragraph's own backgroundColor, when it has one
+bool MCParagraph::getownbackcolor(MCColor &r_color) const
+{
+	if (attrs == nil || (attrs -> flags & PA_HAS_BACKGROUND_COLOR) == 0)
+		return false;
+	MCColorSetPixel(r_color, attrs -> background_color);
+	return true;
+}
+
 void MCParagraph::draw(MCDC *dc, int2 x, int2 y, uint2 fixeda,
                        uint2 fixedd, findex_t fstart, findex_t fend, findex_t compstart,
                        findex_t compend, findex_t compconvstart, findex_t compconvend,
@@ -1475,12 +1484,20 @@ void MCParagraph::draw(MCDC *dc, int2 x, int2 y, uint2 fixeda,
 
 	// MW-2012-01-25: [[ ParaStyles ]] If the paragraph has a background color
 	//   then fill it in.
+	// OXT-Beyond: its words are on that colour until its lines are drawn
+	//   (MCField::setwordsback, getlegacywords)
+	MCColor t_words_back;
+	const MCColor *t_old_words_back = nil;
+	bool t_has_words_back = false;
 	if (attrs != nil && (attrs -> flags & PA_HAS_BACKGROUND_COLOR) != 0)
 	{
 		MCColor t_color;
 		MCColorSetPixel(t_color, attrs -> background_color);
 		dc -> setforeground(t_color);
 		dc -> fillrect(t_inner_border_rect);
+		t_words_back = t_color;
+		t_old_words_back = parent -> setwordsback(&t_words_back);
+		t_has_words_back = true;
 		parent->setforeground(dc, DI_FORE, False, True);
 	}
 
@@ -1590,6 +1607,9 @@ void MCParagraph::draw(MCDC *dc, int2 x, int2 y, uint2 fixeda,
 	while (lptr != lines);
 
 	dc->restore();
+
+	if (t_has_words_back)
+		parent -> setwordsback(t_old_words_back);
 	
 	// MW-2012-01-08: [[ Paragraph Border ]] Render the paragraph's border (if
 	//   any).
