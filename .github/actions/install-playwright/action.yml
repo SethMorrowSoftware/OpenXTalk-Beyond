@@ -8,17 +8,20 @@
 # 40 to 60 KB/s, while its lists came at 8 MB/s. WebKit's packages are
 # 114 MB, so four of eleven WebKit installs that afternoon ran past their
 # jobs' 30 minutes (the check never started, and the Linux packages that
-# wait on it were never made). As build-linux.yml does for its own
-# packages: the downloads (never the install, which must not be stopped
-# half-way) have a time limit and are tried three times, each try on new
-# connections, keeping every package the one before finished; and the
-# packages are kept in the Actions cache, one entry per runner image,
-# Playwright version and browsers. apt still updates its lists and checks
-# every cached package against them, so an outdated one is downloaded
-# again, never installed. Playwright's own install then finds every
-# package in apt's cache and installs as before. If Playwright's dry run
-# names no packages (a version that prints it differently), or the fetch
-# does not finish, its install runs exactly as it did before this.
+# wait on it were never made). As every step on a runner installs
+# (tools/ci/apt-install.sh --playwright): the downloads (never the
+# install, which must not be stopped half-way) have a time limit and are
+# tried three times, each try on new connections, keeping every package
+# the one before finished, and after a try that did not finish the
+# runner's own mirror is left out; and the packages are kept in the
+# Actions cache, one entry per runner image, Playwright version and
+# browsers. apt still updates its lists and checks every cached package
+# against them, so an outdated one is downloaded again, never installed.
+# Playwright's own install then finds every package in apt's cache and
+# installs as before (tried a second time if it does not finish). If
+# Playwright's dry run names no packages (a version that prints it
+# differently), or the fetch does not finish, its install runs as it did
+# before this.
 name: Install Playwright
 description: Playwright, pinned, in a virtual environment, with browsers and their system packages
 inputs:
@@ -72,33 +75,12 @@ runs:
           echo "From the cache: $(compgen -G "$debs/*.deb" | wc -l) packages"
           sudo cp "$debs"/*.deb /var/cache/apt/archives/
         fi
-        # The packages that Playwright's install asks apt for: its dry run
-        # prints the command, sh -c "apt-get update&& apt-get install -y
-        # --no-install-recommends <packages>"
-        list=$("$VENV/bin/python" -m playwright install-deps --dry-run "${browsers[@]}" \
-          | sed -n 's/.*--no-install-recommends \([^"]*\)".*/\1/p')
-        read -r -a pkgs <<< "$list"
-        fetched=false
-        if [ ${#pkgs[@]} -gt 0 ]; then
-          echo "Fetching ${#pkgs[@]} packages: ${pkgs[*]}"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          # (sudo does not pass the job's environment on)
-          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
-          for i in 1 2 3; do
-            if timeout 300 "${apt[@]}" update &&
-               timeout 300 "${apt[@]}" install -y --no-install-recommends --download-only "${pkgs[@]}"; then
-              fetched=true
-              break
-            fi
-            echo "::warning::Fetching the packages for ${browsers[*]}: try $i of 3 did not finish"
-            sleep 15
-          done
-        else
-          echo "::warning::Playwright's dry run named no packages; installing without fetching them first"
-        fi
-        "$VENV/bin/python" -m playwright install --with-deps "${browsers[@]}"
-        if [ "$fetched" = true ] && [ "$HIT" != true ]; then
+        # (and public name servers too if the runner's own give no answer
+        # for the package servers)
+        bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$VENV/bin/python" "${browsers[@]}"
+        # Every package installed is in apt's cache now, fetched first or
+        # by Playwright's install
+        if [ "$HIT" != true ]; then
           # Only what the current lists still offer
           sudo apt-get autoclean
           rm -rf "$debs"

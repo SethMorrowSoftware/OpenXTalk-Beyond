@@ -29,6 +29,15 @@ the apt sources does not resolve; both are run here with a fake getent
 that resolves as the runners did that day. Every step of every workflow
 that installs packages is held to it.
 
+And the steps on the runner (#596's follow-up, 0.2.8-dp.2): each had one
+try, and a package server out for a few minutes failed it (the package
+job's Playwright install, every server of the mirror list failing at once)
+or ran it past its time (its Server check, the runner's mirror sending a
+few kilobytes a second). They install through tools/ci/apt-install.sh,
+which tries the lists and the downloads three times within a time limit,
+leaving the runner's own mirror out after a try that did not finish; it is
+run here with fake tools, and every step on the runner is held to it.
+
   python3 -m unittest discover -s tools/ci/tests
 """
 
@@ -45,6 +54,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WORKFLOWS = os.path.join(HERE, '..', '..', '..', '.github', 'workflows')
 ACTIONS = os.path.join(HERE, '..', '..', '..', '.github', 'actions')
 SCRIPT = os.path.join(HERE, '..', 'apt-name-servers.sh')
+INSTALL = os.path.join(HERE, '..', 'apt-install.sh')
 FILES = ('web.yml', 'web-ide.yml', 'build-linux.yml', 'android-engine.yml')
 
 # apt-get that fails "install" the number of times in $FAILS, counting in
@@ -300,8 +310,218 @@ class NameServersScript(Machine):
         self.assertEqual(out, '')
 
 
+# apt-get as tools/ci/apt-install.sh calls it: "update" fails the first
+# $UPDATE_FAILS times, "install --download-only" the first $FETCH_FAILS
+# times (124: what timeout gives when the limit is reached) and an install
+# the first $FAILS times; every call is logged with the mirror list's first
+# server at that moment
+FAKE_APT_RUNNER = '''#!/bin/bash
+first=$(grep -v '^#' "$APT_ETC/apt-mirrors.txt" 2> /dev/null | head -n 1 | cut -f1)
+echo "$* @${first:-none}" >> "$STATE/calls"
+count() { n=$(cat "$STATE/$1" 2>/dev/null || echo 0); echo $((n + 1)) > "$STATE/$1"; [ "$n" -lt "$2" ]; }
+case " $* " in
+  *" update "*) if count updates "${UPDATE_FAILS:-0}"; then exit 100; fi ;;
+  *" --download-only "*) if count fetches "${FETCH_FAILS:-0}"; then exit 124; fi ;;
+  *" download "*) if count downloads "${FETCH_FAILS:-0}"; then exit 100; fi ;;
+  *" install "*) if count installs "${FAILS:-0}"; then exit 100; fi ;;
+esac
+exit 0
+'''
+
+# Playwright's command line, in a virtual environment's python: the dry run
+# of install-deps prints the command it would run (as Playwright 1.56
+# does, or nothing when $DRY is "none"), and an install fails the first
+# $PW_FAILS times
+FAKE_PYTHON = '''#!/bin/bash
+echo "$*" >> "$STATE/playwright"
+case " $* " in
+  *" install-deps --dry-run "*)
+    if [ "$DRY" != none ]; then
+      echo 'sh -c "apt-get update&& apt-get install -y --no-install-recommends libnss3 libgbm1 fonts-liberation"'
+    fi
+    exit 0 ;;
+  *" install --with-deps "*)
+    n=$(cat "$STATE/pw" 2>/dev/null || echo 0); echo $((n + 1)) > "$STATE/pw"
+    if [ "$n" -lt "${PW_FAILS:-0}" ]; then exit 1; fi ;;
+esac
+exit 0
+'''
+
+MIRRORS = ('http://us-east-2.ec2.archive.ubuntu.com/ubuntu/\tpriority:1\n'
+           'https://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+           'https://security.ubuntu.com/ubuntu/\tpriority:3\n')
+
+
+@POSIX
+class InstallScript(Machine):
+    '''tools/ci/apt-install.sh, through which the steps on the runner
+    install their packages.'''
+
+    def run_install(self, *args, mirrors=MIRRORS, dns='up', **env):
+        sources = dict(RUNNER_SOURCES)
+        if mirrors is None:
+            del sources['apt-mirrors.txt']
+        else:
+            sources['apt-mirrors.txt'] = mirrors
+        etc = self.machine(sources, RESOLV_HOST)
+        bin_dir = os.path.join(self.state, 'bin')
+        for tool, body in (('apt-get', FAKE_APT_RUNNER), ('python', FAKE_PYTHON),
+                           ('sudo', '#!/bin/bash\necho "$*" >> "$STATE/sudo"\nexec "$@"\n'),
+                           ('timeout', '#!/bin/bash\necho "$1" >> "$STATE/limits"\nshift\nexec "$@"\n')):
+            path = os.path.join(bin_dir, tool)
+            with open(path, 'w') as f:
+                f.write(body)
+            os.chmod(path, 0o755)
+        self.mirrors_path = os.path.join(etc, 'apt-mirrors.txt')
+        run_env = dict(self.env, DNS=dns, **{k: str(v) for k, v in env.items()})
+        p = subprocess.run(['bash', INSTALL] + list(args), env=run_env, cwd=self.state,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.output = p.stdout.decode('utf-8', 'replace')
+        return p.returncode
+
+    def calls(self):
+        # "<what apt-get was asked> @<the mirror list's first server>"
+        return [re.sub(r'^-o Acquire::Retries=3 -o Acquire::http::Timeout=30 ', '', c) for c in self.read('calls')]
+
+    def mirror_list(self):
+        with open(self.mirrors_path) as f:
+            return f.read()
+
+    def test_a_first_try_that_finishes_installs(self):
+        self.assertEqual(self.run_install('apache2', 'valgrind'), 0, self.output)
+        ec2 = '@http://us-east-2.ec2.archive.ubuntu.com/ubuntu/'
+        self.assertEqual(self.calls(), [
+            'update ' + ec2,
+            'install -y --no-install-recommends --download-only apache2 valgrind ' + ec2,
+            'install -y --no-install-recommends apache2 valgrind ' + ec2])
+        # the lists and the download within the limit, the install not
+        self.assertEqual(self.read('limits'), ['300', '300'])
+        self.assertEqual(self.read('sleeps'), [])
+        self.assertEqual(self.mirror_list(), MIRRORS)
+        self.assertNotIn('::warning::', self.output)
+
+    def test_a_try_that_does_not_finish_runs_again_without_the_runners_mirror(self):
+        # (the Server check of 0.2.8-dp.2's package job: the runner's mirror
+        # sent apache2 and valgrind a few kilobytes a second)
+        self.assertEqual(self.run_install('apache2', 'valgrind', FETCH_FAILS=1), 0, self.output)
+        ec2, archive = '@http://us-east-2.ec2.archive.ubuntu.com/ubuntu/', '@https://archive.ubuntu.com/ubuntu/'
+        self.assertEqual(self.calls(), [
+            'update ' + ec2,
+            'install -y --no-install-recommends --download-only apache2 valgrind ' + ec2,
+            'update ' + archive,
+            'install -y --no-install-recommends --download-only apache2 valgrind ' + archive,
+            'install -y --no-install-recommends apache2 valgrind ' + archive])
+        self.assertEqual(self.read('sleeps'), ['15'])
+        self.assertEqual(self.mirror_list(), MIRRORS.split('\n', 1)[1])
+        self.assertIn("::warning::Leaving the runner's mirror us-east-2.ec2.archive.ubuntu.com out", self.output)
+
+    def test_lists_that_do_not_come_are_tried_again(self):
+        self.assertEqual(self.run_install('apache2', UPDATE_FAILS=2), 0, self.output)
+        self.assertEqual([c.split()[0] for c in self.calls()], ['update', 'update', 'update', 'install', 'install'])
+        self.assertEqual(self.read('sleeps'), ['15', '30'])
+
+    def test_after_three_tries_the_install_still_runs_and_says_what_is_wrong(self):
+        status = self.run_install('apache2', FETCH_FAILS=3, FAILS=1)
+        self.assertNotEqual(status, 0)
+        self.assertEqual(len([c for c in self.calls() if '--download-only' in c]), 3)
+        self.assertEqual(len([c for c in self.calls() if c.startswith('install') and '--download-only' not in c]), 1)
+        self.assertEqual(self.read('sleeps'), ['15', '30'])
+        self.assertIn('did not finish in three tries', self.output)
+        # Ubuntu's own servers are never left out: security.ubuntu.com has
+        # only the security pockets
+        self.assertEqual(self.mirror_list(), MIRRORS.split('\n', 1)[1])
+
+    def test_a_list_that_starts_with_ubuntus_own_server_is_kept(self):
+        mirrors = MIRRORS.split('\n', 1)[1]
+        self.run_install('apache2', FETCH_FAILS=1, mirrors=mirrors)
+        self.assertEqual(self.mirror_list(), mirrors)
+
+    def test_a_machine_without_a_mirror_list(self):
+        self.assertEqual(self.run_install('apache2', FETCH_FAILS=1, mirrors=None), 0, self.output)
+        self.assertEqual(self.read('sleeps'), ['15'])
+
+    def test_the_limit_can_be_set(self):
+        self.run_install('apache2', APT_TRY_LIMIT=120)
+        self.assertEqual(self.read('limits'), ['120', '120'])
+
+    def test_the_lists_alone(self):
+        self.assertEqual(self.run_install('--update', UPDATE_FAILS=1), 0, self.output)
+        self.assertEqual([c.split()[0] for c in self.calls()], ['update', 'update'])
+        self.assertEqual(self.run_install('--update', UPDATE_FAILS=3), 1, self.output)
+
+    def test_fetched_and_not_installed(self):
+        self.assertEqual(self.run_install('--fetch', 'gcc', FETCH_FAILS=1), 0, self.output)
+        self.assertEqual([c for c in self.calls() if '--download-only' not in c and not c.startswith('update')], [])
+        self.assertEqual(self.run_install('--fetch', 'gcc', FETCH_FAILS=3), 1, self.output)
+
+    def test_files_downloaded_into_the_folder(self):
+        self.assertEqual(self.run_install('--download', 'fonts-dejavu-core=2.37-8', FETCH_FAILS=1), 0, self.output)
+        self.assertEqual([c.split(' @')[0] for c in self.calls()],
+                         ['update', 'download fonts-dejavu-core=2.37-8'] * 2)
+        # (apt-get download writes into the folder, as the job's user; on
+        # a runner, not as root, the lists are updated through sudo)
+        self.assertEqual([c for c in self.read('sudo') if ' download ' in ' %s ' % c], [])
+        if os.getuid():
+            self.assertEqual(len([c for c in self.read('sudo') if ' update' in c]), 2)
+
+    def test_the_name_servers_come_first(self):
+        self.assertEqual(self.run_install('apache2', dns='down'), 0, self.output)
+        self.assertEqual(name_servers(self.resolv()), ['127.0.0.53'] + PUBLIC)
+        self.assertIn('::warning::archive.ubuntu.com does not resolve', self.output)
+
+    def test_playwrights_packages_are_fetched_before_its_install(self):
+        self.assertEqual(self.run_install('--playwright', 'python', 'chromium', FETCH_FAILS=1), 0, self.output)
+        fetches = [c for c in self.calls() if '--download-only' in c]
+        self.assertEqual(len(fetches), 2)
+        self.assertIn('--download-only libnss3 libgbm1 fonts-liberation @', fetches[0])
+        # and nothing installed but by Playwright, once
+        self.assertEqual([c for c in self.calls() if c.startswith('install') and '--download-only' not in c], [])
+        self.assertEqual(self.read('playwright'), ['-m playwright install-deps --dry-run chromium',
+                                                   '-m playwright install --with-deps chromium'])
+
+    def test_a_fetch_that_never_finishes_does_not_stop_playwrights_install(self):
+        self.assertEqual(self.run_install('--playwright', 'python', 'chromium', FETCH_FAILS=3), 0, self.output)
+        self.assertEqual(len([c for c in self.calls() if '--download-only' in c]), 3)
+        self.assertEqual(self.read('playwright')[-1], '-m playwright install --with-deps chromium')
+        self.assertEqual(self.read('sleeps'), ['15', '30'])
+
+    def test_playwrights_install_runs_twice_at_most(self):
+        # (the Playwright step of 0.2.8-dp.2's package job: every server of
+        # the mirror list failed at once, inside Playwright's own install)
+        self.assertEqual(self.run_install('--playwright', 'python', 'chromium', 'firefox', PW_FAILS=1), 0, self.output)
+        self.assertEqual(self.read('playwright')[1:], ['-m playwright install --with-deps chromium firefox'] * 2)
+        self.assertEqual(self.read('sleeps'), ['30'])
+        self.assertNotEqual(self.run_install('--playwright', 'python', 'chromium', PW_FAILS=2), 0)
+
+    def test_a_dry_run_that_names_nothing_installs_as_before(self):
+        self.assertEqual(self.run_install('--playwright', 'python', 'webkit', DRY='none'), 0, self.output)
+        self.assertEqual(self.calls(), [])
+        self.assertIn("Playwright's dry run named no packages", self.output)
+        self.assertEqual(self.read('playwright')[-1], '-m playwright install --with-deps webkit')
+
+    def test_the_recommended_packages_when_asked(self):
+        # (as apt-get install does by itself: the Raspberry Pi OS check's
+        # cross compiler needs libc6-dev-arm64-cross, which it only
+        # recommends; #597's review)
+        self.assertEqual(self.run_install('--with-recommends', 'gcc-aarch64-linux-gnu', FETCH_FAILS=1), 0,
+                         self.output)
+        self.assertEqual([c.split(' @')[0] for c in self.calls()], [
+            'update', 'install -y --download-only gcc-aarch64-linux-gnu',
+            'update', 'install -y --download-only gcc-aarch64-linux-gnu',
+            'install -y gcc-aarch64-linux-gnu'])
+
+    def test_wrong_use_is_refused(self):
+        self.assertEqual(self.run_install(), 2)
+        self.assertEqual(self.run_install('--fetch'), 2)
+        self.assertEqual(self.run_install('--nonsense', 'gcc'), 2)
+        self.assertEqual(self.run_install('--with-recommends'), 2)
+        self.assertEqual(self.run_install('--with-recommends', '--fetch', 'gcc'), 2)
+        self.assertEqual(self.calls(), [])
+
+
 APT = re.compile(r'\bapt-get\b(?! autoclean)|\bplaywright install --with-deps\b|\bplaywright install-deps\b(?! --dry-run)')
 CALL = 'tools/ci/apt-name-servers.sh'
+HELPER = 'tools/ci/apt-install.sh'
 
 
 def commands(run):
@@ -331,22 +551,22 @@ def run_steps():
 
 
 class EveryPackageStep(unittest.TestCase):
-    """No step installs packages with only the runner's name servers to
-    go by: a step on the runner calls the script before its first apt-get
-    (Playwright's --with-deps is one), and a step in a job container comes
+    """No step installs packages with a single try, or with only the
+    runner's name servers to go by: a step on the runner installs through
+    tools/ci/apt-install.sh (Playwright's --with-deps too), which calls
+    tools/ci/apt-name-servers.sh first, and a step in a job container comes
     after the container's retry loop, which carries the same lines."""
 
-    def test_steps_on_the_runner_call_the_script_first(self):
+    def test_steps_on_the_runner_install_through_the_helper(self):
         seen = 0
         for name, job, container, runs in run_steps():
             if container:
                 continue
             for run in runs:
                 m = APT.search(run)
-                if m:
-                    seen += 1
-                    self.assertIn(CALL, run[:m.start()], '%s, job %s: %s' % (name, job, m.group(0)))
-        self.assertGreater(seen, 15)  # the pattern still finds the steps
+                self.assertIsNone(m, '%s, job %s: %s, not through %s' % (name, job, m and m.group(0), HELPER))
+                seen += run.count(HELPER)
+        self.assertGreater(seen, 15)  # the steps are still found
 
     def test_steps_in_a_container_follow_its_loop(self):
         seen = 0
@@ -362,7 +582,7 @@ class EveryPackageStep(unittest.TestCase):
                     self.assertTrue(looped, '%s, job %s' % (name, job))
         self.assertGreater(seen, 1)
 
-    def test_the_script_is_called_by_its_path_in_the_checkout(self):
+    def test_the_scripts_are_called_by_their_path_in_the_checkout(self):
         # With bash, not by its mode bits (a checkout on Windows does not
         # keep them), and from $GITHUB_WORKSPACE, not from where the step
         # happens to be: web.yml's font check has changed to a folder of
@@ -375,7 +595,41 @@ class EveryPackageStep(unittest.TestCase):
                     if CALL in line:
                         seen += 1
                         self.assertEqual(line.strip(), 'bash "$GITHUB_WORKSPACE/%s"' % CALL, '%s, job %s' % (name, job))
+                    if HELPER in line:
+                        seen += 1
+                        self.assertTrue(line.strip().startswith('bash "$GITHUB_WORKSPACE/%s" ' % HELPER),
+                                        '%s, job %s: %s' % (name, job, line.strip()))
         self.assertGreater(seen, 15)
+
+    def test_the_helper_names_what_it_installs(self):
+        # (a call with nothing after it but --update installs nothing)
+        for name, job, container, runs in run_steps():
+            for run in runs:
+                for line in run.split('\n'):
+                    if HELPER in line:
+                        rest = line.split(HELPER + '"', 1)[1].split()
+                        self.assertTrue(rest, '%s, job %s' % (name, job))
+                        if rest[0] == '--playwright':
+                            self.assertGreaterEqual(len(rest), 3, '%s, job %s: a python and a browser' % (name, job))
+                        elif rest[0] != '--update':
+                            self.assertTrue(rest[0] in ('--fetch', '--download', '--with-recommends') and rest[1:] or
+                                            not rest[0].startswith('--'), '%s, job %s: %s' % (name, job, line.strip()))
+
+    def test_steps_that_installed_the_recommended_packages_still_do(self):
+        # Every step that ran apt-get install without
+        # --no-install-recommends before the helper (the Raspberry Pi OS
+        # check's three) keeps the packages they recommend: the cross
+        # compiler links with libc6-dev-arm64-cross, which
+        # gcc-13-aarch64-linux-gnu only recommends (#597's review)
+        calls = []
+        for name, job, container, runs in run_steps():
+            for run in runs:
+                for line in run.split('\n'):
+                    if HELPER in line and name == 'pi-os-check.yml':
+                        calls.append(line.split(HELPER + '"', 1)[1].split()[:2])
+        self.assertEqual(sorted(calls), [['--with-recommends', 'gcc-aarch64-linux-gnu'],
+                                         ['--with-recommends', 'imagemagick'],
+                                         ['--with-recommends', 'qemu-user-static']])
 
     def test_the_checkout_is_there_before_the_call(self):
         # (at the workspace's root: a checkout with a path of its own would
@@ -390,7 +644,8 @@ class EveryPackageStep(unittest.TestCase):
                 for step in body.get('steps') or []:
                     if str(step.get('uses') or '').startswith('actions/checkout@'):
                         checked_out = checked_out or not (step.get('with') or {}).get('path')
-                    if CALL in commands(step.get('run') or ''):
+                    run = commands(step.get('run') or '')
+                    if CALL in run or HELPER in run:
                         self.assertTrue(checked_out, '%s, job %s, step %s' % (name, job, step.get('name')))
 
 
