@@ -4947,6 +4947,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 | `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
+| `org.openxtalk.library.xlsxt` | xlsxt: Excel `.xlsx` workbooks written (cells, formats, formulas, charts, pictures, page setup) and read back, through libxlsxwriter, zlib and Expat; also in the web engine | [xtalk-suite, `xlsxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/xlsxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
