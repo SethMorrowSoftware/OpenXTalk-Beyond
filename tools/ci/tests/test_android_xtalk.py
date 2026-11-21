@@ -613,6 +613,28 @@ class TheTests(unittest.TestCase):
         # no ICE server: the two peers find each other on the device
         self.assertEqual(self.functions['xtalkTestDataChannel'].count('dcCreatePeer(empty)'), 2)
 
+    def test_a_session_born_paused_is_said(self):
+        # torrentxt's session is born paused on Android 11 and later (the
+        # tests file says why). The test resumes it, as an app must, and
+        # its answer says that it had to: a pass must not hide the limit,
+        # and a failure says which way the session was born
+        torrent = self.functions['xtalkTestTorrent']
+        asked = torrent.index('put btSessionIsPaused(tSession) into tBornPaused')
+        resumed = torrent.index('if tBornPaused then get btSessionResume(tSession)')
+        added = torrent.index('put btAddTorrentFile(')
+        self.assertLess(asked, resumed)
+        self.assertLess(resumed, added)
+        passed = torrent.index('"passed: ')
+        said = torrent.index('put "; KNOWN LIMIT: the session started paused and the test had to resume it" after tAnswer')
+        self.assertLess(passed, said)
+        self.assertIn('if tBornPaused then', torrent[passed:said])
+        self.assertIn('", session born paused" && quote & tBornPaused & quote', torrent[said:])
+        # and what a torrent that never seeds leaves behind: its error, and
+        # what the session said while the test waited
+        self.assertIn('repeat for each element tEvent in btPoll(tSession)', torrent)
+        self.assertIn('pStatus["error"]', self.body)
+        self.assertIn('"; the session said:" && tEvents', torrent)
+
     def test_files_only_where_the_app_may_write(self):
         code = self.code(self.body)
         # a file: or binfile: URL is of the test's folder, and so is every

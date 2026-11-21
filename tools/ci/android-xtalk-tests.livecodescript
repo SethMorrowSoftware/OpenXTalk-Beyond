@@ -368,7 +368,7 @@ end xtalkTorrentIs
 
 function xtalkTestTorrent
    local tSession, tFolder, tContent, tTorrentData, tTorrent, tDeadline, tStatus, tKey, tAnswer, tPort, tHash
-   local tEvent, tSaid, tEvents, tWas
+   local tEvent, tSaid, tEvents, tWas, tBornPaused
    -- RFC 8032's first seed again: the DHT's keys are Ed25519
    put btDhtKeypair("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60") into tKey
    if not xtalkSame(tKey["publicKey"], "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a") then
@@ -398,6 +398,20 @@ function xtalkTestTorrent
    btSetBool tSession, "enable_lsd", false
    btSetBool tSession, "enable_upnp", false
    btSetBool tSession, "enable_natpmp", false
+   -- A session can be born paused, and a paused session checks nothing and
+   -- seeds nothing. On the Android 13 emulator the torrent of this test
+   -- stayed at "checking its files", progress 0, for the whole wait
+   -- (2026-11-21), beside the system's refusal of a netlink socket to the
+   -- app (avc: denied { bind } ... netlink_route_socket). As read in
+   -- libtorrent 2.0.11: a session starts a watcher of address changes on
+   -- such a socket, Android 11 and later refuse an app that bind, and the
+   -- session answers any error in its own start by pausing itself. So the
+   -- test asks, does what an app has to do today (btSessionResume), and SAYS
+   -- in its answer that it had to: the limit is torrentxt's on Android 11
+   -- and later, it is written in the xTalk Suite's work plan, and once a
+   -- library without it is pinned here a session born paused is a failure
+   put btSessionIsPaused(tSession) into tBornPaused
+   if tBornPaused then get btSessionResume(tSession)
    put btAddTorrentFile(tSession, tTorrentData, tFolder) into tTorrent
    put the milliseconds + kXtalkWait into tDeadline
    repeat until the milliseconds > tDeadline or tTorrent <= 0
@@ -419,6 +433,9 @@ function xtalkTestTorrent
    if tTorrent > 0 and tStatus["isSeeding"] is 1 and tPort > 0 and the number of chars of tHash >= 40 then
       put "passed: a session listening on port" && tPort & ", a torrent made of a 100000-byte file in the app's folder," && \
             "checked and seeding (info hash" && char 1 to 8 of tHash & "...)" into tAnswer
+      if tBornPaused then
+         put "; KNOWN LIMIT: the session started paused and the test had to resume it" after tAnswer
+      end if
    else
       put xtalkTorrentIs(tStatus) into tWas
       replace return with "; " in tEvents
@@ -434,7 +451,7 @@ function xtalkTestTorrent
          put btTorrentStatus(tTorrent) into tStatus
       end if
       put "a torrent of a file in" && tFolder && "is not seeding after" && kXtalkWait && "ms (handle" && tTorrent & \
-            ", port" && tPort & "," && tWas & "; the session said:" && tEvents & \
+            ", port" && tPort & ", session born paused" && quote & tBornPaused & quote & "," && tWas & "; the session said:" && tEvents & \
             " and 3000 ms after a btResume it is at" && xtalkTorrentIs(tStatus) & "):" && btLastError() into tAnswer
    end if
    btStopSession tSession
