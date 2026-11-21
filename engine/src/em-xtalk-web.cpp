@@ -32,7 +32,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
  * every symbol the member's .lcb binds to (the member generates it from
  * the .lcb). DataChannelXT's is not libdatachannel, which needs sockets a
  * page does not have, but the same functions over the browser's own WebRTC
- * (the suite's datachannelxt/src/datachannel_web.cpp).
+ * (the suite's datachannelxt/src/datachannel_web.cpp). xlsxt's carries a
+ * zlib of its own under names of its own (xlxw_*), so the engine's zlib
+ * and its cannot meet even before the symbols are made local.
  * tools/web-ide/xtalk_web_libraries.py fetches the pinned
  * archives, makes every other symbol of each object local (so two members
  * that carry the same vendored code, trezor-crypto's in SodiumXT and
@@ -55,6 +57,7 @@ extern "C"
 	__attribute__((weak)) const MCSLibraryStaticExport *box2dxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *coinxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *datachannelxt_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *xlsxt_web_exports(void);
 }
 
 /* The names are those the extensions load: their libraries' files without
@@ -65,6 +68,7 @@ static MCSLibraryStaticInfo s_mc_xtalk_web_libraries[] =
 	{ nullptr, "box2dxt", nullptr },
 	{ nullptr, "coinxt", nullptr },
 	{ nullptr, "datachannelxt", nullptr },
+	{ nullptr, "xlsxt", nullptr },
 };
 
 /* Registered before main(), as em-externals.cpp's are early in startup:
@@ -78,6 +82,7 @@ MCEmscriptenRegisterXTalkWebLibraries(void)
 		box2dxt_web_exports,
 		coinxt_web_exports,
 		datachannelxt_web_exports,
+		xlsxt_web_exports,
 	};
 
 	for (size_t i = 0; i < sizeof(t_exports) / sizeof(t_exports[0]); i++)

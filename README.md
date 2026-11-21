@@ -4946,6 +4946,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
+| `org.openxtalk.library.xlsxt` | xlsxt: Excel `.xlsx` workbooks written (cells, formats, formulas, charts, pictures, page setup) and read back, through libxlsxwriter, zlib and Expat; also in the web engine | [xtalk-suite, `xlsxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/xlsxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or

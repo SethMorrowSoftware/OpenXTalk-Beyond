@@ -321,6 +321,26 @@
         {"kind": "lcs", "id": "curlHelpers", "folder": "curlHelpers", "stack": "curlHelpers", "main": "curlxt/src/curl-helpers.livecodescript", "title": "curlxt helpers", "author": "Seth Morrow Software", "requires": ["org.openxtalk.library.curl"], "probe": "cuWaitingCount()", "expect": "^0$"},
         {"kind": "lcs", "id": "tsNetCompat", "folder": "tsNetCompat", "stack": "tsNetCompat", "main": "curlxt/src/tsnet.livecodescript", "title": "tsNet calls (curlxt)", "author": "Seth Morrow Software", "requires": ["curlHelpers"], "probe": "tsNetVersion()", "expect": "^1\\.4\\.5$", "comment": "the tsNet calls by name, written from tsNet's public dictionary over curlxt; libURL is untouched"}
       ]
+    },
+    {
+      "name": "xlsxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "b95021057e0bee6bac7b1cb6e32310d731c7e0ae",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "xlsxt/src/xlsxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link libxlsxwriter (BSD-2-Clause), zlib (the zlib licence) and Expat (MIT)",
+      "files": [
+        {"path": "xlsxt/src/xlsxt.lcb", "role": "source", "sha256": "36b04df085428b811ccdf9f80a96d0c05ce795b7d46e70da35753c532adb0e30", "size": 95489},
+        {"path": "xlsxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "a82f6c517e9025fc41d1037e1d18b387bea96600ab37cc8d2cf9d4028c333b0a", "size": 92},
+        {"path": "xlsxt/LICENSE", "role": "licence", "sha256": "8fd9a78ff32a09a94995b5afd6bbf794f883c348cfba7c4a4fbbaecc6e8ff507", "size": 1298},
+        {"path": "xlsxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "50e5e350ba76f7791f256643d82310322f7464b83a655c13d8eb98c414599d91", "size": 9915}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.xlsxt", "folder": "org.openxtalk.library.xlsxt", "main": "xlsxt/src/xlsxt.lcb", "probe": "xlLibraryVersion()", "expect": "^xlsxt ABI [0-9]+; libxlsxwriter [0-9]"}
+      ]
     }
   ],
   "web_libraries": {
@@ -360,6 +380,15 @@
         "path": "datachannelxt/src/code/wasm32-emscripten/datachannelxt.a",
         "sha256": "c9e6cda8ecf7b7dbabac92039c7f823ae597722674b8bf148693e0a2021d9cbc",
         "size": 24142,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "xlsxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "b95021057e0bee6bac7b1cb6e32310d731c7e0ae",
+        "path": "xlsxt/src/code/wasm32-emscripten/xlsxt.a",
+        "sha256": "29efa861fc88373eb019e68860befdbe88383e7df1672c1810e9ae3b1cf6221c",
+        "size": 877288,
         "emscripten": "6.0.12"
       }
     ]
