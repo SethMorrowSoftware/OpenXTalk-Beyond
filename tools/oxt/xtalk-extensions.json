@@ -350,6 +350,35 @@
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
       ]
+    },
+    {
+      "name": "render3dxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "0000000000000000000000000000000000000000",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "render3dxt/src/render3dxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries compile in stb_image (MIT, Sean Barrett) and fast_obj (MIT, thisistherk)",
+      "files": [
+        {"path": "render3dxt/src/render3dxt.lcb", "role": "source", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/x86_64-win32/render3dxt.dll", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1, "imports": ["KERNEL32.dll"]},
+        {"path": "render3dxt/src/code/x86-win32/render3dxt.dll", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1, "imports": ["KERNEL32.dll"]},
+        {"path": "render3dxt/src/code/x86_64-linux/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/x86-linux/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/arm64-linux/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/universal-mac/render3dxt.dylib", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/arm64-android/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/armv7-android/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/x86_64-android/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/src/code/x86-android/render3dxt.so", "role": "library", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1},
+        {"path": "render3dxt/LICENSE", "role": "licence", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 1}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.renderthreed", "folder": "org.openxtalk.library.renderthreed", "main": "render3dxt/src/render3dxt.lcb", "probe": "r3LibraryVersion()", "expect": "^render3dxt [0-9.]+ ABI [0-9]+; "}
+      ]
     }
   ],
   "web_libraries": {
@@ -398,6 +427,15 @@
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
         "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
         "size": 1852826,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "render3dxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "0000000000000000000000000000000000000000",
+        "path": "render3dxt/src/code/wasm32-emscripten/render3dxt.a",
+        "sha256": "7a5724f2a7bfb7ada684e8a295cd5fb8d95331b3853156c3c6327c5075e58581",
+        "size": 213068,
         "emscripten": "6.0.12"
       }
     ]

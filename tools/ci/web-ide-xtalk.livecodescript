@@ -14,8 +14,8 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT and
--- DataChannelXT (a shim over the browser's WebRTC) into itself
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, render3dxt,
+-- CoinXT and DataChannelXT (a shim over the browser's WebRTC) into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -32,6 +32,11 @@ script "oxtwebxtalk"
 --                drawn by the library's renderer into a picture whose
 --                middle pixel shows it; the picture set as an image's
 --                imageData
+--    render3d    render3dxt: a box drawn into a picture (its colour at the
+--                middle, the background at a corner) and found there by a
+--                click; drawn again lit and textured, begun and taken as
+--                a frame loop does (ready at once: the web build draws on
+--                one thread); the picture set as an image's imageData
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
 --    nostr       NostrXT's relay library over the browser's WebSocket:
@@ -66,7 +71,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,render3d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -274,6 +279,66 @@ on xt_box3d
    delete stack "oxtWebBox3d"
    b3WorldDestroy tWorld
 end xt_box3d
+
+on xt_render3d
+   local tScene, tBox, tRed, tNode, tTexture, tPlain, tLit, tBytes, tWas
+   tourRecord "INFO r3LibraryVersion()" && r3LibraryVersion()
+   xtExpect "the library's ABI", r3ABIVersion(), 1
+   -- The web build has no threads: any count asked for draws on one
+   r3SetThreadCount 4
+   xtExpect "the threads it draws on", r3ThreadCount(), 1
+   put r3SceneCreate() into tScene
+   xtExpect "the camera a scene starts with", r3SceneCamera(tScene), "0,2,8,0,0,0,50"
+   put r3MeshBox(0.5, 0.5, 0.5) into tBox
+   put r3MaterialCreate(255, 0, 0) into tRed
+   r3MaterialSetUnlit tRed, true
+   put r3NodeCreate(tScene, tBox) into tNode
+   r3NodeSetMaterial tNode, tRed
+   r3SceneSetCamera tScene, 0, 0, 5, 0, 0, 0, 50
+   -- The desktop's numbers (render3dxt's tests/engine-selftest.lc)
+   put r3SceneRender(tScene, 64, 48) into tPlain
+   xtExpect "the picture's bytes", the number of bytes in tPlain, 64 * 48 * 4
+   xtExpect "the box's colour at the middle", xtPixel(tPlain, 64, 32, 24), "255,0,0"
+   xtExpect "the background at the corner", xtPixel(tPlain, 64, 1, 1), "31,33,41"
+   xtExpect "a click at the middle finds the box", r3ScenePick(tScene, 64, 48, 32, 24) is tNode, "true"
+   xtExpect "how far the click went", format("%.4f", item 4 of r3HitText()), "4.5000"
+   xtExpect "a click at the corner finds nothing", r3ScenePick(tScene, 64, 48, 1, 1), 0
+   -- Lit and textured, then begun and taken as a frame loop does: with
+   -- one thread the picture is drawn in the call, so it is ready at once
+   r3MaterialSetUnlit tRed, false
+   put r3TextureChecker(64, 8, 255, 255, 255, 0, 0, 0) into tTexture
+   r3MaterialSetTexture tRed, tTexture
+   put r3SceneRender(tScene, 64, 48) into tLit
+   xtExpect "the lit, textured box is drawn", tLit is not tPlain and xtPixel(tLit, 64, 1, 1) is "31,33,41", "true"
+   put r3SceneRenderBegin(tScene, 64, 48) into tBytes
+   xtExpect "a picture begun says its bytes", tBytes, 64 * 48 * 4
+   xtExpect "and is ready at once", r3SceneIsRenderReady(tScene), "true"
+   xtExpect "and is the picture drawn in one call", r3SceneFrame(tScene) is tLit, "true"
+   -- An image takes the picture as its imageData and gives it back
+   put the defaultStack into tWas
+   create invisible stack "oxtWebRender3d"
+   set the defaultStack to "oxtWebRender3d"
+   create image "picture"
+   set the defaultStack to tWas
+   set the width of image "picture" of stack "oxtWebRender3d" to 64
+   set the height of image "picture" of stack "oxtWebRender3d" to 48
+   set the imageData of image "picture" of stack "oxtWebRender3d" to tLit
+   xtExpect "an image takes the picture", the number of bytes in the imageData of image "picture" of stack "oxtWebRender3d", 64 * 48 * 4
+   delete stack "oxtWebRender3d"
+   r3SceneDestroy tScene
+   r3MeshDestroy tBox
+   r3MaterialDestroy tRed
+   r3TextureDestroy tTexture
+   xtExpect "nothing is left", r3LiveCounts(), "0,0,0,0,0,0"
+end xt_render3d
+
+-- "R,G,B" of the pixel at (pX, pY) of a picture pWidth wide, as imageData
+-- lays it out: four bytes a pixel, the first unused
+function xtPixel pData, pWidth, pX, pY
+   local tAt
+   put (pY * pWidth + pX) * 4 into tAt
+   return byteToNum(byte tAt + 2 of pData) & comma & byteToNum(byte tAt + 3 of pData) & comma & byteToNum(byte tAt + 4 of pData)
+end xtPixel
 
 on xt_coinxt
    local tSec, tSig
