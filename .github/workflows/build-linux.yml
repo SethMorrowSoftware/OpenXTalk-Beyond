@@ -143,6 +143,7 @@ on:
       - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android-xtalk-tests.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
       - 'tools/ci/android_runs.py'

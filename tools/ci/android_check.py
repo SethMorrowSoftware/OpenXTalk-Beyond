@@ -253,6 +253,29 @@ PROBES = {'app': 'AndroidProbe.livecode', 'java': 'AndroidJavaProbe.livecode', '
 XTALK_MANIFEST = os.path.join(REPO, 'tools', 'oxt', 'xtalk-extensions.json')
 XTALK_LIST = 'xtalk-probes.txt'
 XTALK_SAYS = 'xtalk'
+# The xTalk Suite's functional tests (android-xtalk-tests.livecodescript,
+# whose header says what each does): the file, which the IDE script appends
+# to the probe's script from its XTALK_TESTS_BEGIN line on, and for each
+# test the key it is said by, its function there, and the extensions it
+# calls into (ids of the manifest), every one of which must be in the
+# probe. One smoke test per extension shows that a library loads and
+# answers; these use each library for what it is for. A test passes by
+# returning a sentence that starts XTALK_TEST_PASSED, and anything else
+# it returns is what went wrong.
+XTALK_TESTS_SCRIPT = os.path.join(HERE, 'android-xtalk-tests.livecodescript')
+XTALK_TESTS_BEGIN = "-- BEGIN the xTalk Suite's functional tests"
+XTALK_TEST_PASSED = 'passed:'
+XTALK_TESTS = collections.OrderedDict([
+    ('test.sodium', ('xtalkTestSodium', ('org.openxtalk.library.sodium',))),
+    ('test.coin', ('xtalkTestCoin', ('org.openxtalk.library.coin', 'coinxt'))),
+    ('test.box2d', ('xtalkTestBox2d', ('org.openxtalk.box2dxt',))),
+    ('test.box3d', ('xtalkTestBox3d', ('org.openxtalk.library.boxthreed',))),
+    ('test.enet', ('xtalkTestEnet', ('org.openxtalk.library.enet',))),
+    ('test.datachannel', ('xtalkTestDataChannel', ('org.openxtalk.library.datachannel',))),
+    ('test.torrent', ('xtalkTestTorrent', ('org.openxtalk.library.torrent',))),
+    ('test.curl', ('xtalkTestCurl', ('org.openxtalk.library.curl',))),
+    ('test.nostr', ('xtalkTestNostr', ('nostrxt', 'org.openxtalk.library.coin', 'org.openxtalk.library.sodium'))),
+])
 ANDROID_PLATFORMS = collections.OrderedDict([('arm64-android', 'arm64-v8a'), ('armv7-android', 'armeabi-v7a'),
                                              ('x86_64-android', 'x86_64'), ('x86-android', 'x86')])
 PERMISSIONS_METADATA = re.compile(r'^\s*metadata\s+android\.permissions\s+is\s+"([^"]*)"', re.M)
@@ -1432,13 +1455,58 @@ def xtalk_android_extensions(manifest):
     return found
 
 
-def xtalk_records(manifest, ext_dir):
+def xtalk_script_extensions(manifest):
+    """[(member, extension)] for every script library (lcs) extension of
+    the manifest that an Android app can load: each extension it requires
+    is an LCB one of xtalk_android_extensions or a script library that is
+    itself here (so a library over a member with no Android code is left
+    out, and one over nothing native, as OnionXT and NostrXT are, is in).
+    In the manifest's order."""
+    usable = {e['id'] for m, e, libs in xtalk_android_extensions(manifest)}
+    scripts = [(m, e) for m in manifest.get('members', []) for e in m.get('extensions', []) if e['kind'] == 'lcs']
+    grew = True
+    while grew:
+        grew = False
+        for m, e in scripts:
+            if e['id'] not in usable and all(r in usable for r in e.get('requires', [])):
+                usable.add(e['id'])
+                grew = True
+    return [(m, e) for m, e in scripts if e['id'] in usable]
+
+
+def xtalk_test_records(ids, script, tests=None):
+    """The "test" records of the xTalk Suite's functional tests (tests;
+    XTALK_TESTS when not given), given the ids of the probe's extensions
+    and the text of XTALK_TESTS_SCRIPT. A test whose extension is not in
+    the probe, or whose function the script does not define below its
+    XTALK_TESTS_BEGIN line, is an error and not a test left out: a probe
+    with a test missing would pass having proved less than it says."""
+    if script.count('\n' + XTALK_TESTS_BEGIN + '\n') != 1:
+        raise CheckError('%s has not exactly one line %r' % (os.path.basename(XTALK_TESTS_SCRIPT), XTALK_TESTS_BEGIN))
+    body = script.split('\n' + XTALK_TESTS_BEGIN + '\n', 1)[1]
+    lines = []
+    for key, (function, needs) in (XTALK_TESTS if tests is None else tests).items():
+        missing = [n for n in needs if n not in ids]
+        if missing:
+            raise CheckError('the test %s needs %s, which the probe has not' % (key, ', '.join(missing)))
+        if not re.search(r'^function %s\s*$' % re.escape(function), body, re.M):
+            raise CheckError('%s defines no function %s (the test %s)' % (
+                os.path.basename(XTALK_TESTS_SCRIPT), function, key))
+        lines.append('test\t%s\t%s()\t^%s' % (key, function, XTALK_TEST_PASSED))
+    return lines
+
+
+def xtalk_records(manifest, ext_dir, tests=None, tests_script=None):
     """The xTalk Suite's probe's records (kXtalkSays in the IDE script), as
-    lines, for the extensions of xtalk_android_extensions installed in
-    ext_dir (an IDE's Extensions folder): one "extension" record each, and
-    one "permission" record for each permission their sources declare.
-    Each must be installed with its code for every Android platform id,
-    since the probe is built from what is there."""
+    lines, for the extensions of xtalk_android_extensions and of
+    xtalk_script_extensions installed in ext_dir (an IDE's Extensions
+    folder): one "extension" record each, one "test" record for each
+    functional test (xtalk_test_records; tests is XTALK_TESTS and
+    tests_script the text of XTALK_TESTS_SCRIPT when not given), and one
+    "permission" record for each permission the extensions' sources
+    declare. Each LCB extension must be installed with its code for every
+    Android platform id, and each script library with its script, since
+    the probe is built from what is there."""
     lines, permissions = [], []
     for m, e, libs in xtalk_android_extensions(manifest):
         folder = os.path.join(ext_dir, e['folder'])
@@ -1463,14 +1531,27 @@ def xtalk_records(manifest, ext_dir):
         lines.append('extension\t%s\t%s\t%s' % (e['id'], e['probe'], e['expect']))
     if not lines:
         raise CheckError('%s has no LCB extension with libraries for every Android platform id' % XTALK_MANIFEST)
+    for m, e in xtalk_script_extensions(manifest):
+        script = os.path.join(ext_dir, e['folder'], e['stack'] + '.livecodescript')
+        if not os.path.isfile(script):
+            raise CheckError('%s is not installed in %s (no %s)' % (e['folder'], ext_dir, os.path.basename(script)))
+        for item in (e['id'], e['probe'], e['expect']):
+            if '\t' in item or '\n' in item or '\r' in item:
+                raise CheckError('%s: a tab or a line break in %r' % (e['id'], item))
+        lines.append('extension\t%s\t%s\t%s' % (e['id'], e['probe'], e['expect']))
+    if tests_script is None:
+        with open(XTALK_TESTS_SCRIPT, encoding='utf-8') as f:
+            tests_script = f.read()
+    lines.extend(xtalk_test_records([x.split('\t')[1] for x in lines], tests_script, tests))
     return lines + ['permission\t%s' % p for p in permissions]
 
 
 def read_xtalk_list(path, kind='extension'):
     """The second item of each record of a kind in a file xtalk_records
     wrote: for 'extension' the ids the probe says its answers by (none is
-    an error: the probe would pass with nothing tried), for 'permission'
-    the permissions the package must hold."""
+    an error: the probe would pass with nothing tried), for 'test' the
+    keys it says its functional tests by, for 'permission' the
+    permissions the package must hold."""
     keys = []
     with open(path, encoding='utf-8') as f:
         for line in f.read().splitlines():
@@ -1589,6 +1670,7 @@ def ide(args):
                    OXT_ANDROID_UNITS='skip' if args.no_units else '',
                    OXT_ANDROID_PROBE='' if args.probe == 'app' else args.probe,
                    OXT_ANDROID_ENGINE=args.android_engine or '', OXT_ANDROID_XTALK=path(xtalk),
+                   OXT_ANDROID_XTALK_TESTS=path(XTALK_TESTS_SCRIPT) if xtalk else '',
                    OXT_ANDROID_AAR=path(make_library_aar(work, args.sdk, args.jdk)) if getattr(args, 'aar', False) else '')
         cmd = [lay.engine, document]
         if p.family == 'linux':
@@ -3279,7 +3361,7 @@ def device_once(args):
         # its colour, and the libraries in the package
         with open(XTALK_MANIFEST, encoding='utf-8') as f:
             problems.extend(xtalk_package_problems(names, json.load(f)))
-        problems.extend(xtalk_said_problems(said, read_xtalk_list(args.xtalk)))
+        problems.extend(xtalk_said_problems(said, read_xtalk_list(args.xtalk) + read_xtalk_list(args.xtalk, 'test')))
         wanted = read_xtalk_list(args.xtalk, 'permission')
         if wanted:
             _, package_dump = a('shell', 'dumpsys', 'package', IDENTIFIER)
@@ -3819,8 +3901,9 @@ def main(argv=None):
                         'time it runs (AndroidBusyProbe); edge: the app probe drawn edge to edge, which says its '
                         'screen\'s rects (AndroidEdgeProbe); tests: the script tests\' standalone, from the files '
                         'android_tests.py prepare puts in --work; xtalk: the xTalk Suite\'s probe, built with '
-                        'the IDE\'s xTalk Suite extensions that have Android code, which calls each one\'s smoke '
-                        'test (its records in <work>/%s)' % XTALK_LIST)
+                        'the IDE\'s xTalk Suite extensions that have Android code and the script libraries over '
+                        'them, which calls each one\'s smoke test and then runs the functional tests of %s (its '
+                        'records in <work>/%s)' % (os.path.basename(XTALK_TESTS_SCRIPT), XTALK_LIST))
     i.add_argument('--aar', action='store_true',
                    help='build the probe with a real Android library (%s, made here with the JDK and the SDK\'s '
                         'android.jar), as an extension\'s jvm-android folder brings one' % AAR_NAME)
@@ -3887,7 +3970,9 @@ def main(argv=None):
                         'process must end, and the app opened again must show its green in a new one')
     d.add_argument('--xtalk', metavar='FILE',
                    help='the xTalk Suite\'s probe (ide --probe xtalk wrote FILE): the package must hold each '
-                        'extension\'s library for each of its ABIs, and the probe must say each record was ok')
+                        'extension\'s library for each of its ABIs, and the probe must say each record was ok, '
+                        'its functional tests among them (which wait up to 20 s each for a loopback exchange: '
+                        'give --timeout room for them)')
     d.add_argument('--picture', metavar='NAME',
                    help='the probe exports a picture of this file name: it must be in the shared Pictures '
                         'folder as the package\'s own (MediaStore)')
