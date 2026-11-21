@@ -502,6 +502,7 @@ below.
 | `onionxt`, `onion-httpd` | `OnionXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
+| `org.openxtalk.library.audioxt` | `xtalk-suite` (`audioxt/`) | MIT, © 2026 Seth Morrow | miniaudio 0.11.26, compiled into each library with its WAV, FLAC and MP3 decoders (dr_wav, dr_flac and dr_mp3): public domain (Unlicense) or MIT No Attribution, at the user's choice, © 2026 David Reid. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with miniaudio's notice) |
 
 Notes:
 

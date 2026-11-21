@@ -4946,6 +4946,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
+| `org.openxtalk.library.audioxt` | audioxt: sound through miniaudio, beside the engine's own `play` (mixing, streaming, tones, 3D sound and microphone capture; WAV, FLAC and MP3) | [xtalk-suite, `audioxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/audioxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4985,7 +4986,9 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   INTERNET permission to an app that includes them. Each one's smoke test
   runs in an Android app on the Android builder workflow's x86_64
   emulators (Android 13, and Android 16 with 16 KB pages); the ARM
-  libraries have not run on a device yet. The standalone builder
+  libraries have not run on a device yet. audioxt has Android libraries
+  too, probed by the same app; an app that records with it must ask for
+  the RECORD_AUDIO permission itself. The standalone builder
   never adds the script libraries by itself: tick them in *Standalone
   Settings*, with the LCB libraries they need (for example `coinxt` with
   `org.openxtalk.library.coin`).

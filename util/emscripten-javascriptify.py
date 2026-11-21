@@ -143,6 +143,17 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # audioxt: the shim's exports, and miniaudio, compiled into it, whose
+    # every function (its WAV, FLAC and MP3 decoders' too) is named ma_*;
+    # the shim's few file-local helpers keep their own names and are
+    # instrumented where they call through a pointer. Web Audio calls into
+    # it for each block of sound from the browser's own event loop, while
+    # the engine may be asleep, and nothing in it yields or calls back into
+    # the engine (a sound's end is polled by script). No other ma_* is in
+    # the web engine: MySQL's client (libmariadb) is not linked into it.
+    # On a test link with the engine's Asyncify settings the list took
+    # about 135 KB off the .wasm
+    'aux_*', 'ma_*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

@@ -973,12 +973,12 @@ end getEngineFiles
 
 -- OXT-Beyond: the extensions whose libraries the web engine links
 -- (engine/src/em-xtalk-web.cpp), each as its id: the LCB libraries of
--- SodiumXT, Box2Dxt, CoinXT and DataChannelXT, and the script libraries
--- that call them (tools/oxt/xtalk-extensions.json), NostrXT's included,
--- which calls CoinXT and SodiumXT without naming them as needed.
-constant kXTalkWebExtensions = "org.openxtalk.library.sodium,org.openxtalk.box2dxt,org.openxtalk.library.coin,org.openxtalk.library.datachannel,coinxt,box2dxt-kit,dataChannelHelpers,nostrxt,nostr-relay"
+-- SodiumXT, Box2Dxt, CoinXT, DataChannelXT and audioxt, and the script
+-- libraries that call them (tools/oxt/xtalk-extensions.json), NostrXT's
+-- included, which calls CoinXT and SodiumXT without naming them as needed.
+constant kXTalkWebExtensions = "org.openxtalk.library.sodium,org.openxtalk.box2dxt,org.openxtalk.library.coin,org.openxtalk.library.datachannel,org.openxtalk.library.audioxt,coinxt,box2dxt-kit,dataChannelHelpers,nostrxt,nostr-relay"
 -- The names an LCB module binds those libraries by ("c:sodiumxt>sxt_hash")
-constant kXTalkWebLibraries = "sodiumxt,box2dxt,coinxt,datachannelxt"
+constant kXTalkWebLibraries = "sodiumxt,box2dxt,coinxt,datachannelxt,audioxt"
 
 -- OXT-Beyond: true when the standalone includes an extension that uses
 -- the xTalk Suite's libraries: one of kXTalkWebExtensions, or any LCB
