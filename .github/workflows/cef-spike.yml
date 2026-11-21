@@ -1,0 +1,120 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# CEF upgrade spike: measures how far the browser (libbrowser) is from a
+# current CEF, without changing anything a build reads. The tree uses CEF 74
+# (Chromium 74, 2019) on Windows and Linux x86-64; macOS uses WKWebView.
+#
+#   Linux:   tools/ci/cef-spike/cef_spike_linux.sh in the build's own
+#            ubuntu:20.04 container (glibc 2.31, GCC 9, and GCC 10 for
+#            C++20): sizes, the glibc floor of the new libcef.so, the
+#            UPDATE.md generators over the new headers, and the wrapper and
+#            libbrowser compiled against them at each C++ standard.
+#   Windows: tools/ci/cef-spike/cef_spike_windows.ps1 with MSVC v143.
+#
+# Each job writes its report to the job summary and uploads it with the
+# compile logs as an artifact. The jobs never fail on what they measure,
+# only on a broken download. The build workflows ignore this file and its
+# scripts (their paths-ignore lists), so a change here starts no build.
+
+name: CEF upgrade spike
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - .github/workflows/cef-spike.yml
+      - tools/ci/cef-spike/**
+  workflow_dispatch:
+    inputs:
+      cef-version:
+        description: A CEF version from the index (for example 142.0.10+g29548e2+chromium-142.0.7444.135); empty for the newest stable
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cef-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: CEF spike (Linux x86-64)
+    runs-on: ubuntu-24.04
+    container:
+      image: mirror.gcr.io/library/ubuntu:20.04
+    timeout-minutes: 60
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      CEF_VERSION: ${{ inputs.cef-version }}
+    steps:
+      - name: Install the compilers and tools
+        run: |
+          apt-get -o Acquire::Retries=3 update
+          apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+            g++-9 g++-10 python2 python3 perl curl ca-certificates bzip2 binutils git \
+            libx11-dev libgtk2.0-dev pkg-config
+          g++-9 --version | sed -n 1p
+          g++-10 --version | sed -n 1p
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Measure
+        shell: bash
+        run: |
+          start=$(date +%s)
+          WORK="$RUNNER_TEMP/cef-spike" ./tools/ci/cef-spike/cef_spike_linux.sh
+          echo "Spike job time: $(( $(date +%s) - start )) s" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cef-spike-linux
+          path: ${{ runner.temp }}/cef-spike/out
+          if-no-files-found: warn
+
+  windows:
+    name: CEF spike (Windows x64)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      CEF_VERSION: ${{ inputs.cef-version }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Measure
+        shell: pwsh
+        run: |
+          $start = Get-Date
+          ./tools/ci/cef-spike/cef_spike_windows.ps1 -Work "$env:RUNNER_TEMP\cef-spike"
+          "Spike job time: $([int]((Get-Date) - $start).TotalSeconds) s" | Tee-Object -Append -FilePath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload the report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cef-spike-windows
+          path: ${{ runner.temp }}\cef-spike\out
+          if-no-files-found: warn
