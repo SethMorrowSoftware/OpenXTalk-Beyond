@@ -143,6 +143,19 @@ class XlsxtWebTest(unittest.TestCase):
         for call in ('xlWorkbookNew', 'xlWorkbookAddChart', 'xlReadOpen', 'xlReadCell', 'xlLastError'):
             self.assertIn(call, body.group(1), call)
 
+    def test_the_browser_check_runs_this_checkout_s_extensions(self):
+        # The check's site is made from a released install, whose
+        # Extensions are that release's: a member added since would have
+        # its table in the engine built here and no extension in the page.
+        # The job builds the pinned ones over them before it builds the site.
+        text = read('.github', 'workflows', 'web-ide.yml')
+        job = text[text.index('Fetch the suite\'s apps and relay library'):]
+        job = job[:job.index('Web IDE xTalk Suite check')]
+        build = job.find('xtalk_extensions.py build --bin "$OXT_ROOT/Toolchain" --out "$OXT_ROOT/Extensions"')
+        site = job.find('tools/web-ide/build_site.py --install "$OXT_ROOT"')
+        self.assertGreater(build, -1)
+        self.assertGreater(site, build)
+
 
 if __name__ == '__main__':
     unittest.main()
