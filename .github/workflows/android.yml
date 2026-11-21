@@ -169,9 +169,10 @@ jobs:
       - name: Install Xvfb and the runtime libraries
         if: runner.os == 'Linux'
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -180,7 +181,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # The JDK that the builder's javac and keytool come from (as
       # build-macos.yml chooses one), and the parts of the runner's Android

@@ -1322,7 +1322,8 @@ jobs:
       # package against them, so an outdated one is downloaded again, never
       # installed. A slow mirror once held this step for 22 minutes, so the
       # downloads (not the install, which must not be stopped half-way)
-      # have a time limit and are tried up to three times.
+      # have a time limit and are tried up to three times
+      # (tools/ci/apt-install.sh, as every step on a runner installs).
       - name: Compute the runtime libraries cache key
         id: apt-key
         run: |
@@ -1344,19 +1345,9 @@ jobs:
         env:
           SAVE: ${{ steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          retry() {
-            for i in 1 2 3; do
-              timeout 300 "$@" && return 0
-              echo "::warning::attempt $i failed: $*"
-              sleep 15
-            done
-            return 1
-          }
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          # (sudo does not pass the job's environment on)
-          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
-          retry "${apt[@]}" update
+          # (and public name servers too if the runner's own give no answer
+          # for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           # mplayer, Xvfb and xauth: the browser and player check; the
           # window managers (mutter: GNOME's), xdotool, xwininfo (x11-utils)
           # and ImageMagick: the browser window manager check; the Adwaita GTK 2 themes, light
@@ -1395,7 +1386,7 @@ jobs:
           if compgen -G "$HOME/apt-debs/*.deb" > /dev/null; then
             sudo cp "$HOME"/apt-debs/*.deb /var/cache/apt/archives/
           fi
-          retry "${apt[@]}" install -y --no-install-recommends --download-only "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --fetch "${pkgs[@]}"
           if [ "$SAVE" = true ]; then
             # Only what the current lists still offer
             sudo apt-get autoclean
@@ -1406,7 +1397,7 @@ jobs:
               echo "debs=true" >> "$GITHUB_OUTPUT"
             fi
           fi
-          "${apt[@]}" install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
           python3 --version
           ldd --version | sed -n 1p
 
@@ -1574,22 +1565,30 @@ jobs:
       # Valgrind, which must find no read outside memory (the engine read
       # past the cookie header and, on Windows, now and then lost a session
       # id's last character). The runner image has Apache; it and Valgrind
-      # are installed if not.
+      # are installed if not, in a step of their own: while 0.2.8-dp.2 was
+      # cut (19 Nov 2026), the runner's mirror sent them a few kilobytes a
+      # second and the install took the check's 10 minutes.
+      - name: Install Apache and Valgrind for the server check
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
+        timeout-minutes: 20
+        run: |
+          missing=()
+          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing+=(apache2); fi
+          if ! command -v valgrind > /dev/null; then missing+=(valgrind); fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            # (tried again if a package server is out for a while, its own
+            # mirror left out after a try that did not finish, and public
+            # name servers too if the runner's own give no answer for the
+            # package servers: tools/ci/apt-install.sh)
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${missing[@]}"
+          fi
+
       - name: Server check
         if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         timeout-minutes: 10
         env:
           SERVER_ZIP: ${{ steps.server.outputs.zip }}
         run: |
-          missing=""
-          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
-          if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
-          if [ -n "$missing" ]; then
-            # (public name servers too, if the runner's own give no answer for the package servers)
-            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-            sudo apt-get update -q
-            sudo apt-get install -y -q --no-install-recommends $missing
-          fi
           python3 tools/ci/server_check.py --zip "$SERVER_ZIP" --platform "linux-$ARCH" --apache yes \
             --memcheck yes --log "$RUNNER_TEMP/logs/server-check.log"
 
@@ -1863,15 +1862,16 @@ jobs:
       # the logs.
       - name: Install Playwright and Chromium
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 10
+        timeout-minutes: 20
         env:
           PLAYWRIGHT_VERSION: 1.56.0
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" chromium
 
       - name: Web standalone check
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
