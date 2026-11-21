@@ -1360,15 +1360,20 @@ jobs:
   # The dark switch check (tools/ci/dark_switch_check.py) on the portable
   # zip of the job above, from its artifact, on Windows Server 2022 (Windows
   # 10's code base) and 2025 (Windows 11's) with visual styles on: a
-  # standard button, an option menu and a combo box are drawn for the
-  # appearance Windows has, when the engine starts in it and when Windows is
-  # switched to it while the engine runs. The build's own job has no visual
-  # styles (its tour's screenshots are of the controls the engine draws
-  # itself), so the Windows theme's buttons, which people have, are only
-  # drawn here. Up to 0.2.7 they were light grey with white words after a
-  # switch to dark while the engine ran (openxtalk.org p=26224). The check
-  # reads them from the engine's snapshots and from the screen, and a screen
-  # it cannot read is a failure (--need-screen).
+  # standard button, an option menu, a combo box and a field are drawn for
+  # the appearance Windows has, when the engine starts in it and when
+  # Windows is switched to it while the engine runs; and the fields and
+  # buttons of a stack made before the dark appearance (a light background
+  # of their own, no text colour) keep the dark words LiveCode Community
+  # gave them, in both appearances (MCObject::getlegacywords). The build's
+  # own job has no visual styles (its tour's screenshots are of the controls
+  # the engine draws itself), so the Windows theme's buttons, which people
+  # have, are only drawn here. Up to 0.2.7 they were light grey with white
+  # words after a switch to dark while the engine ran (openxtalk.org
+  # p=26224); up to 0.2.8-dp.2 an older stack's white field had white words
+  # in the dark appearance. The check reads them from the engine's snapshots
+  # and from the screen, and a screen it cannot read is a failure
+  # (--need-screen).
   dark-switch:
     name: Dark switch check (${{ matrix.runner }})
     if: ${{ needs.gate.outputs.build != 'false' }}

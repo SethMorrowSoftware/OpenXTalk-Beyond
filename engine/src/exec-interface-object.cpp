@@ -2227,6 +2227,11 @@ bool MCObject::GetColor(MCExecContext& ctxt, Properties which, bool effective, M
                 MCColor t_color;
                 if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_control_prop, t_color))
                 {
+                    // OXT-Beyond: the colour the words are drawn in, black
+                    // where an old stack's field or button has a light
+                    // colour in the dark appearance (getlegacywords)
+                    if (which == P_FORE_COLOR)
+                        getlegacywords(DI_FORE, CONTEXT_TYPE_SCREEN, t_color);
                     t_found = true;
                     r_color.color = t_color;
                     r_color.name = nil;

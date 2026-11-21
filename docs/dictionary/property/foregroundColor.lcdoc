@@ -49,6 +49,15 @@ the <foregroundColor> of the <object|object's> <owner> to show through.
 Use the <effective> <keyword> to find out what color is used for the
 <object(glossary)>, even if its own <foregroundColor> is empty.
 
+When nothing from a <field(keyword)> or a <button(keyword)> up to its
+<stack> has a <foregroundColor>, its text is drawn in the text color of
+the <systemAppearance>, which is light in the dark appearance. Where
+that text would be drawn on a light <backgroundColor> of the field's or
+button's own, its <group|group's> or its <card|card's>, it is drawn
+black instead, as in the light appearance, so that a stack made before
+there was a dark appearance can still be read; the <effective>
+<foregroundColor> then reports the color the text is drawn in.
+
 The setting of the <foregroundColor> <property> has different effects,
 depending on the <object type>:
 
@@ -114,7 +123,8 @@ scrollbar (object), stack (object), field (object), image (object),
 linkColor (property), HTMLText (property), owner (property),
 showBorder (property), showName (property), showValue (property),
 linkHiliteColor (property), foregroundPattern (property),
-RTFText (property), borderColor (property), style (property)
+RTFText (property), borderColor (property), style (property),
+backgroundColor (property), systemAppearance (property)
 
 Tags: ui
 

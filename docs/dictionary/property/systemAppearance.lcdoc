@@ -36,5 +36,11 @@ Standalone Application Settings: then it follows the browser's colour scheme
 (the CSS prefers-color-scheme), and the <systemAppearanceChanged> message is
 sent when that changes.
 
+In the dark appearance the text of a field or a button with no
+<foregroundColor> is light, except on a light <backgroundColor> that the
+stack gives it, its group or its card: there it is black, as in the light
+appearance (see <foregroundColor>).
+
 References: systemAppearanceChanged (message),
-useDesktopAppearance (property)
+useDesktopAppearance (property), foregroundColor (property),
+backgroundColor (property)
