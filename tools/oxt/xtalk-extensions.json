@@ -350,6 +350,35 @@
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
       ]
+    },
+    {
+      "name": "audioxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "4c55eed6c34377506f13c260ca0e2f0ee7c2f56f",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "audioxt/src/audioxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries contain miniaudio (David Reid; public domain or MIT No Attribution), with its dr_wav, dr_flac and dr_mp3 decoders",
+      "files": [
+        {"path": "audioxt/src/audioxt.lcb", "role": "source", "sha256": "3de4fe631adf1a27996cf878493db9dd54607f701e408e29668fa278cddf4ce8", "size": 81340},
+        {"path": "audioxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "bb3a40cfb762a23b1585869203b4908e7ed9a1434780cc2e16fe339e8e0c3999", "size": 996},
+        {"path": "audioxt/src/code/x86_64-win32/audioxt.dll", "role": "library", "sha256": "3fbc7b41c1d4adb69c1289bd4cda3c894f13b79084de332569b4e2a2ab581029", "size": 730112, "imports": ["KERNEL32.dll"]},
+        {"path": "audioxt/src/code/x86-win32/audioxt.dll", "role": "library", "sha256": "09f4dc8fc11171c4109e699f6b45ff90424d49ab8b70dec0af3c7be5352c05b5", "size": 617984, "imports": ["KERNEL32.dll"]},
+        {"path": "audioxt/src/code/x86_64-linux/audioxt.so", "role": "library", "sha256": "39ac36460e09e3bdf04cc4331f1a4ab4a5aa306b8029d47ba12ee65895449b8b", "size": 848200},
+        {"path": "audioxt/src/code/x86-linux/audioxt.so", "role": "library", "sha256": "db80e24796b658a92117bd335a8ad1239631757803e619a1b00d87b0d0d7186b", "size": 899740},
+        {"path": "audioxt/src/code/arm64-linux/audioxt.so", "role": "library", "sha256": "e5700c49fce4b0b7605dc6a124f81f4aea3b19b751d3e3d87f8acdd8a2ef9494", "size": 921600},
+        {"path": "audioxt/src/code/universal-mac/audioxt.dylib", "role": "library", "sha256": "2bc59b648879d7162d3867ee6dff50d2a836f9f798ed44b0c8ed2e0a3e60cd74", "size": 1417872},
+        {"path": "audioxt/src/code/arm64-android/audioxt.so", "role": "library", "sha256": "1173c2ab0329c0d04b401754f98008f27f5a6c1af83550633f71266e0ccc3ba1", "size": 484384},
+        {"path": "audioxt/src/code/armv7-android/audioxt.so", "role": "library", "sha256": "19c315c41eb6895c2b3fd70336ed2eab2150721f6838d49c2b8e22a041526b08", "size": 374572},
+        {"path": "audioxt/src/code/x86_64-android/audioxt.so", "role": "library", "sha256": "212c40baa09b2de4205673950fb17abf4570ba85d173e314f7749adfdc49e48c", "size": 539032},
+        {"path": "audioxt/src/code/x86-android/audioxt.so", "role": "library", "sha256": "462b9bd4a257e6f6be1a17897a5658e41c649eeba605b4378bdddc3ae5601d4b", "size": 557140},
+        {"path": "audioxt/LICENSE", "role": "licence", "sha256": "4d4ba585e200a0dd5b0fdccf40ee19dd458f42c605480fcdd18477f148d1ed92", "size": 2404}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.audioxt", "folder": "org.openxtalk.library.audioxt", "main": "audioxt/src/audioxt.lcb", "probe": "auLibraryVersion()", "expect": "^audioxt ABI [0-9]+; miniaudio [0-9]"}
+      ]
     }
   ],
   "web_libraries": {
@@ -398,6 +427,15 @@
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
         "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
         "size": 1852826,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "audioxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "4c55eed6c34377506f13c260ca0e2f0ee7c2f56f",
+        "path": "audioxt/src/code/wasm32-emscripten/audioxt.a",
+        "sha256": "9f16eba0c0c35c32fba93520cce82706df814d343694a30f1e6a8ee4e4ca81d2",
+        "size": 720234,
         "emscripten": "6.0.12"
       }
     ]
