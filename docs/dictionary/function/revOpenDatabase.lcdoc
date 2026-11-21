@@ -51,6 +51,13 @@ put revOpenDatabase("sqlite", "file:/Users/johnsmith/Desktop/mydb.sqlite", "uri"
 -- enable support for uri filenames for this connection
 
 Example:
+-- SQLite's math functions and REGEXP (OXT-Beyond 0.2.8-dp.3 and later)
+local tConnectionID
+put revOpenDatabase("sqlite", "mydb.sqlite") into tConnectionID
+put revDataFromQuery(tab, return, tConnectionID, \
+      "SELECT name, round(sqrt(x * x + y * y), 2) FROM points WHERE name REGEXP '^[A-M]'")
+
+Example:
 get revOpenDatabase("mysql", "localhost", "dbName", myUsr, myPass, false, "/var/mysql.sock", 1, true)
 
 Example:
@@ -209,9 +216,30 @@ Use the <revOpenDatabase> function to start working with a database.
 > 'SSL Encryption' from among the available 'script libraries' in the
 > standalone application settings panel.
 
-The version of SQLite has been updated to 3.34.0.
+The version of SQLite is 3.54.1, from OXT-Beyond 0.2.8-dp.2 (the query
+`SELECT sqlite_version()` gives it).
 
 The SQLite RTREE and FTS5 modules are now available.
+
+SQLite's math functions and its REGEXP operator are available in every
+SQLite connection, on every platform, from OXT-Beyond 0.2.8-dp.3, as
+SQLite documents them: sqrt(), exp(), pow() and power(), mod(), pi(),
+ceil() and ceiling(), floor(), trunc(), ln(), log(), log2(), log10(),
+radians(), degrees(), and the trigonometric and hyperbolic functions.
+SQLite's log(X) is the logarithm base 10, log(B, X) the logarithm base
+B, and ln(X) the natural logarithm. `X REGEXP Y` is true when the
+regular expression Y matches the text X, anywhere in it unless Y is
+anchored with `^` or `$`; it tells upper case from lower case, and
+regexpi(Y, X) is the same match ignoring case. The regular expressions
+are those of SQLite's regexp extension: `.`, `*`, `+`, `?`, `{p,q}`,
+groups, `|`, bracket expressions such as `[a-z]`, and `\d`, `\w`, `\s`,
+`\b` and their opposites, with no back-references. Before 0.2.8-dp.3 a
+query that used one of them failed with "no such function". An
+extension that a stack loads (the "extensions" option) and that defines
+functions with these names replaces them in that connection, as before,
+so a stack that brings its own keeps them. A database whose views,
+indexes or triggers use them needs them wherever it is opened: LiveCode,
+and OXT-Beyond before 0.2.8-dp.3, do not have them.
 
 SQLite loadable extensions are now supported. To utilize loadable
 extensions, the 'extensions' option must be passed to the

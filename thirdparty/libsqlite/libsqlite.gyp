@@ -32,6 +32,11 @@
 							'src',
 						],
 						
+						# OXT-Beyond: not SQLITE_ENABLE_MATH_FUNCTIONS. The
+						# driver adds SQLite's math functions to each
+						# connection instead, where an extension that a
+						# stack loads can still replace them
+						# (src/sqlitefunctions.c says why)
 						'defines':
 						[
 							'SQLITE_ENABLE_FTS3',
@@ -42,11 +47,14 @@
 							'SQLITE_ENABLE_JSON1',
 						],
 						
+						# (ext/misc/regexp.c is not listed: it is compiled
+						# inside src/sqlitefunctions.c, which includes it)
 						'sources':
 						[
 							'include/sqlite3.h',
 							'include/sqlite3ext.h',
 							'include/sqlitedecode.h',
+							'include/sqlitefunctions.h',
 							'include/sqlitedataset/dataset.h',
 							'include/sqlitedataset/qry_dat.h',
 							'include/sqlitedataset/sqlitedataset.h',
@@ -57,6 +65,7 @@
 							'src/sqlite3.c',
 							'src/sqlitedataset.cpp',
 							'src/sqlitedecode.cpp',
+							'src/sqlitefunctions.c',
 						],
 						
 						'direct_dependent_settings':
