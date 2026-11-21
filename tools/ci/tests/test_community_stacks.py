@@ -485,7 +485,14 @@ class Actions(unittest.TestCase):
         # opened to look at): the dialog says both, Open It to Look stays
         # the last button (Return's), and Open and Run is the one before
         self.assertIn('case "Open and Run"', copy)
-        self.assertIn('dispatch "revCommunityStacksOpenToRun" to stack tFile with tResult', copy)
+        # sent, so that no try waits under the copy's opening scripts: the
+        # window's Get a Copy calls this inside one, and while a try waits
+        # the engine shows no error (Codex review of #617)
+        self.assertIn('send "revIDECommunityStacksRunCopy tResult, tFileName" to me in 0 milliseconds', copy)
+        self.assertNotIn('revCommunityStacksOpenToRun', copy)
+        run = code(handler(self.text, 'revIDECommunityStacksRunCopy'))
+        self.assertIn('dispatch "revCommunityStacksOpenToRun" to stack __communityStacksFile() with pFile', run)
+        self.assertNotIn('try', run)
         self.assertIn('shows its cards bare', copy)
         self.assertIn('"Show the Folder" & return & "Done" & return & "Open and Run" & return & "Open It to Look" into tSpec["buttons"]', copy)
         self.assertIn('with "Show the Folder" or "Done" or "Open and Run" or "Open It to Look"', copy)
@@ -528,7 +535,7 @@ class Tests(unittest.TestCase):
                      'TestParseCleansWhatItKeeps', 'TestLoad', 'TestLoadOnlyFromHttps', 'TestGet',
                      'TestGetKeepsOnlyWhatTheListNames', 'TestOpenToRead', 'TestOpenToReadRefusesTheIDEsNames',
                      'TestOpenToReadLeavesAnOpenStackAlone', 'TestOpenToRun',
-                     'TestOpenToRunRefusesWhatOpenToReadRefuses'):
+                     'TestOpenToRunLetsTheStacksErrorsThrough', 'TestOpenToRunRefusesWhatOpenToReadRefuses'):
             self.assertIn('on %s\n' % name, tests)
 
 

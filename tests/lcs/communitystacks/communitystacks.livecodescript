@@ -672,6 +672,37 @@ on TestOpenToRun
    TestAssert "a file that is not there", tResult begins with "error:"
 end TestOpenToRun
 
+-- An error of the copy's own opening scripts is not caught on the way:
+-- it reaches whoever opened it, as an error of any stack's does, so that
+-- the IDE shows it (Codex review of #617)
+on TestOpenToRunLetsTheStacksErrorsThrough
+   local tFile, tResult, tError, tThrown, tSaved
+   put sFolder & "/Throws.oxtstack" into tFile
+   put the defaultStack into tSaved
+   reset the templateStack
+   lock messages
+   create invisible stack "TestCommunityThrows"
+   set the script of stack "TestCommunityThrows" to "on openStack" & return & "throw " & quote & "the copy's own error" & quote & return & "end openStack"
+   save stack "TestCommunityThrows" as tFile
+   delete stack "TestCommunityThrows"
+   unlock messages
+   set the defaultStack to tSaved
+   put empty into tThrown
+   try
+      put __OpenToRun(tFile) into tResult
+   catch tError
+      put tError into tThrown
+   end try
+   TestAssert "the copy's error reaches the caller", tThrown contains "the copy's own error"
+   TestAssert "and the copy is open", there is a stack "TestCommunityThrows" and the mode of stack "TestCommunityThrows" is not 0
+   lock messages
+   if there is a stack "TestCommunityThrows" then
+      close stack "TestCommunityThrows"
+      delete stack "TestCommunityThrows"
+   end if
+   unlock messages
+end TestOpenToRunLetsTheStacksErrorsThrough
+
 -- What Open It to Look refuses, Open and Run refuses too, before any of
 -- the stack runs
 on TestOpenToRunRefusesWhatOpenToReadRefuses

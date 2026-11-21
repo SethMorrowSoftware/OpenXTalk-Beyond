@@ -8769,11 +8769,8 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
             exit repeat
             break
          case "Open and Run"
-            -- (not caught: an error of the stack's own as it opens is
-            -- shown as any stack's is)
-            dispatch "revCommunityStacksOpenToRun" to stack tFile with tResult
-            put the result into tOpened
-            __communityStacksOpened tOpened, tResult, tFileName
+            -- (sent, not called: see revIDECommunityStacksRunCopy)
+            send "revIDECommunityStacksRunCopy tResult, tFileName" to me in 0 milliseconds
             exit repeat
             break
          default
@@ -8782,6 +8779,39 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
    end repeat
    return tResult
 end revIDECommunityStacksGetCopy
+
+/*
+Opens a copy of a stack of the Community Stacks to run it: Open and Run in
+the dialog after Get a Copy (revIDECommunityStacksGetCopy).
+
+pFile (string): The path of the copy's main file
+
+pFileName (string): Its name, as the dialog showed it
+
+Description:
+The copy opens as File > Open opens a stack, with the browse tool and its
+opening scripts running, unless it is one the IDE would take for a part
+of itself (revCommunityStacksOpenToRun says why, and the user is told).
+revIDECommunityStacksGetCopy sends this, and does not call it: what
+called that (the Community Stacks window's Get a Copy) waits with a try
+around it, and while a try is waiting the engine shows no error. So an
+error of the copy's own opening scripts would be lost there; here nothing
+waits under it, and the IDE shows it as it shows any stack's (Codex
+review of #617).
+
+References: revIDECommunityStacksGetCopy (command)
+
+Tags: ide
+*/
+command revIDECommunityStacksRunCopy pFile, pFileName
+   local tOpened
+   if revEnvironmentIsWeb() or pFile is empty then
+      exit revIDECommunityStacksRunCopy
+   end if
+   dispatch "revCommunityStacksOpenToRun" to stack __communityStacksFile() with pFile
+   put the result into tOpened
+   __communityStacksOpened tOpened, pFile, pFileName
+end revIDECommunityStacksRunCopy
 
 -- After a copy was opened (pOpened is empty), or was not (pOpened is
 -- "error: " and why): the copy's file pFile among the recent stacks, or
