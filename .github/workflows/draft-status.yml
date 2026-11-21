@@ -54,7 +54,11 @@ concurrency:
 jobs:
   status:
     name: Platform builds status
-    runs-on: ubuntu-24.04
+    # Seth's Linux PC takes this short job while the repository variable
+    # PC_RUNNERS_LINUX is 'on', for this repository's own pushes and branches
+    # only; otherwise, and for every fork, GitHub's ubuntu-24.04
+    # (BUILDING.md, "Continuous integration"; test_pc_runners.py holds it)
+    runs-on: ${{ (vars.PC_RUNNERS_LINUX == 'on' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON('["self-hosted","Linux","X64","seth-pc"]')) || 'ubuntu-24.04' }}
     timeout-minutes: 5
     permissions:
       statuses: write
