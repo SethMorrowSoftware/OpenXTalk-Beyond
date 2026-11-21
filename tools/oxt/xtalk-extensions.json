@@ -321,6 +321,35 @@
         {"kind": "lcs", "id": "curlHelpers", "folder": "curlHelpers", "stack": "curlHelpers", "main": "curlxt/src/curl-helpers.livecodescript", "title": "curlxt helpers", "author": "Seth Morrow Software", "requires": ["org.openxtalk.library.curl"], "probe": "cuWaitingCount()", "expect": "^0$"},
         {"kind": "lcs", "id": "tsNetCompat", "folder": "tsNetCompat", "stack": "tsNetCompat", "main": "curlxt/src/tsnet.livecodescript", "title": "tsNet calls (curlxt)", "author": "Seth Morrow Software", "requires": ["curlHelpers"], "probe": "tsNetVersion()", "expect": "^1\\.4\\.5$", "comment": "the tsNet calls by name, written from tsNet's public dictionary over curlxt; libURL is untouched"}
       ]
+    },
+    {
+      "name": "box3dxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "f2ec175dda8e8efd481ea917d490a1932688cc90",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "box3dxt/src/box3dxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link Box3D (MIT, Erin Catto)",
+      "files": [
+        {"path": "box3dxt/src/box3dxt.lcb", "role": "source", "sha256": "55a4dc311ccc9adb1f84f5d1f152563ea93a58d5f79216902eda32d152b4b05a", "size": 248446},
+        {"path": "box3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "86e1d9dea844d02ab0bd0a2091aa91227ff420efc3a922c3c671e990d671b75d", "size": 996},
+        {"path": "box3dxt/src/code/x86_64-win32/box3dxt.dll", "role": "library", "sha256": "257e576f116954f9920383e8758c13726ea33d14adce2d3c068227a8d3d8fbbc", "size": 1187328, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86-win32/box3dxt.dll", "role": "library", "sha256": "aca922d0e9dd400f97b7d9b07a4eab4a15b4e986760d3de6ab14538d7f92062c", "size": 1042432, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86_64-linux/box3dxt.so", "role": "library", "sha256": "de9b39b73784a48b4d47ea53c366332b06f3bdfbcc9c1c394f9bb7b89260c364", "size": 1436320},
+        {"path": "box3dxt/src/code/x86-linux/box3dxt.so", "role": "library", "sha256": "b8e903665721eb75058d709e71e479e3eaf72efeb00a71fd0833026ed4194601", "size": 1705700},
+        {"path": "box3dxt/src/code/arm64-linux/box3dxt.so", "role": "library", "sha256": "c41f19e5d2eb8e0c83ab4cf11f7c6e410c87abe99f5938233d291cd9a0668434", "size": 1182368},
+        {"path": "box3dxt/src/code/universal-mac/box3dxt.dylib", "role": "library", "sha256": "54f60a722b7c98bfda5164671ee92250bf52c41cb7744fcf9bf2556dffda4ca7", "size": 2242544},
+        {"path": "box3dxt/src/code/arm64-android/box3dxt.so", "role": "library", "sha256": "b1bea3418af357182298e3e7280d19ffcf478dec4008cb984b12b41a52832370", "size": 839416},
+        {"path": "box3dxt/src/code/armv7-android/box3dxt.so", "role": "library", "sha256": "ff69705fd4f810a34cfaf4eb73b9239a37cab70305339c634e182a844d7b6ff5", "size": 738840},
+        {"path": "box3dxt/src/code/x86_64-android/box3dxt.so", "role": "library", "sha256": "79db71738dd37c00cdf4feb74505bf77546d51c5ed3da0c350d1f19e722d8c70", "size": 1049432},
+        {"path": "box3dxt/src/code/x86-android/box3dxt.so", "role": "library", "sha256": "49d70d345104dbb18716a69691de52eaf114bec5fe39d2e63762035543be0fdb", "size": 1166024},
+        {"path": "box3dxt/LICENSE", "role": "licence", "sha256": "1cb3cec0f02fcb94ae9dd37f0984e29f5ac5336993f39dd680eb0cda0d725956", "size": 2307}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
+      ]
     }
   ],
   "web_libraries": {
@@ -360,6 +389,15 @@
         "path": "datachannelxt/src/code/wasm32-emscripten/datachannelxt.a",
         "sha256": "c9e6cda8ecf7b7dbabac92039c7f823ae597722674b8bf148693e0a2021d9cbc",
         "size": 24142,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "box3dxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "f2ec175dda8e8efd481ea917d490a1932688cc90",
+        "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
+        "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
+        "size": 1852826,
         "emscripten": "6.0.12"
       }
     ]
