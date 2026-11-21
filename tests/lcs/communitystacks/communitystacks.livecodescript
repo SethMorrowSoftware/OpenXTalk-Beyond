@@ -140,6 +140,11 @@ private function __Open pFile
    return the result
 end __Open
 
+private function __OpenToRun pFile
+   dispatch "revCommunityStacksOpenToRun" to stack sLib with pFile
+   return the result
+end __OpenToRun
+
 --------------------------------------------------------------------------------
 -- A gallery made for the test
 
@@ -643,6 +648,63 @@ on TestOpenToReadLeavesAnOpenStackAlone
    TestAssert "a copy named as a stack that is open is not opened over it", tResult begins with "error:"
    TestAssert "the user's stack is as it was", the uMine of stack "TestCommunitySample" is "the user's own"
 end TestOpenToReadLeavesAnOpenStackAlone
+
+-- Open and Run, in the dialog after Get a Copy (openxtalk.org p=26654: a
+-- stack that draws its screen as it opens, opened to look at, shows its
+-- cards bare): the copy opens as File > Open opens a stack, its opening
+-- scripts running, with the browse tool
+on TestOpenToRun
+   local tFile, tResult
+   put sFolder & "/Run Stack.oxtstack" into tFile
+   put __StackBytes("TestCommunitySample") into url ("binfile:" & tFile)
+   put empty into gTestCommunityStacksRan
+   choose pointer tool
+   put __OpenToRun(tFile) into tResult
+   TestAssert "it opens", tResult is empty and there is a stack "TestCommunitySample" and the mode of stack "TestCommunitySample" is not 0
+   TestAssert "from the copy's file", the effective filename of stack "TestCommunitySample" is tFile
+   TestAssert "its opening scripts ran", gTestCommunityStacksRan is true
+   TestAssert "with the browse tool", the tool is "browse tool"
+   lock messages
+   close stack "TestCommunitySample"
+   delete stack "TestCommunitySample"
+   unlock messages
+   put __OpenToRun(sFolder & "/no-such-file.oxtstack") into tResult
+   TestAssert "a file that is not there", tResult begins with "error:"
+end TestOpenToRun
+
+-- What Open It to Look refuses, Open and Run refuses too, before any of
+-- the stack runs
+on TestOpenToRunRefusesWhatOpenToReadRefuses
+   local tFile, tResult, tSaved
+   put sFolder & "/Named-run.oxtstack" into tFile
+   put __StackBytes("revTestCommunityNamed") into url ("binfile:" & tFile)
+   put empty into gTestCommunityStacksRan
+   put __OpenToRun(tFile) into tResult
+   TestAssert "a stack with a name the IDE keeps is not opened", tResult begins with "error:" and tResult contains "revTestCommunityNamed"
+   TestAssert "and is not left in memory", there is no stack "revTestCommunityNamed"
+   TestAssert "none of it ran", gTestCommunityStacksRan is empty
+
+   put sFolder & "/Holds-run.oxtstack" into tFile
+   put __StackBytes("TestCommunityHolder", "revTestCommunityInside") into url ("binfile:" & tFile)
+   put __OpenToRun(tFile) into tResult
+   TestAssert "a stack that holds one with a name the IDE keeps is not opened", tResult begins with "error:" and tResult contains "revTestCommunityInside"
+   TestAssert "and neither is left in memory", there is no stack "TestCommunityHolder" and there is no stack "revTestCommunityInside"
+   TestAssert "none of that ran either", gTestCommunityStacksRan is empty
+
+   -- and a copy named as a stack of the user's that is open
+   put sFolder & "/Twin-run.oxtstack" into tFile
+   put __StackBytes("TestCommunitySample") into url ("binfile:" & tFile)
+   put the defaultStack into tSaved
+   lock messages
+   create invisible stack "TestCommunitySample"
+   set the uMine of stack "TestCommunitySample" to "the user's own"
+   unlock messages
+   set the defaultStack to tSaved
+   put __OpenToRun(tFile) into tResult
+   TestAssert "a copy named as a stack that is open is not opened over it", tResult begins with "error:"
+   TestAssert "the user's stack is as it was", the uMine of stack "TestCommunitySample" is "the user's own"
+   TestAssert "and none of the copy ran", gTestCommunityStacksRan is empty
+end TestOpenToRunRefusesWhatOpenToReadRefuses
 
 --------------------------------------------------------------------------------
 -- Script libraries: libraries.json, signed as index.json is, and each
