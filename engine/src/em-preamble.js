@@ -34,6 +34,14 @@ if (!Module['preRun']) {
 	Module['preRun'] = [];
 }
 
+// OXT-Beyond: where the engine's script is, for what loads the engine
+// again (a web worker of the Background Workers library), unless the page
+// says. Only while the script runs does the page know which it is.
+if (typeof document !== 'undefined' && document.currentScript &&
+    document.currentScript.src && !Module['livecodeEngineURL']) {
+	Module['livecodeEngineURL'] = document.currentScript.src;
+}
+
 // ----------------------------------------------------------------
 // Download standalone capsule
 // ----------------------------------------------------------------

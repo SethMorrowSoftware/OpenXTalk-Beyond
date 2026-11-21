@@ -26,7 +26,9 @@ mergeInto(LibraryManager.library, {
         libURLStack: null,
 
         init: function() {
-            this.libURLStack = document.liveCode.findStackWithName('revliburl');
+            // OXT-Beyond: in a web worker the engine's liveCode is the
+            // worker's (em-system.js)
+            this.libURLStack = (typeof document !== 'undefined' ? document : self).liveCode.findStackWithName('revliburl');
             if (typeof this.libURLStack.ulExtXMLHTTPCallback != 'function') {
                 return 'Unable to find callback handler.'
             }

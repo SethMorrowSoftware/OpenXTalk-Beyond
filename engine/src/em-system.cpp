@@ -28,6 +28,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "em-filehandle.h"
 #include "em-util.h"
 #include "em-dc.h"
+#include "em-async.h"
 
 #include "filedefs.h"
 #include "objdefs.h"
@@ -1386,11 +1387,38 @@ MCEmscriptenSystem::KillAll()
 	/* Successfully do nothing */
 }
 
+/* OXT-Beyond: when Poll() last gave the browser a turn */
+static real64_t s_poll_turn_time = 0.0;
+
 Boolean
 MCEmscriptenSystem::Poll(real64_t p_delay,
                          int p_fd)
 {
-	return false;
+	/* OXT-Beyond: only the wait of an engine without a user interface
+	 * (MCUIDC::wait) polls, and on the web that is the engine of a web
+	 * worker (em-dc-mainloop.cpp). It returned false at once, so such a
+	 * wait went round and round, and gave the worker no turn to hear the
+	 * page. It gives the browser its turn now, for the time that it is
+	 * asked or until the page's message resumes the engine (true), as
+	 * the screen's wait does (em-dc.cpp): a wait of no time only when a
+	 * frame has gone by since the last turn, so that a run of messages
+	 * is not slowed by a turn for each. It cannot while JavaScript has
+	 * called into the engine, and then ends a wait at once, as the
+	 * screen's wait does there. */
+	if (!MCEmscriptenAsyncCanYield())
+	{
+		return True;
+	}
+
+	if (!(p_delay > 0.0) &&
+	    GetCurrentTime() - s_poll_turn_time < 1.0 / 60.0)
+	{
+		return False;
+	}
+
+	int t_event = MCEmscriptenAsyncYield(MCMax(p_delay, 0.0));
+	s_poll_turn_time = GetCurrentTime();
+	return t_event != 0;
 }
 
 Boolean

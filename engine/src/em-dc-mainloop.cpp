@@ -36,6 +36,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "eventqueue.h"
 
 #include <arpa/inet.h>
+#include <emscripten.h>
 
 /* ================================================================ */
 
@@ -140,6 +141,15 @@ X_init(const X_init_options& p_options)
 
 	/* ---------- Set up global variables */
 	X_clear_globals();
+
+	/* OXT-Beyond: an engine that a web worker loads (the Background
+	 * Workers library's, in a browser) has no page to draw in: it starts
+	 * without a user interface, as "-ui" starts the desktop's. A page's
+	 * engine is never in a worker. */
+	MCnoui = EM_ASM_INT({
+		return (typeof WorkerGlobalScope !== 'undefined' &&
+		        self instanceof WorkerGlobalScope) ? 1 : 0;
+	}) != 0;
 
 	MCswapbytes = MCEmscriptenIsLittleEndian();
 	MCtruemcstring = MCtruestring;

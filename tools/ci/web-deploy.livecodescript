@@ -59,8 +59,19 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- names its own, which tells the test library that it runs in a
 -- standalone.
 --
+-- And 1 makes the stack of tools/ci/web_workers_check.py (OXT_WEB_KIND
+-- "workers"): the script it is given in a stack without controls, named
+-- WorkersProbe, with the script libraries that OXT_WEB_LIBRARIES names,
+-- loaded as the builder loads those of the Inclusions pane
+-- (revSBUpdateDeployParams in ide-support/revsblibrary.livecodescript):
+-- each an auxiliary stack after the IDE's initialisation library, and the
+-- startup script puts that library in the back and loads each with
+-- revInternal__LoadLibrary.
+--
 -- Environment:
---    OXT_WEB_KIND      1: "tests" for web_tests.py's stack, else the probe
+--    OXT_WEB_KIND      1: "tests" for web_tests.py's stack, "workers" for
+--                      web_workers_check.py's, else the probe
+--    OXT_WEB_LIBRARIES 1, "workers": the script libraries' files, one a line
 --    OXT_WEB_PROBE     the probe's script (tools/ci/web-probe.livecodescript),
 --                      or the test runner's
 --    OXT_WEB_STACK     where to save the stack file
@@ -203,18 +214,68 @@ private command makeTestsStack
    set the defaultStack to "StandaloneTestRunnerMainstack"
 end makeTestsStack
 
+-- The worker probe's stack (see the header)
+private command makeWorkersStack
+   local tScript
+   put fileText($OXT_WEB_PROBE) into tScript
+   if line 1 of tScript begins with "script " then
+      delete line 1 of tScript
+   end if
+   create stack "WorkersProbe"
+   set the script of stack "WorkersProbe" to tScript
+   set the defaultStack to "WorkersProbe"
+end makeWorkersStack
+
+-- The IDE's initialisation library, which has revInternal__LoadLibrary
+private function initialisationLibrary
+   local tFile
+   put the effective filename of me into tFile
+   set the itemDelimiter to slash
+   -- (tools/ci/web-deploy.livecodescript)
+   delete item -3 to -1 of tFile
+   return tFile & "/ide/Toolset/libraries/revinitialisationlibrary.livecodescript"
+end initialisationLibrary
+
+-- The stack name of a script library's file: its first line is
+-- script "name"
+private function libraryName pFile
+   local tLine
+   put line 1 of fileText(pFile) into tLine
+   set the itemDelimiter to quote
+   if word 1 of tLine is not "script" or the number of items of tLine < 2 then
+      throw pFile & " is not a script-only stack"
+   end if
+   return item 2 of tLine
+end libraryName
+
+-- What the builder writes in the startup script for the script libraries
+-- (see the header), and the stack files it adds for them
+private function librariesStartup @rStackFiles
+   local tLines, tFile
+   put initialisationLibrary() into rStackFiles
+   put "insert the script of stack" && quote & "revInitialisationLibrary" & quote && "into back" into tLines
+   repeat for each line tFile in $OXT_WEB_LIBRARIES
+      if tFile is empty then
+         next repeat
+      end if
+      put return & tFile after rStackFiles
+      put return & "revInternal__LoadLibrary" && quote & libraryName(tFile) & quote after tLines
+   end repeat
+   return tLines
+end librariesStartup
+
 ----------------------------------------------------------------
 -- 1. Without the IDE
 ----------------------------------------------------------------
 
--- The startup script, as getStartupScript in the builder makes it
-private function startupScript
+-- The startup script, as getStartupScript in the builder makes it, with
+-- pGenerated where the builder puts what it generates for the libraries
+-- and extensions of the standalone (the probe and the tests have none)
+private function startupScript pGenerated
    local tScript
    put fileText($OXT_WEB_TEMPLATE) into tScript
    replace "@ENGINE_VERSION@" with $OXT_WEB_VERSION in tScript
-   -- the script that the builder generates for the libraries and
-   -- extensions of the standalone; the probe has none
-   replace "@STARTUP_SCRIPT@" with empty in tScript
+   replace "@STARTUP_SCRIPT@" with pGenerated in tScript
    return tScript
 end startupScript
 
@@ -229,6 +290,9 @@ on startup
       if $OXT_WEB_KIND is "tests" then
          makeTestsStack
          put "StandaloneTestRunnerMainstack" into tStack
+      else if $OXT_WEB_KIND is "workers" then
+         makeWorkersStack
+         put "WorkersProbe" into tStack
       else
          makeProbeStack
          put "WebProbe" into tStack
@@ -237,7 +301,13 @@ on startup
       if the result is not empty then
          throw "cannot save the stack as " & $OXT_WEB_STACK & ": " & the result
       end if
-      put startupScript() into tParams["startup_script"]
+      if $OXT_WEB_KIND is "workers" then
+         local tStackFiles
+         put startupScript(librariesStartup(tStackFiles)) into tParams["startup_script"]
+         put tStackFiles into tParams["auxiliary_stackfiles"]
+      else
+         put startupScript(empty) into tParams["startup_script"]
+      end if
       put $OXT_WEB_STACK into tParams["stackfile"]
       put $OXT_WEB_OUTPUT into tParams["output"]
       -- as the builder: the deploy command needs the key
@@ -245,7 +315,7 @@ on startup
       -- the externals the standalone loads, as the builder names those of
       -- the web engine's that a stack uses: the probe's use them all
       -- (probeExternals and probeSpeech), the tests none
-      if $OXT_WEB_KIND is "tests" then
+      if $OXT_WEB_KIND is "tests" or $OXT_WEB_KIND is "workers" then
          put empty into tParams["externals"]
       else
          put "revxml" & return & "revzip" & return & "revdb" & return & "revspeech" into tParams["externals"]

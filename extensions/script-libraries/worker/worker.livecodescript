@@ -69,6 +69,35 @@ anything to a text stream:
 On Linux the engine's output is held back when it is a pipe until there is
 a lot of it, so the worker writes to /dev/stdout as a file there, which the
 engine writes at once.
+
+IN A BROWSER. A web standalone can start no process, so there a worker is a
+web worker of the page (a thread of the browser's) that loads the engine
+again, with the standalone's files. The page's half of this library makes
+it with JavaScript of its own (__workerWebInstall): the web worker begins
+with a short script that loads the engine, and the engine, which finds no
+page to draw in there, starts without a user interface, as "-ui" starts it
+on the desktop. The worker's engine is then taken over as a built
+application's is on the desktop: this library's extensionInitialize finds
+that it is in such a worker (the short script made oxtWorkerBridge), and
+its "startup" runs the worker (__workerWebMain).
+
+The two say the same things as on the desktop, arrays in base64, as
+messages between the page and the worker (postMessage). The page posts each
+request's base64, which the worker's script hands to its engine through
+this library's javascriptHandlers (__workerWebRequest); the worker waits
+for the next with "wait for messages". The worker posts what it says as
+the lines that it writes on the desktop ("OXT-WORKER " and the base64),
+which the page's JavaScript hands to this library through its
+javascriptHandlers (__workerWebEvent), as the Background Jobs library
+hands it a process's output; then its end. Each side's JavaScript calls
+its engine a little after the event (setTimeout), so that no script runs
+inside one of the browser's event handlers.
+
+A worker in a browser has a file system of its own: the standalone's
+files, and none that the page's engine has written (the home folder that
+the browser keeps for the site is not loaded there). In the web IDE there
+is no standalone for a worker to load: a worker started there fails with
+"not supported", as on Android.
 */
 
 on extensionInitialize
@@ -153,14 +182,22 @@ made a call. Handle the ones that are wanted:
   back.
 
 Workers need the Background Jobs library, which starts their processes; a
-standalone must include both. They are for the desktop: on Android and in
-a browser no process can be started, so a worker started there ends at
-once (`workerStopped` with "failed"), and the calls made to it before
-that end with the error "worker failed: not supported". In a standalone
-the worker is the application itself, started again without a window;
-this library takes that process over before the application's own
-`startup` handler runs, so it must be one of the application's
-inclusions, not a stack loaded later.
+standalone must include both. In a standalone the worker is the
+application itself, started again without a window; this library takes
+that process over before the application's own `startup` handler runs,
+so it must be one of the application's inclusions, not a stack loaded
+later.
+
+In a browser a web standalone can start no process, so there a worker is a
+web worker of the page, which loads the engine again with the standalone's
+files (the Background Jobs library is not needed there). It has a file
+system of its own, without the files that the stack has written: what a
+handler needs is given to it as parameters. Each is a whole engine, with
+as much of the browser's memory as the page's engine takes, so start a few
+workers, not many. On Android no process can be started, so a worker
+started there ends at once (`workerStopped` with "failed"), and the calls
+made to it before that end with the error "worker failed: not supported";
+so does a worker started in the web IDE.
 
 Example:
 local sWorker
@@ -194,6 +231,10 @@ constant kWorkerErrorLimit = 4000
 -- On Windows, the largest request (encoded with arrayEncode) that is sent
 -- through a worker's input; a larger one is sent as a file (see above)
 constant kWorkerInlineLimit = 32768
+
+-- This library's stack, as the browser's JavaScript finds it
+-- (document.liveCode.findStackWithName)
+constant kWorkerLibrary = "com.livecode.library.worker"
 
 -- IN THE STACK THAT STARTS WORKERS
 -- The workers that have not ended, by number (which is the number of the
@@ -232,6 +273,18 @@ local sReplyFile
 -- The file the worker reads its input from instead of stdin, where it can
 local sInputFile
 
+-- IN A BROWSER
+-- The page's half: the number of the last web worker started
+local sWebLastJob
+-- The worker's half: whether this engine is a web worker that a page
+-- started (empty until it is asked), and the requests that the page has
+-- sent and the worker has not yet run, by number, with the first and last
+-- numbers in use
+local sInBrowserWorker
+local sWebRequests
+local sWebFirst
+local sWebLast
+
 --------------------------------------------------------------------------------
 --
 -- STARTING AND STOPPING
@@ -255,7 +308,9 @@ otherwise stop the stack while they run.
 can be made straight away with <workerCall>: they wait in a queue until
 the worker is ready. Starting a worker takes about as long as starting a
 small application, so start it once and keep it, rather than one for each
-call.
+call. In a browser a worker is a web worker of the page, which starts the
+engine again from the files that the page has loaded (see the library's
+description).
 
 The script is the worker's own copy: changing the object it came from
 later changes nothing in the worker. If the script does not compile, every
@@ -283,9 +338,29 @@ function workerStart pScript
       throw "workerStart: a worker cannot start workers"
    end if
 
-   local tOwner
+   local tOwner, tJob, tWeb
    put __workerCaller() into tOwner
 
+   if the platform is "HTML5" then
+      put __workerWebStart() into tJob
+      put true into tWeb
+   else
+      put __workerProcessStart() into tJob
+      put false into tWeb
+   end if
+
+   put tOwner into sWorkers[tJob]["owner"]
+   put empty into sWorkers[tJob]["buffer"]
+   put tWeb into sWorkers[tJob]["web"]
+
+   local tRequest
+   put __workerScriptText(pScript) into tRequest["script"]
+   __workerSay tJob, tRequest
+   return tJob
+end workerStart
+
+-- A worker's process (on the desktop): the number of its job
+private function __workerProcessStart
    -- The engine that is running, which the address names after the host
    local tEngine
    set the itemDelimiter to ":"
@@ -325,15 +400,8 @@ function workerStart pScript
    if tError is not empty then
       throw tError
    end if
-
-   put tOwner into sWorkers[tJob]["owner"]
-   put empty into sWorkers[tJob]["buffer"]
-
-   local tRequest
-   put __workerScriptText(pScript) into tRequest["script"]
-   __workerSay tJob, tRequest
    return tJob
-end workerStart
+end __workerProcessStart
 
 /**
 Summary: Stops a worker, and the call it is running.
@@ -372,7 +440,11 @@ command workerStop pWorker
    end if
    put true into sWorkers[pWorker]["stopping"]
    -- Its last event tidies up after it (__workerEnded)
-   asyncCancel pWorker
+   if sWorkers[pWorker]["web"] is true then
+      get __workerJS("__oxtWorkers.stop(" & pWorker & ");")
+   else
+      asyncCancel pWorker
+   end if
    return empty
 end workerStop
 
@@ -628,6 +700,11 @@ end __workerEncode
 -- a file, and the line "file <path>"
 private command __workerSay pWorker, pRequest
    local tData, tFile
+   -- To a web worker: the base64, as a message of its own
+   if sWorkers[pWorker]["web"] is true then
+      get __workerJS("__oxtWorkers.say(" & pWorker & ",'" & __workerEncode(pRequest) & "');")
+      exit __workerSay
+   end if
    if sInlineLimit is empty and the platform is "Win32" then
       put kWorkerInlineLimit into sInlineLimit
    end if
@@ -727,6 +804,204 @@ on __workerEvent pJob, pEvent, pData, pCode
          break
    end switch
 end __workerEvent
+
+--------------------------------------------------------------------------------
+--
+-- THE PAGE'S SIDE, IN A BROWSER
+--
+
+-- A web worker of the page: the number of the new worker. Its events come
+-- to __workerWebEvent, as a process's come to __workerEvent.
+private function __workerWebStart
+   local tJob, tStarted
+   __workerWebInstall
+   if sWebLastJob is empty then
+      put 0 into sWebLastJob
+   end if
+   add 1 to sWebLastJob
+   put sWebLastJob into tJob
+   if the environment is "development" then
+      -- The web IDE: there is no standalone for a worker to load
+      put __workerJS("__oxtWorkers.fail(" & tJob & ",'not supported'); return 'no';") into tStarted
+   else
+      put __workerJS("return __oxtWorkers.start(" & tJob & ");") into tStarted
+   end if
+   -- (The JavaScript says "no" when it has sent the worker's failure
+   -- itself. Anything else, it did not run.)
+   if tStarted is not "yes" and tStarted is not "no" then
+      __workerQueue the long id of me, "__workerEvent", tJob, "failed", "not supported"
+   end if
+   return tJob
+end __workerWebStart
+
+-- An event of a web worker, from the page's JavaScript: "output" (what the
+-- worker said, as the lines a process writes), "error" (an error of the
+-- worker's), and then one of "exit", "failed" and "cancelled", as a
+-- process's events are
+on __workerWebEvent pJob, pEvent, pData
+   if pJob is empty or sWorkers[pJob]["web"] is not true then
+      exit __workerWebEvent
+   end if
+   __workerEvent pJob, pEvent, pData
+end __workerWebEvent
+
+-- JavaScript's result, as text (empty after an error). Only in a browser:
+-- on a Mac, "do ... as JavaScript" runs AppleScript's JavaScript.
+private function __workerJS pScript
+   local tResult, tError
+   try
+      do "(function(){" & pScript & "})()" as "JavaScript"
+      put the result into tResult
+   catch tError
+      put empty into tResult
+   end try
+   return tResult
+end __workerJS
+
+-- The page's JavaScript for web workers, window.__oxtWorkers, made once
+private command __workerWebInstall
+   if __workerJS("return window.__oxtWorkers ? 'yes' : 'no';") is "yes" then
+      exit __workerWebInstall
+   end if
+   -- The handler that the JavaScript calls
+   set the cJavascriptHandlers of me to "__workerWebEvent"
+   get __workerJS(__workerWebScript())
+end __workerWebInstall
+
+-- One line a statement: a single "put" of every line joined with "&" is an
+-- expression as deep as the script is long, which used more of the
+-- thread's stack than an iPhone gives a page (the Mobile Web library
+-- found it)
+private function __workerWebScript
+   local tScript
+   put "var lib = '" & kWorkerLibrary & "';" & return after tScript
+   put "var ww = {workers: {}, ready: {}, urls: {}, queue: [], timer: null};" & return after tScript
+   -- To the library, a little after the browser's event
+   put "function call(job, ev, data) {" & return after tScript
+   put "  ww.queue.push([job, ev, data]);" & return after tScript
+   put "  if (ww.timer === null) ww.timer = setTimeout(flush, 0);" & return after tScript
+   put "}" & return after tScript
+   put "function flush() {" & return after tScript
+   put "  ww.timer = null;" & return after tScript
+   put "  var q = ww.queue; ww.queue = [];" & return after tScript
+   put "  var h = document.liveCode && document.liveCode.findStackWithName(lib);" & return after tScript
+   put "  if (!h || !h.__workerWebEvent) return;" & return after tScript
+   put "  for (var i = 0; i < q.length; i++) h.__workerWebEvent(q[i][0], q[i][1], q[i][2]);" & return after tScript
+   put "}" & return after tScript
+   -- Where the engine is: its script (the engine records it as it loads,
+   -- or the page's script element), its WebAssembly next to it unless the
+   -- page puts it elsewhere (locateFile), and the standalone's files
+   put "function where() {" & return after tScript
+   put "  var engine = Module['livecodeEngineURL'] || '', zip = Module['livecodeStandaloneUrl'] || '', i, s, wasm;" & return after tScript
+   put "  if (!engine) {" & return after tScript
+   put "    s = document.getElementsByTagName('script');" & return after tScript
+   put "    for (i = 0; i < s.length; i++) if (/-community-[^\/]*\.js([?#].*)?$/.test(s[i].src || '')) engine = s[i].src;" & return after tScript
+   put "  }" & return after tScript
+   put "  if (!engine || !zip) return null;" & return after tScript
+   put "  engine = new URL(engine, document.baseURI).href;" & return after tScript
+   put "  wasm = engine.replace(/\.js([?#].*)?$/, '.wasm');" & return after tScript
+   put "  if (typeof Module['locateFile'] === 'function') {" & return after tScript
+   put "    try { wasm = new URL(Module['locateFile'](wasm.replace(/^.*\//, ''), engine.replace(/[^\/]*$/, '')), document.baseURI).href; } catch (e) {}" & return after tScript
+   put "  }" & return after tScript
+   put "  return {lib: lib, engine: engine, wasm: wasm, zip: new URL(zip, document.baseURI).href};" & return after tScript
+   put "}" & return after tScript
+   -- The web worker's own script, which loads the engine there
+   put "function workerMain(at) {" & return after tScript
+   put "  var oxt = {ready: false, done: false, inbox: [], timer: null};" & return after tScript
+   put "  function say(type, text) { postMessage({type: type, text: text}); }" & return after tScript
+   -- The worker's end, said once. The engine is kept alive as a page's is,
+   -- so its exit() calls no onExit: the library says it when the worker's
+   -- script quits (shutdown), and exit() throws an ExitStatus out of what
+   -- had resumed the engine.
+   put "  function over(type, text) { if (!oxt.done) { oxt.done = true; say(type, text); } }" & return after tScript
+   put "  function exited(e) { if (!e || e.name !== 'ExitStatus') return false; over('exit', String(e.status)); return true; }" & return after tScript
+   put "  function flush() {" & return after tScript
+   put "    oxt.timer = null;" & return after tScript
+   put "    if (oxt.done || !oxt.ready || !oxt.inbox.length) return;" & return after tScript
+   put "    try {" & return after tScript
+   put "      var h = self.liveCode && self.liveCode.findStackWithName(at.lib);" & return after tScript
+   put "      if (!h || !h.__workerWebRequest) return;" & return after tScript
+   put "      while (oxt.inbox.length && !oxt.done) h.__workerWebRequest(oxt.inbox.shift());" & return after tScript
+   put "    } catch (e) { if (!exited(e)) throw e; }" & return after tScript
+   put "  }" & return after tScript
+   put "  function schedule() { if (oxt.timer === null) oxt.timer = setTimeout(flush, 0); }" & return after tScript
+   put "  self.oxtWorkerBridge = {" & return after tScript
+   put "    ready: function() { oxt.ready = true; say('ready', ''); schedule(); }," & return after tScript
+   put "    reply: function(text) { say('out', '\nOXT-WORKER ' + text + '\n'); }," & return after tScript
+   put "    exit: function() { over('exit', ''); }" & return after tScript
+   put "  };" & return after tScript
+   put "  self.onmessage = function(e) { oxt.inbox.push(String(e.data)); schedule(); };" & return after tScript
+   put "  self.addEventListener('error', function(e) { if (exited(e.error) || oxt.done) e.preventDefault(); });" & return after tScript
+   -- The engine starts in a promise (once its WebAssembly is loaded): what
+   -- goes wrong there is a rejection, which the page is not told of
+   put "  self.addEventListener('unhandledrejection', function(e) {" & return after tScript
+   put "    var r = e.reason;" & return after tScript
+   put "    e.preventDefault();" & return after tScript
+   put "    if (exited(r) || oxt.done) return;" & return after tScript
+   put "    var text = String((r && r.message) || r);" & return after tScript
+   put "    if (oxt.ready) say('err', text + '\n'); else over('failed', 'the engine could not start: ' + text);" & return after tScript
+   put "  });" & return after tScript
+   put "  self.Module = {" & return after tScript
+   put "    livecodeStandalone: at.zip," & return after tScript
+   -- (the home folder that the browser keeps is the page's)
+   put "    livecodePersistent: false," & return after tScript
+   put "    locateFile: function(path) { return /\.wasm$/.test(path) ? at.wasm : new URL(path, at.engine).href; }," & return after tScript
+   put "    print: function(text) { say('out', text + '\n'); }," & return after tScript
+   put "    printErr: function(text) { say('err', text + '\n'); }," & return after tScript
+   put "    onExit: function(code) { over('exit', String(code)); }," & return after tScript
+   put "    onAbort: function(what) { say('err', 'the engine stopped: ' + what + '\n'); over('exit', '1'); }," & return after tScript
+   -- The engine's run has gone as far as its first wait: the library has
+   -- said that it is ready by then, unless the engine could not start
+   put "    postRun: [function() { if (!oxt.ready) over('failed', 'the engine did not start'); }]" & return after tScript
+   put "  };" & return after tScript
+   put "  try { importScripts(at.engine); } catch (e) { over('failed', 'cannot load the engine: ' + ((e && e.message) || e)); }" & return after tScript
+   put "}" & return after tScript
+   put "function end(job) {" & return after tScript
+   put "  var w = ww.workers[job];" & return after tScript
+   put "  delete ww.workers[job]; delete ww.ready[job];" & return after tScript
+   put "  if (ww.urls[job]) { URL.revokeObjectURL(ww.urls[job]); delete ww.urls[job]; }" & return after tScript
+   put "  if (w) w.terminate();" & return after tScript
+   put "}" & return after tScript
+   -- "yes", or "no" when it has sent the worker's failure
+   put "ww.start = function(job) {" & return after tScript
+   put "  var at = where(), url = null, w;" & return after tScript
+   put "  if (!at || typeof Worker !== 'function' || typeof Blob !== 'function') { call(job, 'failed', 'not supported'); return 'no'; }" & return after tScript
+   put "  try {" & return after tScript
+   put "    url = URL.createObjectURL(new Blob(['(' + workerMain.toString() + ')(' + JSON.stringify(at) + ');'], {type: 'text/javascript'}));" & return after tScript
+   put "    w = new Worker(url);" & return after tScript
+   put "  } catch (e) {" & return after tScript
+   put "    if (url) URL.revokeObjectURL(url);" & return after tScript
+   put "    call(job, 'failed', String((e && e.message) || e));" & return after tScript
+   put "    return 'no';" & return after tScript
+   put "  }" & return after tScript
+   put "  ww.workers[job] = w; ww.urls[job] = url;" & return after tScript
+   put "  w.onmessage = function(e) {" & return after tScript
+   put "    var m = e.data || {};" & return after tScript
+   put "    if (ww.workers[job] !== w) return;" & return after tScript
+   put "    if (ww.urls[job]) { URL.revokeObjectURL(ww.urls[job]); delete ww.urls[job]; }" & return after tScript
+   put "    if (m.type === 'ready') ww.ready[job] = true;" & return after tScript
+   put "    else if (m.type === 'out') call(job, 'output', m.text);" & return after tScript
+   put "    else if (m.type === 'err') call(job, 'error', m.text);" & return after tScript
+   put "    else if (m.type === 'exit') { end(job); call(job, 'exit', ''); }" & return after tScript
+   put "    else if (m.type === 'failed') { end(job); call(job, 'failed', m.text); }" & return after tScript
+   put "  };" & return after tScript
+   -- An error that the worker did not catch: before it is ready, the
+   -- engine could not start there
+   put "  w.onerror = function(e) {" & return after tScript
+   put "    if (e && e.preventDefault) e.preventDefault();" & return after tScript
+   put "    if (ww.workers[job] !== w) return;" & return after tScript
+   put "    var text = (e && e.message) || 'the worker failed';" & return after tScript
+   put "    if (ww.ready[job]) { call(job, 'error', text + '\n'); return; }" & return after tScript
+   put "    end(job); call(job, 'failed', text);" & return after tScript
+   put "  };" & return after tScript
+   put "  return 'yes';" & return after tScript
+   put "};" & return after tScript
+   put "ww.say = function(job, text) { var w = ww.workers[job]; if (w) w.postMessage(text); };" & return after tScript
+   put "ww.stop = function(job) { if (ww.workers[job]) { end(job); call(job, 'cancelled', ''); } };" & return after tScript
+   put "ww.fail = function(job, why) { call(job, 'failed', why); };" & return after tScript
+   put "window.__oxtWorkers = ww;" & return after tScript
+   return tScript
+end __workerWebScript
 
 -- What a worker has written: whole lines are taken, the rest waits
 private command __workerHeard pWorker, pData
@@ -889,8 +1164,21 @@ end __workerDeliver
 --
 
 private function __workerIsWorkerProcess
-   return sIsWorker is true or $OXT_WORKER is not empty
+   return sIsWorker is true or $OXT_WORKER is not empty or __workerInBrowserWorker()
 end __workerIsWorkerProcess
+
+-- Whether this engine is a web worker that a page started: the worker's
+-- script makes oxtWorkerBridge before it loads the engine
+private function __workerInBrowserWorker
+   if the platform is not "HTML5" then
+      return false
+   end if
+   if sInBrowserWorker is empty then
+      put (__workerJS("return typeof oxtWorkerBridge === 'object' && typeof WorkerGlobalScope !== 'undefined';") is "true") \
+            into sInBrowserWorker
+   end if
+   return sInBrowserWorker
+end __workerInBrowserWorker
 
 -- The first message of an engine. In a worker it is the whole run: as the
 -- main stack of an engine started with this file, or from the front of a
@@ -901,6 +1189,16 @@ on startup
    end if
    __workerMain
 end startup
+
+-- The worker's script has quit. In a browser the page hears it from here:
+-- the engine's end is not told to the page, which keeps its engine alive
+-- after its run, and the worker's engine is the page's.
+on shutdown
+   if sIsWorker is true and the platform is "HTML5" then
+      get __workerJS("oxtWorkerBridge.exit();")
+   end if
+   pass shutdown
+end shutdown
 
 private command __workerMain
    local tFile, tLine, tLength, tText, tRequest, tError
@@ -914,6 +1212,12 @@ private command __workerMain
    if the long id of me is not among the lines of the frontScripts and \
          the long id of me is not among the lines of the backScripts then
       insert the script of me into back
+   end if
+
+   -- In a browser the requests come as messages from the page
+   if the platform is "HTML5" then
+      __workerWebMain
+      quit 0
    end if
 
    -- The engine holds back what it writes to a pipe on Linux until there is
@@ -1002,9 +1306,52 @@ private function __workerRead pCount, @rText
    return tResult is empty
 end __workerRead
 
+-- A web worker's run: the page's requests come to __workerWebRequest, and
+-- are run one after the other. It ends when the page ends the worker.
+private command __workerWebMain
+   local tText, tRequest, tError
+   set the cJavascriptHandlers of me to "__workerWebRequest"
+   get __workerJS("oxtWorkerBridge.ready();")
+   repeat forever
+      if sWebFirst is empty or sWebFirst > sWebLast then
+         wait for messages
+         next repeat
+      end if
+      put sWebRequests[sWebFirst] into tText
+      delete variable sWebRequests[sWebFirst]
+      add 1 to sWebFirst
+      put empty into tRequest
+      try
+         put arrayDecode(base64Decode(tText)) into tRequest
+      catch tError
+      end try
+      if tRequest is an array then
+         __workerDo tRequest
+      end if
+   end repeat
+end __workerWebMain
+
+-- A request from the page, from the worker's JavaScript: it waits to be
+-- run, as a request in a process's input does
+on __workerWebRequest pText
+   if sIsWorker is not true or the platform is not "HTML5" then
+      exit __workerWebRequest
+   end if
+   if sWebLast is empty then
+      put 0 into sWebLast
+      put 1 into sWebFirst
+   end if
+   add 1 to sWebLast
+   put pText into sWebRequests[sWebLast]
+end __workerWebRequest
+
 -- Say something to the stack
 private command __workerReply pReply
    local tText
+   if the platform is "HTML5" then
+      get __workerJS("oxtWorkerBridge.reply('" & __workerEncode(pReply) & "');")
+      exit __workerReply
+   end if
    put numToChar(10) & kWorkerMarker & __workerEncode(pReply) & numToChar(10) into tText
    if sReplyFile is not empty then
       write tText to file sReplyFile

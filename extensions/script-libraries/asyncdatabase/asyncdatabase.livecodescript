@@ -97,10 +97,11 @@ with the calls of this library.
 Each connection is held by a worker of the Background Workers library, a
 second copy of the engine with no window, which makes the revDB calls
 there. Values come back as revDB gives them to a script, and errors with
-revDB's text. Workers are for the desktop: on Android and in a browser a
-connection cannot be opened. A standalone must include the Background
-Database, Background Workers and Background Jobs libraries, and the
-Database external with the drivers it uses.
+revDB's text. Connections are for the desktop: on Android and in a browser
+a connection cannot be opened (in a browser a worker has a file system of
+its own, without the page's database files). A standalone must include the
+Background Database, Background Workers and Background Jobs libraries, and
+the Database external with the drivers it uses.
 
 Example:
 local sConnection
@@ -137,7 +138,8 @@ Tags: Library, Database
 */
 
 -- The connections that are open, by number:
---   ["worker"]   the worker that holds it
+--   ["worker"]   the worker that holds it (empty in a browser, where
+--                there is none)
 --   ["owner"]    the object that opened it
 --   ["message"]  the message to send it when the connection is open
 --   ["requests"] the requests not yet answered, as the keys
@@ -149,6 +151,8 @@ local sRequests
 local sLastRequest
 -- The request of each call of a worker, by the call's number
 local sCallRequests
+-- The last number of a call of no worker's (__asyncDatabaseNoCall)
+local sLastNoCall
 -- The messages waiting to be sent to the stack's objects (see
 -- __asyncDatabaseSend), by number, and the first and last numbers in use
 local sOutbox
@@ -227,7 +231,16 @@ function asyncDatabaseOpen pType, pArguments, pMessage
    end if
    put __asyncDatabaseCaller() into tOwner
 
-   put workerStart(the script of me) into tWorker
+   -- In a browser a worker is a web worker of the page, whose file system
+   -- has none of the page's files: a database there would not be the
+   -- page's. So no worker is started, and the connection ends as one
+   -- whose worker could not be started does (as it did before workers
+   -- could run in a browser).
+   if the platform is "HTML5" then
+      put empty into tWorker
+   else
+      put workerStart(the script of me) into tWorker
+   end if
 
    add 1 to sLastConnection
    put sLastConnection into tConnection
@@ -235,8 +248,13 @@ function asyncDatabaseOpen pType, pArguments, pMessage
    put tOwner into sConnections[tConnection]["owner"]
    put pMessage into sConnections[tConnection]["message"]
 
-   put workerCall(tWorker, "_asyncDatabaseWorkerOpen", "__asyncDatabaseAnswered", \
-         __asyncDatabaseExternal(), __asyncDatabaseDriverPath(), pType, tArguments) into tCall
+   if tWorker is empty then
+      put __asyncDatabaseNoCall() into tCall
+      send "__asyncDatabaseNotSupported" && tConnection to me in 0 milliseconds
+   else
+      put workerCall(tWorker, "_asyncDatabaseWorkerOpen", "__asyncDatabaseAnswered", \
+            __asyncDatabaseExternal(), __asyncDatabaseDriverPath(), pType, tArguments) into tCall
+   end if
    get __asyncDatabaseRequest(tConnection, tCall, "open", tOwner, pMessage)
    return tConnection
 end asyncDatabaseOpen
@@ -484,7 +502,10 @@ private function __asyncDatabaseCall pName, pConnection, pSQL, pMessage, pKind, 
       throw pName & ": no message to send when the database has answered"
    end if
    put __asyncDatabaseCaller() into tOwner
-   if pKind is "query" then
+   if sConnections[pConnection]["worker"] is empty then
+      -- (a connection in a browser, which ends with its requests)
+      put __asyncDatabaseNoCall() into tCall
+   else if pKind is "query" then
       put workerCall(sConnections[pConnection]["worker"], "_asyncDatabaseWorkerQuery", \
             "__asyncDatabaseAnswered", pSQL, pValues) into tCall
    else
@@ -505,6 +526,22 @@ private function __asyncDatabaseRequest pConnection, pCall, pKind, pOwner, pMess
    put sLastRequest into sCallRequests[pCall]
    return sLastRequest
 end __asyncDatabaseRequest
+
+-- For a connection with no worker, a call of no worker's: its request is
+-- ended with the connection's (__asyncDatabaseNotSupported)
+private function __asyncDatabaseNoCall
+   add 1 to sLastNoCall
+   return "none" & sLastNoCall
+end __asyncDatabaseNoCall
+
+-- A connection opened where no worker can be started (in a browser) ends,
+-- and each of its requests with it, as when its worker could not be
+-- started
+on __asyncDatabaseNotSupported pConnection
+   if pConnection is not empty and sConnections[pConnection] is an array then
+      __asyncDatabaseEnd pConnection, "worker failed: not supported"
+   end if
+end __asyncDatabaseNotSupported
 
 -- A worker has answered a call
 on __asyncDatabaseAnswered pCall, pResult, pError
