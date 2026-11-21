@@ -1242,6 +1242,17 @@ class Workflow(unittest.TestCase):
                 with open(source, encoding='utf-8', errors='replace') as f:
                     self.assertRegex(f.read(), r'(?im)^on %s\b' % m.group(2), '%s: %s' % (engine, ident))
 
+    def test_every_maybe_says_why(self):
+        # A "?" entry lets its test fail with that engine without failing
+        # the run, and its passing is never reported, so one left without
+        # a reason could hide a real failure for good: each says why the
+        # test fails only sometimes, and where that was seen
+        for engine in at.ENGINES:
+            entries = run_engine_tests.baseline_entries(at.baseline_path(engine))
+            for ident, (sometimes, comment) in entries.items():
+                if sometimes:
+                    self.assertTrue(comment, '%s: %s' % (engine, ident))
+
     def test_the_logs_are_kept(self):
         step = self.steps['Upload the results and logs']
         self.assertEqual(step['if'], 'always()')

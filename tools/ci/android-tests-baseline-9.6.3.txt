@@ -207,6 +207,7 @@ lcs: core/interface/image-undo: TestRotateImageWorks
 lcs: core/interface/interface: TestImageIntersect
 lcs: core/interface/interface: TestIntersectWithRectangle
 lcs: core/interface/interface: TestPenBackAndFillBackOfAnObject # 9.6.3's engine stops the app: the penBack of an object reads an unset answer (fixed in OXT-Beyond's, #583)
+? lcs: core/interface/interface: TestWaitDepth  # fails only sometimes with 9.6.3's engine: it failed on main's run 44860245513 and passed on #608's, 44872479851, which has the same tests
 lcs: core/interface/show-cards: TestShowCardsCountOf65536
 lcs: core/interface/show-cards: TestShowEmptyCards
 lcs: core/interface/show-cards: TestShowMarkedCardsNoneMarked
@@ -270,6 +271,7 @@ lcs: webplayer/nova-rescue: TestTheScreensFitAPhoneOnItsSide
 lcs: webplayer/puzzle-almanac: TestTheScreensFitAPhoneOnItsSide
 lcs: xtalkassistant/build: TestUndoANewStack
 lcs: xtalkassistant/core: TestAskLocalLoadFails
+? lcs: xtalkassistant/core: TestAskLocalReloadsWithTheContext  # fails only sometimes with 9.6.3's engine: it failed on main's run 44860245513 and passed on #608's, 44872479851, which has the same tests
 lcs: xtalkassistant/core: TestAskRefusedKey
 lcs: xtalkassistant/guide: TestGuideThrowInCatch
 lcs: xtalkassistant/plugin: TestAnAnswerIsLaidOut
