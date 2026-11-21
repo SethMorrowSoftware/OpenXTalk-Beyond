@@ -1136,7 +1136,7 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
 `code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
-x86 and arm64, macOS, and, for the seven native members, Android's
+x86 and arm64, macOS, and, for every native member, Android's
 `arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
 (the IDE maps the one for its platform into `revLibraryMapping`, the
 standalone builder copies the one for the target into a standalone, and

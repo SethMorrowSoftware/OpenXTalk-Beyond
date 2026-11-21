@@ -597,9 +597,9 @@ What it needs:
   (from 0.2.7-rc.1): their 64-bit libraries need glibc 2.28 at most and
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
-  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt and
-  box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3
-  (TorrentXT and DataChannelXT).
+  standalones get still need glibc 2.33 (SodiumXT and xlsxt), 2.34
+  (Box2Dxt and box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and
+  OpenSSL 3 (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4987,8 +4987,8 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   INTERNET permission to an app that includes them. Each one's smoke test
   runs in an Android app on the Android builder workflow's x86_64
   emulators (Android 13, and Android 16 with 16 KB pages); the ARM
-  libraries have not run on a device yet. box3dxt has Android libraries
-  too, tested where the xTalk Suite builds them and not yet in an app. The standalone builder
+  libraries have not run on a device yet. box3dxt and xlsxt have Android
+  libraries too, tested where the xTalk Suite builds them and not yet in an app. The standalone builder
   never adds the script libraries by itself: tick them in *Standalone
   Settings*, with the LCB libraries they need (for example `coinxt` with
   `org.openxtalk.library.coin`).
