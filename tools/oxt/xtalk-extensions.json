@@ -325,7 +325,7 @@
     {
       "name": "box3dxt",
       "repository": "SethMorrowSoftware/xtalk-suite",
-      "commit": "f2ec175dda8e8efd481ea917d490a1932688cc90",
+      "commit": "46ad996d1b10c0c2c90c65b3f52716e02927c093",
       "version": "0.1.0",
       "version_from": {
         "path": "box3dxt/src/box3dxt.lcb",
@@ -394,7 +394,7 @@
       {
         "name": "box3dxt",
         "repository": "SethMorrowSoftware/xtalk-suite",
-        "commit": "f2ec175dda8e8efd481ea917d490a1932688cc90",
+        "commit": "46ad996d1b10c0c2c90c65b3f52716e02927c093",
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
         "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
         "size": 1852826,
