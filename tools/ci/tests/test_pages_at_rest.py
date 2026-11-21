@@ -207,7 +207,7 @@ class TheRestCheck(unittest.TestCase):
     def test_the_pages(self):
         folders = [p[1] for p in self.check.PAGES]
         self.assertEqual(folders, ['games/', 'extensions/', 'player/', 'play/', 'map/', 'lessons/',
-                                   'lessons/animation-games/'])
+                                   'lessons/animation-games/', 'welcome/'])
 
     def test_the_budgets(self):
         import check_front_page

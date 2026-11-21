@@ -59,6 +59,12 @@ given.
                      release --suite-release (FILE lists its file names),
                      or a link to the suite's releases without one
                      (tools/pages/extensions/index.html)
+  DIR/welcome/       the pages for people coming from LiveCode
+                     (tools/pages/welcome): a front page, a guide, the GPL
+                     for in-house tools, and a stack checker that reads a
+                     stack in the visitor's browser; written by hand, made
+                     by its own src/build.py, and copied as they are,
+                     without the builder, tests and README beside them
   DIR/map/           the codebase map: the one self-contained page that
                      tools/codebase-map/build_map.py writes (index.html),
                      and beside it, when build_map.py wrote them next to
@@ -766,6 +772,22 @@ def brand(source, target):
         shutil.copyfile(os.path.join(source, name), os.path.join(target, name))
 
 
+# The welcome section's own tools, which stay in the repository: how its
+# pages and pictures are made (src/), its tests and its README
+WELCOME_LEFT_OUT = ('src', 'tests', 'README.md')
+
+
+def welcome(source, target):
+    """Copies the welcome section (tools/pages/welcome) beside the front
+    page, without WELCOME_LEFT_OUT. Its pages name the logo files of the
+    site's brand/ (../brand/), which brand() writes."""
+    if not os.path.isfile(os.path.join(source, 'index.html')):
+        raise BuildError('tools/pages/welcome has no index.html')
+    shutil.copytree(source, target, ignore=lambda d, names:
+                    [n for n in names if d == source and n in WELCOME_LEFT_OUT])
+    return sorted(n for n in os.listdir(target) if n.endswith('.html'))
+
+
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
@@ -876,6 +898,9 @@ def build(args):
     if suite and not shown:
         print('no extension packages: %s has no .lce files' % suite)
     parts['EXTENSIONS'] = 'xTalk Suite %s' % shown if shown else 'xTalk Suite'
+    # The welcome section goes up with every site: it is written here, in
+    # tools/pages/welcome, and asks nothing of a release
+    print('welcome: %s' % ', '.join(welcome(os.path.join(HERE, 'welcome'), os.path.join(out, 'welcome'))))
     front_page(out, parts)
     brand(os.path.join(HERE, 'brand'), os.path.join(out, 'brand'))
     # Last, over everything written: each page's one address and the
