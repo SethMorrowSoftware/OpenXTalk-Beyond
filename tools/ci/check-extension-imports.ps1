@@ -50,7 +50,7 @@ $ErrorActionPreference = 'Stop'
 # Lower case; the same list as SYSTEM_DLLS in tools/oxt/xtalk_extensions.py
 $SystemDlls = @('kernel32.dll', 'user32.dll', 'advapi32.dll', 'ws2_32.dll', 'winmm.dll',
     'crypt32.dll', 'bcrypt.dll', 'iphlpapi.dll', 'mswsock.dll', 'msvcrt.dll',
-    'secur32.dll')
+    'secur32.dll', 'setupapi.dll', 'ole32.dll', 'shell32.dll')
 $SystemDllPrefixes = @('api-ms-win-crt-')
 $Machines = @{ 'x86_64-win32' = 0x8664; 'x86-win32' = 0x14c }
 

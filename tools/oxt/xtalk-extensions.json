@@ -350,6 +350,31 @@
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
       ]
+    },
+    {
+      "name": "gamepadxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "49531a2325d8123fc9ab67f92d38a7b6dc78597e",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "gamepadxt/src/gamepadxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link SDL 3 (zlib licence, Sam Lantinga) and the HIDAPI it carries (BSD-style)",
+      "files": [
+        {"path": "gamepadxt/src/gamepadxt.lcb", "role": "source", "sha256": "fe90fbce8a66fdfa8a299f1ae552d7eb09f37c15c97c30fe79c90f7905f4579b", "size": 43674},
+        {"path": "gamepadxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "923aaf84b15a55b865c692669b579088344de67f067eb52fe42be03f08d4793b", "size": 647},
+        {"path": "gamepadxt/src/code/x86_64-win32/gamepadxt.dll", "role": "library", "sha256": "0a1024568dd19d5b3f8af15ff5391dbf11ee2f9b6bb5be0a52095c20c0ca91ea", "size": 1936384, "imports": ["KERNEL32.dll", "USER32.dll", "WINMM.dll", "ole32.dll", "SETUPAPI.dll", "SHELL32.dll"]},
+        {"path": "gamepadxt/src/code/x86-win32/gamepadxt.dll", "role": "library", "sha256": "6b15c6fb640c0d01a485881b23b26ba337decbb02f9bc5e34165bb4050d42ff5", "size": 1558528, "imports": ["KERNEL32.dll", "USER32.dll", "WINMM.dll", "ole32.dll", "SETUPAPI.dll", "SHELL32.dll"]},
+        {"path": "gamepadxt/src/code/x86_64-linux/gamepadxt.so", "role": "library", "sha256": "dd456a0de5103a691a5bad1ee296f0f101659efae2a954f1f2006b1f577609cd", "size": 2501616},
+        {"path": "gamepadxt/src/code/x86-linux/gamepadxt.so", "role": "library", "sha256": "67bf8928e3eda9abd3d5cb7f3496df482851f56c97945260e1c1101926160bbb", "size": 2357156},
+        {"path": "gamepadxt/src/code/arm64-linux/gamepadxt.so", "role": "library", "sha256": "ffa33cc9576a7919e423a7366b2317ae98d73f98e85a4ed24bcbc848829c9fed", "size": 2328944},
+        {"path": "gamepadxt/src/code/universal-mac/gamepadxt.dylib", "role": "library", "sha256": "7a9f84076e562d0141186d76682e28af56667da888edbc7be2754b9484f44719", "size": 3842016},
+        {"path": "gamepadxt/LICENSE", "role": "licence", "sha256": "10b95e1da16adf0170406196ef259441f330db88446431bfe53403f5cd371eb2", "size": 3849}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.gamepadxt", "folder": "org.openxtalk.library.gamepadxt", "main": "gamepadxt/src/gamepadxt.lcb", "probe": "gpLibraryVersion()", "expect": "^SDL 3\\.[0-9]+\\.[0-9]+$"}
+      ]
     }
   ],
   "web_libraries": {
@@ -398,6 +423,15 @@
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
         "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
         "size": 1852826,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "gamepadxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "49531a2325d8123fc9ab67f92d38a7b6dc78597e",
+        "path": "gamepadxt/src/code/wasm32-emscripten/gamepadxt.a",
+        "sha256": "e8dc9dc0de06ff07399196a241feec640219e1b92d3961c4e3788cf7f977397f",
+        "size": 1425762,
         "emscripten": "6.0.12"
       }
     ]

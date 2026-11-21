@@ -147,6 +147,10 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # gamepadxt is not here, on purpose: in an engine built with Asyncify,
+    # SDL's delay sleeps through emscripten_sleep (SDL_SYS_DelayNS), and a
+    # spinlock that has to wait calls it, so SDL and the shim stay
+    # instrumented. A function left out that sleeps stops the engine.
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

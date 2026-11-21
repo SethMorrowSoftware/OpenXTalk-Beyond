@@ -598,8 +598,8 @@ What it needs:
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
   standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt and
-  box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3
-  (TorrentXT and DataChannelXT).
+  box3dxt), 2.34 and OpenSSL 3 (curlxt), 2.38 (gamepadxt), or 2.38 and
+  OpenSSL 3 (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4947,6 +4947,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 | `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
+| `org.openxtalk.library.gamepadxt` | gamepadxt: game controllers through SDL 3 (Xbox, PlayStation, Switch and most other pads in one button layout, plugged in and out while a stack runs, with rumble, lights and virtual pads made in software); also in the web engine, where it reads the browser's Gamepad API | [xtalk-suite, `gamepadxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/gamepadxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4987,7 +4988,10 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   runs in an Android app on the Android builder workflow's x86_64
   emulators (Android 13, and Android 16 with 16 KB pages); the ARM
   libraries have not run on a device yet. box3dxt has Android libraries
-  too, tested where the xTalk Suite builds them and not yet in an app. The standalone builder
+  too, tested where the xTalk Suite builds them and not yet in an app.
+  gamepadxt has no Android libraries: SDL reaches controllers there
+  through a Java activity of its own, which an OXT-Beyond app does not
+  have. The standalone builder
   never adds the script libraries by itself: tick them in *Standalone
   Settings*, with the LCB libraries they need (for example `coinxt` with
   `org.openxtalk.library.coin`).
