@@ -40,6 +40,8 @@
 #endif
 
 #include <sqlitedataset/sqlitedataset.h>
+// OXT-Beyond: SQLite's math functions and REGEXP (src/sqlitefunctions.c)
+#include <sqlitefunctions.h>
 
 typedef int (*MYPROC)(void *,int,const void *,int,const void *);
 
@@ -430,6 +432,15 @@ int SqliteDatabase::connect(bool p_use_uri)
 	// create custom functions
 	int dynCreate = sqlite3_create_function(conn,"lpad",3,SQLITE_UTF8,NULL,lpadFunc,NULL,NULL);
    
+    // OXT-Beyond: SQLite's math functions (sqrt(), pi(), log() and the
+    // rest) and regexp(), which the REGEXP operator calls, none of which
+    // LiveCode's SQLite had. They are added as lpad() is, to this
+    // connection, in a way that an extension a stack loads later can
+    // still replace, so a stack that brings its own keeps them
+    // (src/sqlitefunctions.c). If one cannot be added (memory ran out),
+    // the connection opens without it, as it does without lpad().
+    oxt_sqlite_add_functions(conn);
+
     active = true;
     return DB_CONNECTION_OK;
   }

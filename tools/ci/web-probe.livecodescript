@@ -718,6 +718,12 @@ command probeExternals
    -- SQLite reports an error with a C++ exception, which revDB catches
    put revDataFromQuery(",", ";", tDB, "SELECT * FROM nosuch") into tText
    probeCheck "database-error", tText begins with "revdberr," and tText contains "no such table", tText
+   -- SQLite's math functions and REGEXP, which the driver adds to every
+   -- connection (thirdparty/libsqlite/src/sqlitefunctions.c): in the
+   -- select list, and REGEXP in a WHERE clause
+   put revDataFromQuery(",", ";", tDB, "SELECT sqrt(16), pi(), log(2, 8), name REGEXP '^o.e$' FROM t" && \
+         "WHERE name REGEXP 'n'") into tText
+   probeCheck "database-functions", tText is "4.0,3.14159265358979,3.0,1", tText
    revCloseDatabase tDB
 
    -- A database in the home folder, which the browser's storage keeps:
