@@ -43,11 +43,11 @@ import android_check as ac  # noqa: E402
 
 ANDROID = ('arm64-android', 'armv7-android', 'x86_64-android', 'x86-android')
 # The members whose libraries are native, each with its LCB extension: all
-# seven build for Android (the xTalk Suite's docs/ANDROID.md)
+# eight build for Android (the xTalk Suite's docs/ANDROID.md)
 NATIVE = {'SodiumXT': 'org.openxtalk.library.sodium', 'TorrentXT': 'org.openxtalk.library.torrent',
           'enetxt': 'org.openxtalk.library.enet', 'dataChannelXT': 'org.openxtalk.library.datachannel',
           'Box2Dxt': 'org.openxtalk.box2dxt', 'CoinXT': 'org.openxtalk.library.coin',
-          'curlxt': 'org.openxtalk.library.curl'}
+          'curlxt': 'org.openxtalk.library.curl', 'box3dxt': 'org.openxtalk.library.boxthreed'}
 # The bindings that open sockets declare the INTERNET permission
 NETWORKING = ('org.openxtalk.library.torrent', 'org.openxtalk.library.enet',
               'org.openxtalk.library.datachannel', 'org.openxtalk.library.curl')
