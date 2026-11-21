@@ -8,7 +8,8 @@ script "Render3D Tour"
 --
 -- How it is made:
 --   one card, "Tour": the picture (image "View"), a button for each
---     exhibit (Ex1 to Ex10), three tick boxes (Smooth, Fog, Spin), a few
+--     exhibit (Ex1 to Ex10), three switches (Smooth, Fog, Spin), how
+--     fast it is going (Fps, on the corner of the picture), a few
 --     words about the exhibit (About), what the last picture cost
 --     (Stats), and six labels (Tag1 to Tag6) that float over the things
 --     in the picture
@@ -504,6 +505,12 @@ command rtShowStats
       put return & sPicked after tText
    end if
    put tText into field "Stats"
+   -- and the one number everybody asks for, on the picture's corner
+   if sFps > 0 then
+      put round(sFps) && "fps   " & format("%.1f", item 3 of tStats) && "ms" into field "Fps"
+   else
+      put "at rest" into field "Fps"
+   end if
 end rtShowStats
 
 command rtTick
@@ -760,54 +767,122 @@ function rtRingMesh pInner, pOuter
    return tMesh
 end rtRingMesh
 
+-- The planets: a name, what its picture is made of, how big it is, how
+-- far from the sun it goes round and how fast, and what is said of it
+constant kPlanets = 4
+constant kPlanetNames = "Ember,Tide,Colossus,Frost"
+constant kPlanetKinds = "rock,sea,bands,ice"
+constant kPlanetSizes = "0.45,0.75,1.3,0.6"
+constant kPlanetOrbits = "2.7,4.6,8.4,12.2"
+constant kPlanetSpeeds = "0.9,0.55,0.26,0.17"
+constant kPlanetWords = "a scorched rock, the nearest to the sun and the quickest round it;seas, land and two caps of ice, with one moon;a giant in stripes, with a ring and two moons;pale and far away, where a year is long"
+-- The moons, a line each: its planet, how far from it, how fast, how big,
+-- how far above or below its planet's path, and where it starts
+constant kMoons = "2,1.2,2.2,0.16,0.15,0;3,2.8,1.5,0.2,0.45,1;3,3.15,1.0,0.14,-0.4,2.5"
+constant kWide = 19           -- the camera's distance when it shows it all
+
+-- A small eight-sided mesh, as a list of triangles: a star far away needs
+-- no more, and a hundred and sixty of them are drawn every picture
+function rtOctaTriangles
+   local tText, tTop, tSide, tA, tB
+   put "1,0,0;0,0,1;-1,0,0;0,0,-1" into tSide
+   set the itemDelimiter to ";"
+   repeat with tA = 1 to 4
+      put tA mod 4 + 1 into tB
+      put "0,1,0," & item tB of tSide & comma & item tA of tSide & return after tText
+      put "0,-1,0," & item tA of tSide & comma & item tB of tSide & return after tText
+   end repeat
+   set the itemDelimiter to comma
+   return tText
+end rtOctaTriangles
+
+-- A comet's tail: a cone a metre long with its point at the far end of +x
+function rtTailTriangles
+   local tText, tI, tA, tB
+   repeat with tI = 0 to 9
+      put tI / 10 * 2 * pi into tA
+      put (tI + 1) / 10 * 2 * pi into tB
+      put "0," & 0.11 * cos(tA) & comma & 0.11 * sin(tA) & ",0," & 0.11 * cos(tB) & comma & 0.11 * sin(tB) & ",1,0,0" & return after tText
+   end repeat
+   return tText
+end rtTailTriangles
+
 command rtBuildOrrery
-   local tBall, tSmall, tMat, tIndex, tStar, tStarMat, tAngle, tUp, tKinds, tSizes, tOrbits, tNode, tSize, tPathMat
-   put "Welcome. A sun with a lamp inside it, four planets wearing pictures this stack worked out pixel by pixel, a moon, a ring built corner by corner and 160 stars: all of it drawn by render3dxt into an ordinary image. Drag the picture to look round, turn the wheel to come closer, then try the other exhibits." into field "About"
+   local tBall, tLow, tSmall, tMat, tIndex, tStar, tStarMat, tAngle, tUp, tNode, tSize, tPathMat, tOrbit, tMoon
+   put "Welcome. A sun with a lamp inside it, four planets wearing pictures this stack worked out pixel by pixel, three moons, a ring built corner by corner, a comet and 160 stars: all of it drawn by render3dxt into an ordinary image. Click a planet to fly to it and the sun to come back. Drag to look round, and turn the wheel to come closer." into field "About"
    put "0,0,0" into sTarget
-   put 15 into sDist
+   put kWide into sDist
    put 0.6 into sYaw
-   put 0.36 into sPitch
-   put "8,10,20" into sBack
+   put 0.34 into sPitch
+   put "6,8,18" into sBack
    -- fog would put out the stars: here it starts beyond them
    put 80 into sFogNear
    put 200 into sFogFar
-   r3SceneSetAmbient sScene, 34, 36, 48
+   -- a little light everywhere, so the night side of a planet is dark and
+   -- not black
+   r3SceneSetAmbient sScene, 30, 32, 44
    -- the scene's own sun is far away and lights one side of everything;
-   -- this one is a lamp in the middle, so it goes out
+   -- this one is a lamp in the middle, so it goes out. The lamp gives every
+   -- planet a day side that faces it and a night side that does not.
    r3LightSetEnabled sParts["sun"], false
-   put r3LightCreatePoint(sScene, 0, 0, 0, 255, 236, 200, 3.2, 30) into sParts["lamp"]
+   put r3LightCreatePoint(sScene, 0, 0, 0, 255, 238, 206, 2.1, 40) into sParts["lamp"]
    put rtMesh(r3MeshSphere(1, 36, 18)) into tBall
-   put rtMesh(r3MeshSphere(1, 8, 5)) into tSmall
+   put rtMesh(r3MeshSphere(1, 16, 8)) into tLow
+   put rtMesh(r3MeshFromTrianglesText(rtOctaTriangles())) into tSmall
    put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData("fire"), 128, 64))) into tMat
    r3MaterialSetUnlit tMat, true
    put rtNode(tBall, tMat, 0, 0, 0) into sParts["star"]
    r3NodeSetScale sParts["star"], 1.25, 1.25, 1.25
-   put rtMat(70, 80, 110) into tPathMat
+   -- a click finds a planet by its node's tag: 1 to kPlanets, and the sun 9
+   r3NodeSetTag sParts["star"], 9
+   put rtMat(64, 76, 108) into tPathMat
    r3MaterialSetUnlit tPathMat, true
    r3MaterialSetDoubleSided tPathMat, true
-   put "rock,sea,bands,ice" into tKinds
-   put "0.45,0.75,1.3,0.6" into tSizes
-   put "2.7,4.6,7.4,10" into tOrbits
-   repeat with tIndex = 1 to 4
-      put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData(item tIndex of tKinds), 128, 64))) into tMat
+   repeat with tIndex = 1 to kPlanets
+      put item tIndex of kPlanetOrbits into tOrbit
+      put item tIndex of kPlanetSizes into tSize
+      put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData(item tIndex of kPlanetKinds), 128, 64))) into tMat
       r3MaterialSetSpecular tMat, 0.25, 30
-      put rtNode(tBall, tMat, item tIndex of tOrbits, 0, 0) into tNode
-      r3NodeSetScale tNode, item tIndex of tSizes, item tIndex of tSizes, item tIndex of tSizes
+      put rtNode(tBall, tMat, tOrbit, 0, 0) into tNode
+      r3NodeSetScale tNode, tSize, tSize, tSize
+      r3NodeSetTag tNode, tIndex
       put tNode into sParts["planet" & tIndex]
-      put item tIndex of tOrbits into sParts["orbit" & tIndex]
-      -- the path it follows: a ring two centimetres wide
-      get rtNode(rtRingMesh(item tIndex of tOrbits - 0.012, item tIndex of tOrbits + 0.012), tPathMat, 0, 0, 0)
+      -- the path it follows: a ring a few centimetres wide
+      get rtNode(rtRingMesh(tOrbit - 0.014, tOrbit + 0.014), tPathMat, 0, 0, 0)
    end repeat
-   put rtNode(tBall, rtMat(200, 200, 205), 0, 0, 0) into sParts["moon"]
-   r3NodeSetScale sParts["moon"], 0.16, 0.16, 0.16
+   set the itemDelimiter to ";"
+   put the number of items of kMoons into sParts["moons"]
+   repeat with tIndex = 1 to sParts["moons"]
+      put item tIndex of kMoons into tMoon
+      set the itemDelimiter to comma
+      put rtNode(tLow, rtMat(206, 204, 198), 0, 0, 0) into tNode
+      r3NodeSetScale tNode, item 4 of tMoon, item 4 of tMoon, item 4 of tMoon
+      -- a moon is its planet's: a click on one flies to the planet
+      r3NodeSetTag tNode, item 1 of tMoon
+      put tNode into sParts["moon" & tIndex]
+      set the itemDelimiter to ";"
+   end repeat
+   set the itemDelimiter to comma
    put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData("ring"), 128, 64))) into tMat
    r3MaterialSetDoubleSided tMat, true
    r3MaterialSetUnlit tMat, true
-   put rtNode(rtRingMesh(1.7, 2.8), tMat, 0, 0, 0) into sParts["ring"]
-   -- the stars: small unlit balls on a shell far away, always in the same
+   put rtNode(rtRingMesh(1.7, 2.55), tMat, 0, 0, 0) into sParts["ring"]
+   r3NodeSetTag sParts["ring"], 3
+   -- the comet: a small bright head, and a tail that always points away
+   -- from the sun and grows as it comes near
+   put rtMat(214, 236, 255) into tMat
+   r3MaterialSetUnlit tMat, true
+   put rtNode(tLow, tMat, 0, 0, 0) into sParts["comet"]
+   r3NodeSetScale sParts["comet"], 0.13, 0.13, 0.13
+   put rtMat(120, 170, 230) into tMat
+   r3MaterialSetUnlit tMat, true
+   r3MaterialSetDoubleSided tMat, true
+   put rtNode(rtMesh(r3MeshFromTrianglesText(rtTailTriangles())), tMat, 0, 0, 0) into sParts["tail"]
+   -- the stars: small unlit shapes on a shell far away, always in the same
    -- places (no random number is asked for)
    put rtMat(235, 240, 255) into tStarMat
    r3MaterialSetUnlit tStarMat, true
+   r3MaterialSetDoubleSided tStarMat, true
    repeat with tIndex = 1 to 160
       put tIndex * 2.39996 into tAngle
       put 1 - 2 * (tIndex - 0.5) / 160 into tUp
@@ -816,31 +891,121 @@ command rtBuildOrrery
       r3NodeSetScale tStar, tSize, tSize, tSize
    end repeat
    put 160 into sParts["stars"]
+   put 0 into sParts["focus"]
+   put 0 into sParts["flying"]
+   rtTag 1, "Click a planet to fly to it", 0, 2.6, 0
 end rtBuildOrrery
 
-command rtTickOrrery
-   local tIndex, tAngle, tX, tZ, tR, tSpeeds
-   put "0.9,0.55,0.3,0.2" into tSpeeds
-   repeat with tIndex = 1 to 4
-      put sTime * item tIndex of tSpeeds + tIndex * 1.7 into tAngle
-      put sParts["orbit" & tIndex] into tR
-      put tR * cos(tAngle) into tX
-      put tR * sin(tAngle) into tZ
-      r3NodeSetPosition sParts["planet" & tIndex], tX, 0, tZ
-      rtRotate sParts["planet" & tIndex], 0, 1, 0, sTime * (1.6 - tIndex * 0.25)
-      if tIndex is 2 then
-         r3NodeSetPosition sParts["moon"], tX + 1.25 * cos(sTime * 2.2), 0.15, tZ + 1.25 * sin(sTime * 2.2)
-      else if tIndex is 3 then
-         r3NodeSetPosition sParts["ring"], tX, 0, tZ
-         -- the ring leans a little, as rings do
-         rtRotate sParts["ring"], 0.948683, 0, 0.316228, 0.35
-      end if
-   end repeat
-   rtRotate sParts["star"], 0, 1, 0, sTime * 0.2
-   if sDragging is not true then
-      add sDelta * 0.08 to sYaw
-      rtAim
+-- Where planet pIndex is now, as "x,y,z"
+function rtPlanetAt pIndex
+   local tAngle
+   put sTime * item pIndex of kPlanetSpeeds + pIndex * 1.7 into tAngle
+   return item pIndex of kPlanetOrbits * cos(tAngle) & ",0," & item pIndex of kPlanetOrbits * sin(tAngle)
+end rtPlanetAt
+
+-- The camera turns to planet pIndex and goes with it; 0 is the whole
+-- system again. It flies there over a second or so (rtTickOrrery).
+command rtFocusPlanet pIndex
+   local tName, tAngle
+   if sExhibit is not 1 or sScene is empty then
+      exit rtFocusPlanet
    end if
+   if pIndex is not an integer or pIndex < 1 or pIndex > kPlanets then
+      put 0 into pIndex
+   end if
+   put pIndex into sParts["focus"]
+   put 1.2 into sParts["flying"]
+   if pIndex is 0 then
+      put kWide into sParts["goal"]
+      put empty into sParts["goalYaw"]
+      put "The whole system: click a planet to fly to it." into sPicked
+      rtTag 1, "Click a planet to fly to it", 0, 2.6, 0
+   else
+      put item pIndex of kPlanetSizes * 5 + 2.4 into sParts["goal"]
+      -- it arrives on the side the sun lights, a little to one side, so the
+      -- planet is seen with its day and the edge of its night
+      put sTime * item pIndex of kPlanetSpeeds + pIndex * 1.7 into tAngle
+      put pi / 2 - (tAngle + pi + 0.75) into sParts["goalYaw"]
+      put item pIndex of kPlanetNames into tName
+      set the itemDelimiter to ";"
+      put tName & ":" && item pIndex of kPlanetWords & ". Click the sun to come back." into sPicked
+      set the itemDelimiter to comma
+   end if
+end rtFocusPlanet
+
+command rtTickOrrery
+   local tIndex, tAt, tMoon, tPlanet, tAngle, tR, tX, tY, tZ, tLong, tEase, tGoal, tSize, tTurn
+   repeat with tIndex = 1 to kPlanets
+      put rtPlanetAt(tIndex) into tAt
+      put tAt into tPlanet[tIndex]
+      r3NodeSetPosition sParts["planet" & tIndex], item 1 of tAt, 0, item 3 of tAt
+      rtRotate sParts["planet" & tIndex], 0, 1, 0, sTime * (1.6 - tIndex * 0.25)
+   end repeat
+   r3NodeSetPosition sParts["ring"], item 1 of tPlanet[3], 0, item 3 of tPlanet[3]
+   -- the ring leans a little, as rings do
+   rtRotate sParts["ring"], 0.948683, 0, 0.316228, 0.35
+   set the itemDelimiter to ";"
+   repeat with tIndex = 1 to sParts["moons"]
+      put item tIndex of kMoons into tMoon
+      set the itemDelimiter to comma
+      put tPlanet[item 1 of tMoon] into tAt
+      put sTime * item 3 of tMoon + item 6 of tMoon into tAngle
+      r3NodeSetPosition sParts["moon" & tIndex], item 1 of tAt + item 2 of tMoon * cos(tAngle), item 5 of tMoon * sin(tAngle), item 3 of tAt + item 2 of tMoon * sin(tAngle)
+      set the itemDelimiter to ";"
+   end repeat
+   set the itemDelimiter to comma
+   rtRotate sParts["star"], 0, 1, 0, sTime * 0.2
+   -- the comet: a long oval that leans out of the planets' plane, quick
+   -- when it is near the sun and slow far away
+   put sTime * 0.22 + 0.5 * sin(sTime * 0.22) + 2.2 into tAngle
+   put 4.6 / (1 + 0.7 * cos(tAngle)) into tR
+   put tR * cos(tAngle) into tX
+   put tR * sin(tAngle) * 0.42 into tY
+   put tR * sin(tAngle) * 0.91 into tZ
+   r3NodeSetPosition sParts["comet"], tX, tY, tZ
+   r3NodeSetPosition sParts["tail"], tX, tY, tZ
+   -- the tail lies along +x: it is turned to point from the sun through
+   -- the comet, about the axis that is square to both
+   put sqrt(tX * tX + tY * tY + tZ * tZ) into tLong
+   if tLong > 0.001 then
+      put sqrt(tY * tY + tZ * tZ) into tEase
+      if tEase > 0.0001 then
+         rtRotate sParts["tail"], 0, -tZ / tEase, tY / tEase, acos(max(-1, min(1, tX / tLong)))
+      end if
+      put 0.5 + 7 / tLong into tSize
+      r3NodeSetScale sParts["tail"], tSize, 1, 1
+   end if
+   -- the camera: it goes with the planet that was clicked, and for the
+   -- second after a click it flies there
+   if sParts["focus"] > 0 then
+      put tPlanet[sParts["focus"]] into tGoal
+      put item sParts["focus"] of kPlanetSizes into tSize
+      rtTag 1, item sParts["focus"] of kPlanetNames, item 1 of tGoal, tSize + 0.5, item 3 of tGoal
+   else
+      put "0,0,0" into tGoal
+   end if
+   if sParts["flying"] > 0 then
+      subtract sDelta from sParts["flying"]
+      put min(1, sDelta * 4) into tEase
+      put item 1 of sTarget + (item 1 of tGoal - item 1 of sTarget) * tEase & comma & item 2 of sTarget + (item 2 of tGoal - item 2 of sTarget) * tEase \
+            & comma & item 3 of sTarget + (item 3 of tGoal - item 3 of sTarget) * tEase into sTarget
+      add (sParts["goal"] - sDist) * tEase to sDist
+      if sParts["goalYaw"] is not empty then
+         -- the short way round: the difference, brought between -pi and pi
+         put sParts["goalYaw"] - sYaw into tTurn
+         put tTurn - 2 * pi * round(tTurn / (2 * pi)) into tTurn
+         add tTurn * tEase to sYaw
+         add (0.3 - sPitch) * tEase to sPitch
+      end if
+   else
+      put tGoal into sTarget
+   end if
+   if sDragging is not true then
+      -- a slow walk round, with a slow rise and fall
+      add sDelta * 0.07 to sYaw
+      put max(0.05, min(1.45, sPitch + sDelta * 0.012 * cos(sTime * 0.13))) into sPitch
+   end if
+   rtAim
 end rtTickOrrery
 
 ----------------------------------------------------------------------
@@ -1320,12 +1485,18 @@ command rtClickView pX, pY
    set the defaultStack to the short name of me
    put r3ScenePick(sScene, kViewW, kViewH, pX + 0.5, pY + 0.5) into tNode
    put empty into sPicked
+   if tNode is 0 and sExhibit is 1 then
+      -- a click on the dark between the planets shows them all again
+      rtFocusPlanet 0
+   end if
    if tNode is not 0 then
       put r3HitText() into tHit
       put r3NodeTag(tNode) into tTag
       put "You touched something" && format("%.1f", item 4 of tHit) && "metres away, at" \
             && format("%.2f, %.2f, %.2f", item 1 of tHit, item 2 of tHit, item 3 of tHit) into sPicked
-      if sExhibit is kExLights and tTag >= 1 and tTag <= 3 then
+      if sExhibit is 1 then
+         rtFocusPlanet tTag
+      else if sExhibit is kExLights and tTag >= 1 and tTag <= 3 then
          put sParts["lamp" & tTag] into tLamp
          r3LightSetEnabled tLamp, not r3LightIsEnabled(tLamp)
          r3NodeSetScale sParts["bulb" & tTag], 1, 1, 1

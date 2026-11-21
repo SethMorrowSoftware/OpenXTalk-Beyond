@@ -30,7 +30,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- What goes in: one card, "Tour", with the picture (image "View", exactly
 -- the size of the pictures the tour draws, because imageData is not
--- scaled), a button for each exhibit (Ex1 to Ex10), three tick boxes, the
+-- scaled), how fast it is going (Fps, on the picture's corner), a button for each exhibit (Ex1 to Ex10), three switches, the
 -- words about an exhibit, what a picture cost, the labels that float over
 -- the picture (Tag1 to Tag6), and what is said when the engine has no
 -- render3dxt (Missing). No file goes in: the tour makes its textures and
@@ -112,6 +112,15 @@ private command buildStack pFile
    set the textAlign of field "Missing" to "center"
    set the visible of field "Missing" to false
 
+   -- how fast it is going, on the picture's corner
+   makeLabel "Fps", empty, 13, kInk, "bold"
+   set the textAlign of field "Fps" to "center"
+   set the opaque of field "Fps" to true
+   set the backgroundColor of field "Fps" to kPage
+   set the blendLevel of field "Fps" to 20
+   set the margins of field "Fps" to 5
+   set the rect of field "Fps" to kViewLeft + 8, kViewTop + 8, kViewLeft + 156, kViewTop + 34
+
    -- the labels over the picture
    repeat with tIndex = 1 to kTags
       makeLabel "Tag" & tIndex, empty, 12, kInk, "bold"
@@ -125,7 +134,7 @@ private command buildStack pFile
 
    -- the exhibits, two to a row
    makeLabel "Exhibits", "EXHIBITS", 11, kAccent, "bold"
-   set the rect of field "Exhibits" to kSideLeft, kViewTop - 6, kSideRight, kViewTop + 12
+   set the rect of field "Exhibits" to kSideLeft, kViewTop - 9, kSideRight, kViewTop + 13
    repeat with tIndex = 1 to the number of items of kExhibitNames
       put kViewTop + 18 + ((tIndex - 1) div 2) * 30 into tTop
       put kSideLeft + ((tIndex - 1) mod 2) * 138 into tLeft
@@ -133,17 +142,17 @@ private command buildStack pFile
       set the rect of button ("Ex" & tIndex) to tLeft, tTop, tLeft + 134, tTop + 26
    end repeat
 
-   makeLabel "Look", "THE PICTURE", 11, kAccent, "bold"
-   set the rect of field "Look" to kSideLeft, kViewTop + 176, kSideRight, kViewTop + 194
+   makeLabel "Look", "THE PICTURE (LIT IS ON)", 11, kAccent, "bold"
+   set the rect of field "Look" to kSideLeft, kViewTop + 172, kSideRight, kViewTop + 194
    makeTick "Smooth", "Smooth edges"
-   set the rect of button "Smooth" to kSideLeft, kViewTop + 198, kSideLeft + 118, kViewTop + 220
+   set the rect of button "Smooth" to kSideLeft, kViewTop + 198, kSideLeft + 118, kViewTop + 222
    makeTick "Fog", "Fog"
-   set the rect of button "Fog" to kSideLeft + 124, kViewTop + 198, kSideLeft + 190, kViewTop + 220
+   set the rect of button "Fog" to kSideLeft + 124, kViewTop + 198, kSideLeft + 190, kViewTop + 222
    makeTick "Spin", "Move"
-   set the rect of button "Spin" to kSideLeft + 196, kViewTop + 198, kSideRight, kViewTop + 220
+   set the rect of button "Spin" to kSideLeft + 196, kViewTop + 198, kSideRight, kViewTop + 222
 
    makeLabel "AboutCap", "WHAT THIS SHOWS", 11, kAccent, "bold"
-   set the rect of field "AboutCap" to kSideLeft, kViewTop + 232, kSideRight, kViewTop + 250
+   set the rect of field "AboutCap" to kSideLeft, kViewTop + 230, kSideRight, kViewTop + 252
    makeText "About", empty, 13, kInk
    set the rect of field "About" to kSideLeft, kViewTop + 254, kSideRight, kViewTop + 420
    makeText "Stats", empty, 12, kSoft
@@ -211,17 +220,12 @@ private command makeButton pName, pLabel
    set the autoHilite of button pName to false
 end makeButton
 
+-- A switch: the same button as an exhibit's, lit while it is on. Not a
+-- tick box: the system draws those, in its own theme's colours, and under
+-- a dark theme a tick box's words came out white on white in another
+-- stack (the suite's physics demo on Windows, 2026-11-20).
 private command makeTick pName, pLabel
-   create button pName
-   set the label of button pName to pLabel
-   set the style of button pName to "checkbox"
-   set the opaque of button pName to false
-   set the showBorder of button pName to false
-   set the traversalOn of button pName to false
-   set the textSize of button pName to 12
-   set the foregroundColor of button pName to kInk
-   -- the tour ticks and unticks its boxes itself
-   set the autoHilite of button pName to false
+   makeButton pName, pLabel
 end makeTick
 
 private function fileText pFile

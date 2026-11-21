@@ -224,6 +224,55 @@ on TestClosingGivesEverythingBack
    TestAssert "no scene, node, mesh, material, texture or light is left", r3LiveCounts() is "0,0,0,0,0,0"
 end TestClosingGivesEverythingBack
 
+on TestTheSunAndItsPlanets
+   local tAt, tSpot, tCamera
+   if not needRenderer("the sun and its planets") then
+      exit TestTheSunAndItsPlanets
+   end if
+   tour "rtGo", 1
+   tour "rtTestStep", 0.5
+   TestAssert "the lamp is in the sun, and the far sun is out", st("lights") is 2 and st("light 1") ends with "false" \
+         and st("light 2") contains ";0,0,0;" and st("light 2") ends with "true"
+   TestAssert "four planets, three moons, a ring, a comet and 160 stars", st("part planet4") is not empty and st("part moons") is 3 \
+         and st("part moon3") is not empty and st("part ring") is not empty and st("part comet") is not empty and st("part stars") is 160
+   TestAssert "it starts by showing them all", st("part focus") is 0 and fieldText("Tag1") contains "Click a planet"
+   TestAssert "the corner says how fast, or that it is at rest", fieldText("Fps") is not empty
+   put r3NodePosition(st("part planet3")) into tAt
+   -- a click on planet 3 flies the camera to it, and names it
+   put spotOf(item 1 of tAt, 0, item 3 of tAt) into tSpot
+   tour "rtClickView", item 1 of tSpot, item 2 of tSpot
+   TestAssert "a click on the giant chooses it", st("part focus") is 3 and fieldText("Stats") contains "Colossus"
+   repeat 12 times
+      tour "rtTestStep", 0.1
+   end repeat
+   put st("camera") into tCamera
+   put r3NodePosition(st("part planet3")) into tAt
+   -- from the side the sun lights: the camera is nearer the sun than the
+   -- planet is
+   TestAssert "it looks at the planet's day side", sqrt(item 1 of tCamera ^ 2 + item 3 of tCamera ^ 2) < sqrt(item 1 of tAt ^ 2 + item 3 of tAt ^ 2)
+   TestAssert "the camera flies to it and looks at it", abs(item 4 of tCamera - item 1 of tAt) < 0.3 and abs(item 6 of tCamera - item 3 of tAt) < 0.3 \
+         and sqrt((item 1 of tCamera - item 4 of tCamera) ^ 2 + (item 2 of tCamera - item 5 of tCamera) ^ 2 + (item 3 of tCamera - item 6 of tCamera) ^ 2) < 10
+   TestAssert "and its name floats over it", fieldText("Tag1") is "Colossus" and the visible of field "Tag1" of card "Tour" of stack kStack
+   -- its moons are its own: a click on one keeps the planet
+   put r3NodePosition(st("part moon2")) into tAt
+   put spotOf(item 1 of tAt, item 2 of tAt, item 3 of tAt) into tSpot
+   tour "rtClickView", item 1 of tSpot, item 2 of tSpot
+   TestAssert "a click on a moon is a click on its planet", st("part focus") is 3
+   -- the sun, or the dark, shows everything again
+   tour "rtFocusPlanet", 0
+   repeat 20 times
+      tour "rtTestStep", 0.1
+   end repeat
+   put st("camera") into tCamera
+   TestAssert "and it comes back to the whole system", st("part focus") is 0 and abs(item 4 of tCamera) < 0.2 and abs(item 6 of tCamera) < 0.2 \
+         and fieldText("Tag1") contains "Click a planet"
+   tour "rtFocusPlanet", 99
+   tour "rtFocusPlanet", "x"
+   TestAssert "a planet that is not there is nobody", st("part focus") is 0
+   tour "rtTestStep", 3
+   TestAssert "the picture is drawn through all of it", the number of bytes of picture() is kViewW * kViewH * 4 and paintedPixels(picture()) > 40
+end TestTheSunAndItsPlanets
+
 on TestShapesAndTheirLabels
    local tN, tLoc, tRect
    if not needRenderer("the shapes") then

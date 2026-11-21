@@ -455,7 +455,8 @@ there; `build_player.py --check` runs that check on the player it builds.
 
 `stacks/Render3D Tour.oxtstack` shows what render3dxt, the xTalk Suite's
 3D renderer, can do, one thing at a time. It has ten exhibits: a sun
-and its planets, with a little of everything; the
+and its planets, with moons, a ring and a comet, where a click on a planet
+flies the camera to it; the
 shapes made to measure and a model; textures from a checkerboard, from
 imageData and from a PNG with gaps; five materials; a sun and three
 coloured lamps to switch by a click; a model read from the text of an OBJ
@@ -468,7 +469,8 @@ in its script: the stack carries no file.
 The picture is an ordinary image, 640 by 480, whose imageData render3dxt
 writes. On a desktop the next picture is drawn on other threads while the
 engine does its own work; in a browser there are none, so it is drawn at
-once, and Smooth edges starts unticked there. An engine without render3dxt
+once, and Smooth edges starts off there. The corner of the picture says
+how many pictures a second it is showing. An engine without render3dxt
 opens the stack on a notice and draws nothing.
 
 `render3d-tour.livecodescript` builds it with any OXT-Beyond engine
