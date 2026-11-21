@@ -125,6 +125,14 @@
         },
         "readme": "2.38 and OpenSSL 3 (TorrentXT and DataChannelXT)",
         "reason": "DataChannelXT's 32-bit library needs glibc 2.38 and OpenSSL 3 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/gamepadxt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (gamepadxt)",
+        "reason": "gamepadxt's 32-bit library is built on a newer system than the IDE: SDL's C23 calls need glibc 2.38 (README.md, Linux)"
       }
     ]
   }

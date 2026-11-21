@@ -3658,7 +3658,8 @@ site is static files: serve the folder with any web server (for example
 #### The xTalk Suite's libraries in the web IDE (experimental)
 
 A browser opens no native library, so the web IDE's engine links the
-xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT and box3dxt into itself,
+xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT, box3dxt and gamepadxt
+into itself,
 and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
 they are registered). The web standalone engine, which every HTML5
@@ -3674,7 +3675,10 @@ which makes every symbol of each object local but its table, so that two
 members carrying the same vendored code link side by side.
 DataChannelXT's web build is not libdatachannel: it is the same `dcx_*`
 contract over the browser's own WebRTC (`RTCPeerConnection`), so peers
-and channels behave as the browser's do. TorrentXT and ENetXT need raw
+and channels behave as the browser's do. gamepadxt's is SDL's gamepad
+layer as SDL builds it for the web, which reads the browser's Gamepad
+API: a browser shows a page a controller only after a button on it is
+pressed, and gamepadxt's virtual pads need no controller at all. TorrentXT and ENetXT need raw
 TCP and UDP sockets, which a page cannot open, and OnionXT a tor daemon
 reached over TCP, so none of them has a web build: a call to TorrentXT
 or ENetXT throws an error a script can catch, and OnionXT's script runs

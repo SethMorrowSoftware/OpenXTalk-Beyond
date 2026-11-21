@@ -503,6 +503,7 @@ below.
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
 | `org.openxtalk.library.boxthreed` | `xtalk-suite` (`box3dxt/`) | MIT, © 2026 Seth Morrow | Box3D (a pinned commit, before its first release): MIT, © 2026 Erin Catto. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with Box3D's notice) |
+| `org.openxtalk.library.gamepadxt` | `xtalk-suite` (`gamepadxt/`) | MIT, © 2026 Seth Morrow | SDL 3.4.20 (its joystick, gamepad and haptic parts, statically linked): the zlib licence, © 1997-2026 Sam Lantinga. The HIDAPI that SDL carries, compiled in to read controllers directly: BSD-style, © 2010 Alan Ott, Signal 11 Software. The Windows libraries link the Visual C++ runtime statically. The web engine links SDL's gamepad layer too. | `LICENSE` (with SDL's and HIDAPI's notices) |
 
 Notes:
 

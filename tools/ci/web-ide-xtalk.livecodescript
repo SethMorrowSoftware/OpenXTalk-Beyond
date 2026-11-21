@@ -14,8 +14,9 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT and
--- DataChannelXT (a shim over the browser's WebRTC) into itself
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT,
+-- DataChannelXT (a shim over the browser's WebRTC) and gamepadxt (SDL's
+-- gamepad layer, over the browser's Gamepad API) into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -32,6 +33,11 @@ script "oxtwebxtalk"
 --                drawn by the library's renderer into a picture whose
 --                middle pixel shows it; the picture set as an image's
 --                imageData
+--    gamepad     gamepadxt: a virtual pad (SDL's, which needs no
+--                controller; CI's browser has none) attached, a button
+--                pressed and a stick tilted, each read back as state and
+--                as events after a poll, rumbled and lit as the pad saw
+--                it, then unplugged
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
 --    nostr       NostrXT's relay library over the browser's WebSocket:
@@ -66,7 +72,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,gamepad,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -274,6 +280,47 @@ on xt_box3d
    delete stack "oxtWebBox3d"
    b3WorldDestroy tWorld
 end xt_box3d
+
+on xt_gamepad
+   local tBefore, tPad, tStick
+   tourRecord "INFO gpLibraryVersion()" && gpLibraryVersion()
+   xtExpect "the library's ABI", gpABIVersion(), 1
+   xtExpect "SDL 3", word 1 of gpLibraryVersion() && char 1 to 2 of word 2 of gpLibraryVersion(), "SDL 3."
+   xtExpect "start", gpStart(), true
+   -- A browser shows a page a controller only after a button on it is
+   -- pressed, and CI's has none: what is there is only reported
+   put gpPadCount() into tBefore
+   tourRecord "INFO the browser's own pads:" && tBefore
+   get gpEvents()
+   put gpVirtualAttach("Web Pad") into tPad
+   xtExpect "a virtual pad", tPad > 0 and gpPadIsVirtual(tPad) and gpPadCount() is tBefore + 1, true
+   xtExpect "its name", gpPadName(tPad), "Web Pad"
+   xtExpect "its arrival is an event", ("connected," & tPad) is among the lines of gpEvents(), true
+   -- A button: seen after a poll, as state and as one event
+   xtExpect "press south", gpVirtualSetButton(tPad, "south", true), true
+   xtExpect "the poll's events", gpPoll(), 1
+   xtExpect "south held", gpPadButton(tPad, "south"), true
+   xtExpect "the event", gpEvents(), "button," & tPad & ",south,down"
+   xtExpect "its printed label", gpPadButtonLabel(tPad, "south"), "a"
+   -- A stick, with the round dead zone (0.15) taken out
+   get gpVirtualSetAxis(tPad, "leftx", 0.1)
+   get gpVirtualSetAxis(tPad, "lefty", 0)
+   get gpPoll()
+   xtExpect "a stick inside the dead zone", gpPadStick(tPad, "left"), "0,0"
+   get gpVirtualSetAxis(tPad, "leftx", 1)
+   get gpPoll()
+   put gpPadStick(tPad, "left") into tStick
+   xtExpect "a stick at full tilt", (item 1 of tStick is 1) && (item 2 of tStick is 0), "true true"
+   -- Rumble and light, as the pad saw them
+   xtExpect "rumble", gpPadRumble(tPad, 0.5, 1, 200) && (item 2 of gpVirtualRumble(tPad) is 1), "true true"
+   xtExpect "the light", gpPadSetLED(tPad, 10, 128, 255) && gpVirtualLED(tPad), "true 10,128,255"
+   -- Unplugged: its handle dies and says so
+   gpVirtualDetach tPad
+   xtExpect "unplugged", gpPadIsConnected(tPad) && (("disconnected," & tPad) is among the lines of gpEvents()), "false true"
+   xtExpect "SDL's assertions", gpAssertCount(), 0
+   gpStop
+   xtExpect "stopped", gpIsStarted(), false
+end xt_gamepad
 
 on xt_coinxt
    local tSec, tSig

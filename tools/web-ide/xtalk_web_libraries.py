@@ -95,7 +95,8 @@ EMSCRIPTEN_VERSION_FILE = os.path.join(REPO, 'config', 'emscripten-version')
 
 # The names the engine registers (engine/src/em-xtalk-web.cpp): a library
 # whose name is not here would be linked and never found
-KNOWN = ('sodiumxt', 'box2dxt', 'coinxt', 'datachannelxt', 'box3dxt')
+KNOWN = ('sodiumxt', 'box2dxt', 'coinxt', 'datachannelxt', 'box3dxt',
+         'gamepadxt')
 
 
 class WebLibraryError(Exception):
