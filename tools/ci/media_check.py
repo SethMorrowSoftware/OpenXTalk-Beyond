@@ -132,6 +132,7 @@ sys.path.insert(0, HERE)
 import package  # noqa: E402
 import run_livecode_check as rlc  # noqa: E402
 import standalone_check  # noqa: E402
+import hidpi_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'media-check.livecodescript')
 MEDIA = os.path.join(HERE, 'media')
@@ -191,6 +192,7 @@ PAGE = """<!DOCTYPE html>
 if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('inline', location.search || 'first');
 document.getElementById('h').textContent = 'script ran: ' + (1 + 2);
 setTimeout(function () {
+  if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('size', window.innerWidth + ' ' + window.devicePixelRatio);
   if (window.liveCode && liveCode.oxtReport) liveCode.oxtReport('loaded', navigator.userAgent);
 }, 300);
 </script>
@@ -416,6 +418,21 @@ def known_failures(family, player_backend='auto', missing_media_foundation=()):
     return known
 
 
+# The variables Chromium reads the desktop's name from (base/nix/xdg_util.cc,
+# GetDesktopEnvironment), and what the sessions of three desktops give them:
+# Ubuntu's GNOME (24.04 and 26.04), Xubuntu's Xfce and Kubuntu's Plasma
+DESKTOP_VARIABLES = ('XDG_CURRENT_DESKTOP', 'DESKTOP_SESSION', 'GNOME_DESKTOP_SESSION_ID', 'KDE_FULL_SESSION')
+DESKTOPS = {
+    'gnome': {'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'DESKTOP_SESSION': 'ubuntu',
+              'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated'},
+    'xfce': {'XDG_CURRENT_DESKTOP': 'XFCE', 'DESKTOP_SESSION': 'xubuntu'},
+    'kde': {'XDG_CURRENT_DESKTOP': 'KDE', 'DESKTOP_SESSION': 'plasma', 'KDE_FULL_SESSION': 'true'},
+}
+
+# What glibc prints when a function returns with a changed stack canary
+STACK_SMASHED = 'stack smashing detected'
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Check the browser widget, revBrowser and the player in a standalone '
                                              'of an installed OXT-Beyond.')
@@ -447,6 +464,16 @@ def main(argv=None):
                          'looks for Chromium\'s X window in the stack\'s; "wayland-name" gives the engine '
                          'XDG_SESSION_TYPE=wayland alone, with no compositor (default: %(default)s, the display '
                          'there is, or xvfb-run)')
+    ap.add_argument('--desktop', choices=sorted(DESKTOPS), metavar='NAME',
+                    help='on Linux, name the desktop for the engine as that desktop\'s session does '
+                         '(XDG_CURRENT_DESKTOP, DESKTOP_SESSION and the rest; one of %(choices)s). Chromium asks for '
+                         'the theme of the desktop it is named: GTK\'s on gnome and xfce, which the GTK 2 engine '
+                         'cannot load, so the engine keeps the name from it')
+    ap.add_argument('--desktop-scale', type=int, choices=(2, 3), metavar='N',
+                    help='on Linux, run the engine on a screen of its own (Xvfb) with a desktop scaled N times: an '
+                         'XSETTINGS manager (xsettingsd) publishing Gdk/WindowScalingFactor N, Xft/DPI N times 96 '
+                         'and Gdk/UnscaledDPI 96, as GNOME\'s settings do. The browser widget\'s page must then be '
+                         'as wide as the widget, at N pixels a point')
     args = ap.parse_args(argv)
     if bool(args.install) == bool(args.package):
         ap.error('pass --install or --package')
@@ -463,8 +490,13 @@ def main(argv=None):
 
     if args.session != 'own' and p.family != 'linux':
         ap.error('--session %s is for Linux' % args.session)
+    if args.desktop and p.family != 'linux':
+        ap.error('--desktop is for Linux')
+    if args.desktop_scale and (p.family != 'linux' or args.session != 'own'):
+        ap.error('--desktop-scale is for Linux, with a screen of its own (no --session)')
 
     lines, problems, temp_dirs, server, session, sample_tree = [], [], [], None, None, False
+    desktop = []
     try:
         base = os.environ.get('RUNNER_TEMP') or tempfile.gettempdir()
         work = tempfile.mkdtemp(prefix='oxt-media-', dir=base)
@@ -505,6 +537,15 @@ def main(argv=None):
                 env['OXT_BROWSER_BACKEND'] = args.browser_backend
             if 'widget' in what:
                 rlc.log('Browser : %s' % args.browser_backend)
+            # The desktop's name: the runner's own is taken away (a test
+            # runs on a desktop with no name unless it gives one)
+            for name in DESKTOP_VARIABLES:
+                env.pop(name, None)
+            if args.desktop:
+                env.update(DESKTOPS[args.desktop])
+                env['OXT_MEDIA_DESKTOP'] = DESKTOPS[args.desktop]['XDG_CURRENT_DESKTOP']
+                rlc.log('Desktop : named %s' % args.desktop)
+                lines.append('INFO desktop: %s' % ' '.join('%s=%s' % x for x in sorted(DESKTOPS[args.desktop].items())))
             if 'player' in what:
                 if args.player_backend == 'auto':
                     env.pop('OXT_PLAYER_BACKEND', None)
@@ -537,6 +578,26 @@ def main(argv=None):
                         env.pop(name, None)
                     rlc.log('Session : XDG_SESSION_TYPE=wayland alone, with no compositor')
                     lines.append('INFO session: XDG_SESSION_TYPE=wayland alone, on an X display, with no compositor')
+                if args.desktop_scale:
+                    # A desktop scaled as GNOME scales one: the engine reads
+                    # the scale from XSETTINGS (no GDK_SCALE), and a GTK 3
+                    # program finds Xft/DPI with the scale in it already
+                    for name in ('GDK_SCALE', 'GDK_DPI_SCALE'):
+                        env.pop(name, None)
+                    try:
+                        xvfb, display = hidpi_check.start_xvfb(1280 * args.desktop_scale, 1024 * args.desktop_scale)
+                        desktop.append(xvfb)
+                        manager = hidpi_check.start_xsettingsd(display, args.desktop_scale, work)
+                    except RuntimeError as e:
+                        raise rlc.CheckError(str(e))
+                    if manager is None:
+                        raise rlc.CheckError('--desktop-scale needs xsettingsd')
+                    desktop.append(manager)
+                    env['DISPLAY'] = display
+                    env['OXT_MEDIA_DESKTOP_SCALE'] = str(args.desktop_scale)
+                    rlc.log('Desktop : scaled %d times (XSETTINGS, on %s)' % (args.desktop_scale, display))
+                    lines.append('INFO desktop: Gdk/WindowScalingFactor %d, Xft/DPI %d, Gdk/UnscaledDPI 96'
+                                 % (args.desktop_scale, 96 * args.desktop_scale))
                 if not env.get('DISPLAY'):
                     xvfb = shutil.which('xvfb-run')
                     if not xvfb:
@@ -593,6 +654,13 @@ def main(argv=None):
                            for x in results]
             lines += results
             problems += [x[5:] for x in results if x.startswith('FAIL ')]
+            # A process of the browser's that ended by failing the stack
+            # protector's check: up to 0.2.8-dp.2 every child Chromium's
+            # zygote forked (which has a new canary) ended so, on its way
+            # out of the helper's main (libbrowser_cefprocess_lnx.cpp)
+            smashed = output.decode('utf-8', 'replace').count(STACK_SMASHED)
+            if smashed:
+                problems.append('%s: %d of the browser\'s processes ended with "%s"' % (part, smashed, STACK_SMASHED))
             if not finished:
                 problems.append('%s: the engine did not finish (%s)'
                                 % (part, 'timed out after %d seconds' % args.timeout if code is None
@@ -607,6 +675,9 @@ def main(argv=None):
     finally:
         if session:
             end_session(session)
+        for proc in reversed(desktop):
+            proc.kill()
+            proc.wait()
         if server:
             server.shutdown()
         for d in temp_dirs:

@@ -1798,6 +1798,8 @@ private command csBuild
    set the textHeight of tObj to 21
    set the vScrollbar of tObj to true
    set the rightMargin of tObj to 14
+   -- (the last line of a long page comes wholly into view)
+   lkPageEnd tObj
    if lkDark() then
       lkScroller "pageThumb", tObj, "148,163,184", 45, empty
    else
