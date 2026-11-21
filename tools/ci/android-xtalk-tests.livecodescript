@@ -348,8 +348,27 @@ end xtalkTestDataChannel
 -- TorrentXT: a session starts and listens, a torrent is made of a file
 -- the app wrote, added, checked and found complete (seeding), and the
 -- session stops. Nothing is announced: no tracker, and the DHT is off
+-- One event btPoll answered, in a few words, for a failure to say
+private function xtalkTorrentEvent pEvent
+   local tSaid
+   put pEvent["name"] into tSaid
+   if pEvent["state"] is not empty then put " to state" && pEvent["state"] after tSaid
+   if pEvent["endpoint"] is not empty then put " on" && pEvent["endpoint"] after tSaid
+   if pEvent["errorMessage"] is not empty then put ":" && pEvent["errorMessage"] after tSaid
+   return tSaid
+end xtalkTorrentEvent
+
+-- Where a torrent is, for a failure to say: its state as libtorrent numbers
+-- it (1 checking its files, 5 seeding), and the error that stopped it
+private function xtalkTorrentIs pStatus
+   return "state" && quote & pStatus["state"] & quote & ", progress" && pStatus["progress"] & \
+         ", seeding" && quote & pStatus["isSeeding"] & quote & ", paused" && quote & pStatus["isPaused"] & quote & \
+         ", flags" && pStatus["flags"] & ", error" && quote & pStatus["error"] & quote
+end xtalkTorrentIs
+
 function xtalkTestTorrent
    local tSession, tFolder, tContent, tTorrentData, tTorrent, tDeadline, tStatus, tKey, tAnswer, tPort, tHash
+   local tEvent, tSaid, tEvents, tWas
    -- RFC 8032's first seed again: the DHT's keys are Ed25519
    put btDhtKeypair("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60") into tKey
    if not xtalkSame(tKey["publicKey"], "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a") then
@@ -382,7 +401,14 @@ function xtalkTestTorrent
    put btAddTorrentFile(tSession, tTorrentData, tFolder) into tTorrent
    put the milliseconds + kXtalkWait into tDeadline
    repeat until the milliseconds > tDeadline or tTorrent <= 0
-      get btPoll(tSession)
+      -- what the session says while it works, each thing once: a torrent
+      -- that never seeds is explained by these, or by their absence
+      repeat for each element tEvent in btPoll(tSession)
+         put xtalkTorrentEvent(tEvent) into tSaid
+         if tSaid is not among the lines of tEvents and the number of lines of tEvents < 16 then
+            put tSaid & return after tEvents
+         end if
+      end repeat
       put btTorrentStatus(tTorrent) into tStatus
       put btListenPort(tSession) into tPort
       -- (every status value is text: seeding is "1")
@@ -394,9 +420,22 @@ function xtalkTestTorrent
       put "passed: a session listening on port" && tPort & ", a torrent made of a 100000-byte file in the app's folder," && \
             "checked and seeding (info hash" && char 1 to 8 of tHash & "...)" into tAnswer
    else
+      put xtalkTorrentIs(tStatus) into tWas
+      replace return with "; " in tEvents
+      -- one more thing a failure can say: whether the torrent only waits to
+      -- be started. An app's btResume starts a paused one
+      if tTorrent > 0 then
+         get btResume(tTorrent)
+         put the milliseconds + 3000 into tDeadline
+         repeat until the milliseconds > tDeadline
+            get btPoll(tSession)
+            wait kXtalkTick milliseconds with messages
+         end repeat
+         put btTorrentStatus(tTorrent) into tStatus
+      end if
       put "a torrent of a file in" && tFolder && "is not seeding after" && kXtalkWait && "ms (handle" && tTorrent & \
-            ", state" && quote & tStatus["state"] & quote & ", progress" && tStatus["progress"] & ", seeding" && quote & tStatus["isSeeding"] & quote & ", port" && tPort & "):" && \
-            btLastError() into tAnswer
+            ", port" && tPort & "," && tWas & "; the session said:" && tEvents & \
+            " and 3000 ms after a btResume it is at" && xtalkTorrentIs(tStatus) & "):" && btLastError() into tAnswer
    end if
    btStopSession tSession
    delete file tFolder & "/content.bin"
