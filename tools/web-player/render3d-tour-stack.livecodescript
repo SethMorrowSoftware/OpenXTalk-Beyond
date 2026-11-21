@@ -1221,6 +1221,7 @@ function rtState
    if sHave is true then
       put "live=" & r3LiveCounts() & return after tState
       if sScene is not empty then
+         put "scene=" & sScene & return after tState
          put "nodes=" & r3SceneNodeCount(sScene) & return after tState
          put "lights=" & r3SceneLightCount(sScene) & return after tState
          put "ambient=" & r3SceneAmbient(sScene) & return after tState
