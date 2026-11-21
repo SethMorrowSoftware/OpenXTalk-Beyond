@@ -34,6 +34,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 #include <foundation-system.h>
 
 #include "em-externals.h"
+#include "async.h"
 
 /* The symbols, as each one is renamed for its library. The types are those
  * of the definitions in WebAssembly's terms (every pointer is a 32-bit
@@ -91,10 +92,12 @@ static const MCSLibraryStaticExport kMCEmscriptenDBSQLiteExports[] =
 
 /* The engine's own functions that extensions bind to with "<builtin>",
  * which a desktop engine finds by name in its executable: the xTalk suite's
- * libraries make and read Data with them, and the tree view widget decodes
- * text with MCStringDecode. Each address is taken as the function's own
- * type, so that it is the function the definition is (an overload or a
- * template of the same name is not). */
+ * libraries make and read Data with them, the tree view widget decodes
+ * text with MCStringDecode, the Background Jobs library starts its jobs
+ * with the MCAsyncJobs functions, and an extension with native code has the
+ * MCAsyncNative functions (async.cpp). Each address is taken as the
+ * function's own type, so that it is the function the definition is (an
+ * overload or a template of the same name is not). */
 static const MCSLibraryStaticExport kMCEmscriptenEngineExports[] =
 {
 	{ "MCMemoryAllocate", reinterpret_cast<void *>(static_cast<bool (*)(size_t, void *&)>(MCMemoryAllocate)) },
@@ -106,6 +109,24 @@ static const MCSLibraryStaticExport kMCEmscriptenEngineExports[] =
 	{ "MCStringDecode", reinterpret_cast<void *>(MCStringDecode) },
 	{ "MCStringEncode", reinterpret_cast<void *>(MCStringEncode) },
 	{ "MCHandlerGetFunctionPtr", reinterpret_cast<void *>(MCHandlerGetFunctionPtr) },
+	{ "MCAsyncJobsReadFile", reinterpret_cast<void *>(MCAsyncJobsReadFile) },
+	{ "MCAsyncJobsWriteFile", reinterpret_cast<void *>(MCAsyncJobsWriteFile) },
+	{ "MCAsyncJobsCopyFile", reinterpret_cast<void *>(MCAsyncJobsCopyFile) },
+	{ "MCAsyncJobsListFolder", reinterpret_cast<void *>(MCAsyncJobsListFolder) },
+	{ "MCAsyncJobsShell", reinterpret_cast<void *>(MCAsyncJobsShell) },
+	{ "MCAsyncJobsProcessOpen", reinterpret_cast<void *>(MCAsyncJobsProcessOpen) },
+	{ "MCAsyncJobsProcessWrite", reinterpret_cast<void *>(MCAsyncJobsProcessWrite) },
+	{ "MCAsyncJobsProcessCloseInput", reinterpret_cast<void *>(MCAsyncJobsProcessCloseInput) },
+	{ "MCAsyncJobsCancel", reinterpret_cast<void *>(MCAsyncJobsCancel) },
+	{ "MCAsyncJobsStatus", reinterpret_cast<void *>(MCAsyncJobsStatus) },
+	{ "MCAsyncJobsProgress", reinterpret_cast<void *>(MCAsyncJobsProgress) },
+	{ "MCAsyncJobsList", reinterpret_cast<void *>(MCAsyncJobsList) },
+	{ "MCAsyncNativeCall", reinterpret_cast<void *>(MCAsyncNativeCall) },
+	{ "MCAsyncNativeWakeCreate", reinterpret_cast<void *>(MCAsyncNativeWakeCreate) },
+	{ "MCAsyncNativeWakeDelete", reinterpret_cast<void *>(MCAsyncNativeWakeDelete) },
+	{ "MCAsyncNativeWakeSignal", reinterpret_cast<void *>(MCAsyncNativeWakeSignal) },
+	{ "MCAsyncNativeWakeFunction", reinterpret_cast<void *>(MCAsyncNativeWakeFunction) },
+	{ "MCAsyncNativeWakeContext", reinterpret_cast<void *>(MCAsyncNativeWakeContext) },
 	{ nullptr, nullptr },
 };
 

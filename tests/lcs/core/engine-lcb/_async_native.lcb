@@ -1,0 +1,99 @@
+/*
+Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond.
+
+OXT-Beyond is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
+
+-- What an extension with native code binds to for work off the main thread
+-- (async-native.livecodescript): a native function called on another thread,
+-- and a wake that any thread may signal. The native function these tests
+-- have called is the engine's own signal function, which is the one
+-- function of native code that every engine has, and whose effect a script
+-- can see: so a call made here is a wake signalled from another thread.
+library com.livecode.lcs_tests.core.extensions.async_native
+
+use com.livecode.foreign
+
+foreign handler MCAsyncNativeCall(in pFunction as optional Pointer, in pContext as optional Pointer, in pMessage as String) returns CUInt binds to "<builtin>"
+foreign handler MCAsyncNativeWakeCreate(in pMessage as String) returns CUInt binds to "<builtin>"
+foreign handler MCAsyncNativeWakeDelete(in pWake as CUInt) returns CBool binds to "<builtin>"
+foreign handler MCAsyncNativeWakeSignal(in pContext as optional Pointer) returns nothing binds to "<builtin>"
+foreign handler MCAsyncNativeWakeFunction() returns Pointer binds to "<builtin>"
+foreign handler MCAsyncNativeWakeContext(in pWake as CUInt) returns optional Pointer binds to "<builtin>"
+foreign handler MCAsyncJobsCancel(in pJob as any) returns CBool binds to "<builtin>"
+
+-- A wake whose message goes to the object whose script calls this
+public handler TestAsyncNativeWakeCreate(in pMessage as String) returns Number
+	variable tWake as Number
+	unsafe
+		put MCAsyncNativeWakeCreate(pMessage) into tWake
+	end unsafe
+	return tWake
+end handler
+
+public handler TestAsyncNativeWakeDelete(in pWake as Number) returns Boolean
+	variable tDeleted as Boolean
+	unsafe
+		put MCAsyncNativeWakeDelete(pWake) into tDeleted
+	end unsafe
+	return tDeleted
+end handler
+
+-- Signal a wake from here, the main thread
+public handler TestAsyncNativeWakeSignal(in pWake as Number) returns nothing
+	unsafe
+		MCAsyncNativeWakeSignal(MCAsyncNativeWakeContext(pWake))
+	end unsafe
+end handler
+
+-- Signal a wake from another thread: a native call of the signal function
+-- with the wake's context, as an extension's native code would be given
+-- them. Returns the call's job.
+public handler TestAsyncNativeWakeSignalOnAThread(in pWake as Number, in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncNativeCall(MCAsyncNativeWakeFunction(), \
+				MCAsyncNativeWakeContext(pWake), pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+-- A call of no function at all
+public handler TestAsyncNativeCallNothing(in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncNativeCall(nothing, nothing, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+-- True if the context of a wake is not an address of anything: wake 0 is
+-- no wake, and its context is the null pointer
+public handler TestAsyncNativeNoWakeHasNoContext() returns Boolean
+	variable tContext as optional Pointer
+	unsafe
+		put MCAsyncNativeWakeContext(0) into tContext
+	end unsafe
+	return tContext is nothing
+end handler
+
+public handler TestAsyncNativeCancel(in pJob as Number) returns Boolean
+	variable tCancelled as Boolean
+	unsafe
+		put MCAsyncJobsCancel(pJob) into tCancelled
+	end unsafe
+	return tCancelled
+end handler
+
+end library

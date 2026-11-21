@@ -495,12 +495,21 @@ component Extensions
 	// OXT-Beyond: the SVG Drawing widget, a whole SVG in its own colours
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/org.openxtalk.widget.svgdrawing
+	// OXT-Beyond: background jobs (asyncShell, asyncReadFile and the rest)
+	into [[ToolsFolder]]/Extensions place
+		rfolder macosx:packaged_extensions/org.openxtalk.library.async
 	// OXT-Beyond: Android's "Open document" screen and content addresses
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/org.openxtalk.library.androiddocuments
 	// OXT-Beyond: jsonDecode and jsonEncode, JSON arrays and objects kept apart
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/com.livecode.library.jsoncodec
+	// OXT-Beyond: workers, for long handlers run beside the stack
+	into [[ToolsFolder]]/Extensions place
+		rfolder macosx:packaged_extensions/com.livecode.library.worker
+	// OXT-Beyond: database queries in the background, through a worker
+	into [[ToolsFolder]]/Extensions place
+		rfolder macosx:packaged_extensions/com.livecode.library.asyncdatabase
 
 	include TimeZone
 

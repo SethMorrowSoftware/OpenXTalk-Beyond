@@ -154,6 +154,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.library.androidaudiorecorder',
     'com.livecode.library.androidbgaudio',
     'com.livecode.library.androidutils',
+    'com.livecode.library.asyncdatabase',
     'com.livecode.library.diff',
     'com.livecode.library.drawing',
     'com.livecode.library.dropbox',
@@ -174,6 +175,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.library.timezone',
     'com.livecode.library.toast',
     'com.livecode.library.widgetutils',
+    'com.livecode.library.worker',
     'com.livecode.widget.browser',
     'com.livecode.widget.clock',
     'com.livecode.widget.colorswatch',
@@ -196,6 +198,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.widget.tile',
     'com.livecode.widget.treeview',
     'org.openxtalk.library.androiddocuments',
+    'org.openxtalk.library.async',
     'org.openxtalk.library.hxtcompat',
     'org.openxtalk.widget.svgdrawing',
 )

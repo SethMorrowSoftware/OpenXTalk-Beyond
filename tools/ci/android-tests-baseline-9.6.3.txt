@@ -316,6 +316,28 @@ lcs: core/strings/matches: TestMatchesRegexCase
 lcs: core/strings/matches: TestMatchesWildcard
 lcs: core/strings/matches: TestMatchesWildcardAsFilter
 lcs: core/strings/matches: TestMatchesWildcardCase
+lcs: extensions/libraries/async-freeze: TestFreezeOfAFolderTree  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async-freeze: TestFreezeOfALargeFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestAppendFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestCancelFileJob  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestCopyFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestFileErrors  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestListFolder  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestManyJobs  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestMessageGoesToCaller  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestMessageWaitsForMessages  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestNoPrograms  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcess  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessArguments  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessCancel  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessFails  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestRelativePath  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShell  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShellCancel  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShellDoesNotBlock  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWriteText  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWriteThenReadFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWrongCalls  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
 lcs: extensions/libraries/hxtcompat: TestIff
 lcs: extensions/libraries/hxtcompat: TestIffBothValuesWorkedOut
 lcs: extensions/libraries/hxtcompat: TestIffNeedsTrueOrFalse

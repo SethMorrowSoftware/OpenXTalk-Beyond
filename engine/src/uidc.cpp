@@ -56,6 +56,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "resolution.h"
 
 #include "exec.h"
+#include "async.h"
 
 class MCNullPrinter: public MCPrinter
 {
@@ -1359,6 +1360,13 @@ Boolean MCUIDC::handlepending(real8& curtime, real8& eventtime, Boolean dispatch
 {
     Boolean t_handled;
     t_handled = False;
+
+    // OXT-Beyond: what the background jobs (async.cpp) have ended with since
+    // the last pass joins the pending messages here, due now, so that this
+    // pass handles them as it would ones sent "in 0 seconds". One read of a
+    // flag when no job has ended.
+    MCAsyncPostPending(curtime);
+
     for(uindex_t i = 0; i < m_messages.GetCount(); i++)
     {
         MCPendingMessage t_msg = m_messages[i];

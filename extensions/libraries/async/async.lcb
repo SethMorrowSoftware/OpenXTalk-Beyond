@@ -1,0 +1,798 @@
+/* Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond.
+
+OXT-Beyond is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
+
+-- Background jobs: work that would freeze a stack while it runs (a shell
+-- command, a program, a large or slow file, a folder on a network share),
+-- handed to the engine to do on another thread while the script goes on,
+-- with a message to the object that asked when it is done.
+--
+-- The work is the engine's (engine/src/async.cpp, and async-core.cpp for
+-- the threads): the library binds to it by name. It is a library, and not
+-- new functions of the engine, so that adding it breaks no script: a
+-- library's handlers come last in the message path, so a script's own
+-- handlers of these names come first, as they did, and no name is reserved.
+-- shell(), "open process", "put URL" and the file commands are untouched
+-- and block as they always have.
+--
+-- The handlers' names are not all lower case: lc-compile keeps such names
+-- for syntax and warns of them, and the extension build turns its warnings
+-- into errors. A script finds a library handler whatever the case of the
+-- name it calls.
+
+/**
+Runs shell commands and programs, reads, writes and copies files and lists
+folders in the background, so that a stack stays responsive while the work
+is done.
+
+Description:
+A call such as <asyncShell> or <asyncReadFile> starts a job and returns at
+once with the job's number. The engine does the work on another thread
+while your script goes on and the user interface stays live. When the job
+is done, the object whose script started it is sent the message you named,
+with the job's number, what the job made, an error (empty when all went
+well) and a code:
+
+    on mouseUp
+       get asyncShell("ffmpeg -i in.mov out.mp4", "convertDone")
+    end mouseUp
+
+    on convertDone pJob, pOutput, pError, pExitCode
+       if pError is not empty then
+          answer "Could not convert:" && pError
+       else
+          put pOutput into field "Log"
+       end if
+    end convertDone
+
+The message arrives as one sent with `send ... in 0 seconds` would: once
+the handlers that are running have finished, or while one of them waits
+`with messages`. Every job that was started sends its message exactly
+once, whatever went wrong, unless the object has been deleted by then.
+
+<asyncProcessOpen> starts a program that your script talks to: its
+message comes each time the program writes something, and
+<asyncProcessWrite> sends it input.
+
+<asyncCancel> stops a job, <asyncStatus> and <asyncProgress> say how far
+one has got, and <asyncJobs> lists those that are running.
+
+The engine's own <shell>, <open process>, <URL> and file commands are as
+they were: they do their work before the script goes on, as they always
+have. Where a script has its own handler with the name of one of this
+library's, that handler is called, as before.
+
+Jobs that are still running when the application quits are stopped,
+and the programs they started are ended. Files being written with
+<asyncWriteFile> or <asyncAppendFile> are finished first.
+
+In a standalone application, include the "Background Jobs" library
+(Standalone Application Settings, Inclusions).
+
+Tags: Library
+*/
+
+library org.openxtalk.library.async
+
+metadata version is "1.0.0"
+metadata author is "OXT-Beyond"
+metadata title is "Background Jobs"
+
+use com.livecode.foreign
+
+private foreign handler MCAsyncJobsReadFile(in pPath as String, \
+		in pMessage as String) returns UInt32 binds to "<builtin>"
+private foreign handler MCAsyncJobsWriteFile(in pPath as String, \
+		in pData as Data, in pAppend as CBool, in pMessage as String) \
+		returns UInt32 binds to "<builtin>"
+private foreign handler MCAsyncJobsCopyFile(in pFrom as String, \
+		in pTo as String, in pMessage as String) returns UInt32 \
+		binds to "<builtin>"
+private foreign handler MCAsyncJobsListFolder(in pPath as String, \
+		in pRecursive as CBool, in pMessage as String) returns UInt32 \
+		binds to "<builtin>"
+private foreign handler MCAsyncJobsShell(in pCommand as String, \
+		in pMessage as String) returns UInt32 binds to "<builtin>"
+private foreign handler MCAsyncJobsProcessOpen(in pProgram as String, \
+		in pArguments as any, in pMessage as String) returns UInt32 \
+		binds to "<builtin>"
+private foreign handler MCAsyncJobsProcessWrite(in pJob as any, \
+		in pData as Data) returns CBool binds to "<builtin>"
+private foreign handler MCAsyncJobsProcessCloseInput(in pJob as any) \
+		returns CBool binds to "<builtin>"
+private foreign handler MCAsyncJobsCancel(in pJob as any) returns CBool \
+		binds to "<builtin>"
+private foreign handler MCAsyncJobsStatus(in pJob as any, \
+		out rStatus as String) returns nothing binds to "<builtin>"
+private foreign handler MCAsyncJobsProgress(in pJob as any, \
+		out rProgress as String) returns nothing binds to "<builtin>"
+private foreign handler MCAsyncJobsList(out rJobs as String) \
+		returns nothing binds to "<builtin>"
+
+/**
+Summary: Runs a shell command in the background and sends a message with its output when it has ended.
+
+Example:
+on mouseUp
+   get asyncShell("ls -l /usr/bin", "listingDone")
+end mouseUp
+
+on listingDone pJob, pOutput, pError, pExitCode
+   if pError is empty then put pOutput into field "Listing"
+end listingDone
+
+Example:
+-- keep the number, to cancel the command if the user gives up
+put asyncShell("rsync -a" && tFrom && tTo, "syncDone") into sSyncJob
+
+Parameters:
+pCommand: The command, as <shell> takes it.
+pMessage: The name of the message to send to this object when the command has ended.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncShell> function in place of <shell> for a command that
+takes long enough to freeze the stack: a conversion, a download, a
+build, a search of the disk.
+
+The command is run exactly as <shell> runs it: by the <shellCommand>,
+with its error output joined to its output, and on Windows in a console
+window that the <hideConsoleWindows> property hides. <asyncShell>
+returns at once. When the command has ended, the object whose script
+called <asyncShell> is sent <pMessage> with four parameters:
+
+- the number of the job
+- the command's output, as text, as <shell> returns it
+- an error: empty if the command ran, "cancelled" if <asyncCancel>
+  stopped it, "can't run shell" if the shell could not be started
+- the command's exit code (what <shell> leaves in the <result>, and 0
+  for a command that succeeded). A command that a signal ended has 128
+  plus the signal's number.
+
+Output in UTF-8 is decoded as it is with <shell>: with
+`textDecode(pOutput, "UTF-8")`.
+
+To see a command's output while it runs, or to send it input, start it
+with <asyncProcessOpen>.
+
+If the <securityPermissions> do not allow processes, or there is no
+<shellCommand>, the call fails with an error, as <shell> does. Where a
+script has its own <asyncShell> handler, that handler is called
+instead.
+
+On Android and in a browser no command can be run: the message comes
+with the error "not supported".
+
+Tags: Library
+
+References: shell (function), shellCommand (property),
+hideConsoleWindows (property), asyncProcessOpen (handler),
+asyncCancel (handler), result (function), textDecode (function)
+*/
+public handler asyncShell(in pCommand as String, in pMessage as String) \
+		returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsShell(pCommand, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Starts a program in the background and sends a message each time it writes output, and when it ends.
+
+Example:
+on mouseUp
+   local tArguments
+   put "-c" into tArguments[1]
+   put "4" into tArguments[2]
+   put "openxtalk.org" into tArguments[3]
+   get asyncProcessOpen("ping", tArguments, "pingSaid")
+end mouseUp
+
+on pingSaid pJob, pEvent, pData, pCode
+   switch pEvent
+      case "output"
+         put pData after field "Log"
+         break
+      case "exit"
+         put "Done, with exit code" && pCode & return after field "Log"
+         break
+      case "failed"
+         answer "Could not run ping:" && pData
+         break
+   end switch
+end pingSaid
+
+Example:
+-- a program that is sent lines to work on
+put asyncProcessOpen("/usr/bin/sort", empty, "sortSaid") into sSortJob
+asyncProcessWrite sSortJob, "pear" & return & "apple" & return
+asyncProcessCloseInput sSortJob
+
+Parameters:
+pProgram: The program: a path, or a name alone to have the system look for it in its PATH.
+pArguments: The program's arguments: an array with the keys 1 to N, or text with one argument on each line, or empty.
+pMessage: The name of the message to send to this object.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncProcessOpen> function to run a program whose output you
+want as it comes, or which you send input to, without the stack waiting
+for it.
+
+The program is started directly, not by a shell: each argument reaches
+it exactly as it is given, with nothing to quote. <asyncProcessOpen>
+returns at once. The object whose script called it is then sent
+<pMessage> with four parameters: the number of the job, an event, data
+and a code. The events:
+
+- "output": the program wrote to its output. The third parameter is
+  what it wrote, as binary data (use <textDecode> for text that is not
+  plain ASCII). What a program writes can arrive in pieces of any size,
+  not line by line.
+- "error": the same for its error output.
+- "exit": the program has ended. The fourth parameter is its exit
+  code (128 plus the signal's number for one that a signal ended).
+- "cancelled": <asyncCancel> stopped it.
+- "failed": it could not be started, or went wrong. The third
+  parameter says why ("can't run program", "not supported", "out of
+  memory") and the fourth is the system's error code.
+
+Exactly one of "exit", "cancelled" and "failed" is sent, and it is the
+job's last message: all the program's output has been sent before it.
+
+Send the program input with <asyncProcessWrite>, and end its input with
+<asyncProcessCloseInput>. Stop it with <asyncCancel>, which also ends
+the programs that it started.
+
+On Windows the program is started as <open process> starts one: in a
+console of its own, which the <hideConsoleWindows> property hides. A
+batch file (.bat or .cmd) is refused, because Windows hands its
+arguments to the command interpreter, where one could become a command:
+run it with <asyncShell>.
+
+If the <securityPermissions> do not allow processes, the call fails
+with an error. Where a script has its own <asyncProcessOpen> handler,
+that handler is called instead.
+
+On Android and in a browser no program can be run: the message comes
+with the event "failed" and "not supported".
+
+Tags: Library
+
+References: open process (command), asyncProcessWrite (handler),
+asyncProcessCloseInput (handler), asyncCancel (handler),
+asyncShell (handler), hideConsoleWindows (property),
+textDecode (function)
+*/
+public handler asyncProcessOpen(in pProgram as String, in pArguments as any, \
+		in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsProcessOpen(pProgram, pArguments, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Sends input to a program started with <asyncProcessOpen>.
+
+Example:
+asyncProcessWrite sJob, "status" & return
+
+Example:
+asyncProcessWrite sJob, textEncode(field "Question", "UTF-8") & return
+if the result is not empty then answer "The program has ended."
+
+Parameters:
+pJob: The number of the job, as <asyncProcessOpen> returned it.
+pData: What to send: binary data, or text, which is sent as its native bytes (use <textEncode> for another encoding).
+
+Description:
+Use the <asyncProcessWrite> command to send input to a program that
+<asyncProcessOpen> started. The command returns at once: what is sent
+is queued and written to the program in the background, in the order
+of the calls.
+
+The <result> is empty, or "not running" if <pJob> is not a program that
+is running with its input open: nothing is sent then.
+
+Tags: Library
+
+References: asyncProcessOpen (handler), asyncProcessCloseInput (handler),
+textEncode (function), result (function)
+*/
+public handler asyncProcessWrite(in pJob as any, in pData as Data) \
+		returns String
+	variable tWritten as Boolean
+	unsafe
+		put MCAsyncJobsProcessWrite(pJob, pData) into tWritten
+	end unsafe
+	if tWritten then
+		return ""
+	end if
+	return "not running"
+end handler
+
+/**
+Summary: Ends the input of a program started with <asyncProcessOpen>.
+
+Example:
+asyncProcessWrite sJob, tLastLines
+asyncProcessCloseInput sJob
+
+Parameters:
+pJob: The number of the job, as <asyncProcessOpen> returned it.
+
+Description:
+Use the <asyncProcessCloseInput> command to tell a program that there
+is no more input, as the end of a file would. Many programs do their
+work, or end, only then. What <asyncProcessWrite> has queued is written
+first.
+
+The <result> is empty, or "not running" if <pJob> is not a program that
+is running.
+
+Tags: Library
+
+References: asyncProcessOpen (handler), asyncProcessWrite (handler),
+result (function)
+*/
+public handler asyncProcessCloseInput(in pJob as any) returns String
+	variable tClosed as Boolean
+	unsafe
+		put MCAsyncJobsProcessCloseInput(pJob) into tClosed
+	end unsafe
+	if tClosed then
+		return ""
+	end if
+	return "not running"
+end handler
+
+/**
+Summary: Reads a whole file in the background and sends a message with its contents.
+
+Example:
+on mouseUp
+   get asyncReadFile(specialFolderPath("documents") & "/big.csv", "csvRead")
+end mouseUp
+
+on csvRead pJob, pData, pError, pCode
+   if pError is not empty then
+      answer "Could not read the file:" && pError
+      exit csvRead
+   end if
+   put textDecode(pData, "UTF-8") into field "Table"
+end csvRead
+
+Parameters:
+pPath: The path of the file.
+pMessage: The name of the message to send to this object when the file has been read.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncReadFile> function to read a file that is large, or is on
+a slow disk or a network share, without the stack waiting for it.
+
+<asyncReadFile> returns at once. When the file has been read, the
+object whose script called it is sent <pMessage> with four parameters:
+
+- the number of the job
+- the file's contents, as binary data: what
+  `URL ("binfile:" & pPath)` gives. Use <textDecode> to make text of it.
+- an error: empty, or "can't open file", "error reading file",
+  "file too large" (4 GB or more), "out of memory" or "cancelled"
+- the system's error code, when the system reported one
+
+A path that is not absolute is taken from the <defaultFolder> as it is
+when <asyncReadFile> is called.
+
+If the <securityPermissions> do not allow access to the disk, the call
+fails with an error. Where a script has its own <asyncReadFile>
+handler, that handler is called instead.
+
+On Android, a file inside the application's package is not a file of
+the file system and cannot be read this way: read it with <URL>.
+
+Tags: Library
+
+References: URL (keyword), asyncWriteFile (handler),
+asyncProgress (handler), asyncCancel (handler), textDecode (function),
+defaultFolder (property)
+*/
+public handler asyncReadFile(in pPath as String, in pMessage as String) \
+		returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsReadFile(pPath, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Writes a file in the background and sends a message when it is written.
+
+Example:
+on saveDocument
+   local tData
+   put textEncode(field "Document", "UTF-8") into tData
+   get asyncWriteFile(the cDocumentPath of this stack, tData, "documentSaved")
+end saveDocument
+
+on documentSaved pJob, pResult, pError, pCode
+   if pError is not empty then answer "Could not save:" && pError
+end documentSaved
+
+Parameters:
+pPath: The path of the file.
+pData: What to write: binary data, or text, which is written as its native bytes (use <textEncode> for another encoding).
+pMessage: The name of the message to send to this object when the file has been written.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncWriteFile> function to write a file without the stack
+waiting for the disk. The file is made if it is not there, and replaced
+if it is, as `put pData into URL ("binfile:" & pPath)` does.
+
+<asyncWriteFile> returns at once. When the file has been written, the
+object whose script called it is sent <pMessage> with four parameters:
+the number of the job, empty, an error (empty, or "can't open file",
+"error writing file" or "cancelled") and the system's error code, when
+the system reported one.
+
+The data is as it was when <asyncWriteFile> was called: changing the
+variable afterwards changes nothing of what is written.
+
+A write that fails or is cancelled can leave part of the file. If the
+application quits while a file is being written, the write is finished
+first.
+
+Writes started one after the other do not wait for each other: do not
+write the same file twice at once. To add to a file, use
+<asyncAppendFile>.
+
+On macOS the file is not given the type and creator of the <fileType>
+property.
+
+If the <securityPermissions> do not allow access to the disk, the call
+fails with an error. Where a script has its own <asyncWriteFile>
+handler, that handler is called instead.
+
+Tags: Library
+
+References: URL (keyword), asyncAppendFile (handler),
+asyncReadFile (handler), asyncProgress (handler), textEncode (function),
+fileType (property)
+*/
+public handler asyncWriteFile(in pPath as String, in pData as Data, \
+		in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsWriteFile(pPath, pData, false, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Adds to the end of a file in the background and sends a message when it is written.
+
+Example:
+get asyncAppendFile(tLogPath, the internet date & tab & tEvent & return, "logWritten")
+
+Parameters:
+pPath: The path of the file.
+pData: What to add: binary data, or text, which is written as its native bytes (use <textEncode> for another encoding).
+pMessage: The name of the message to send to this object when the data has been written.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncAppendFile> function to add to a file, such as a log,
+without the stack waiting for the disk. The file is made if it is not
+there.
+
+It works as <asyncWriteFile> does, and sends the same message. Appends
+to one file that are started one after the other may be written in
+either order, each of them whole: start the next from the message of the
+one before where the order matters.
+
+Tags: Library
+
+References: asyncWriteFile (handler), URL (keyword)
+*/
+public handler asyncAppendFile(in pPath as String, in pData as Data, \
+		in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsWriteFile(pPath, pData, true, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Copies a file in the background and sends a message when it is copied.
+
+Example:
+on backUp
+   put asyncCopyFile(tVideoPath, tBackupFolder & "/video.mov", "copyDone") into sCopyJob
+   send "showCopyProgress" to me in 200 milliseconds
+end backUp
+
+on showCopyProgress
+   local tProgress
+   put asyncProgress(sCopyJob) into tProgress
+   if tProgress is empty then exit showCopyProgress
+   set the endValue of scrollbar "Progress" to item 2 of tProgress
+   set the thumbPosition of scrollbar "Progress" to item 1 of tProgress
+   send "showCopyProgress" to me in 200 milliseconds
+end showCopyProgress
+
+Parameters:
+pFrom: The path of the file to copy.
+pTo: The path of the copy.
+pMessage: The name of the message to send to this object when the file has been copied.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncCopyFile> function to copy a file, however large, without
+the stack waiting for it. The copy has the file's contents, permissions
+and dates. A file that is at <pTo> is replaced.
+
+<asyncCopyFile> returns at once. When the file has been copied, the
+object whose script called it is sent <pMessage> with four parameters:
+the number of the job, empty, an error (empty, or "can't open file",
+"error reading file", "error writing file" or "cancelled") and the
+system's error code, when the system reported one.
+
+A copy that fails or is cancelled leaves no file at <pTo>. Copying a
+file onto itself fails with "can't open file".
+
+<pTo> is the path of the copy itself, not of a folder to put it in.
+Folders are not copied.
+
+If the <securityPermissions> do not allow access to the disk, the call
+fails with an error. Where a script has its own <asyncCopyFile>
+handler, that handler is called instead.
+
+Tags: Library
+
+References: asyncProgress (handler), asyncCancel (handler),
+revCopyFile (command)
+*/
+public handler asyncCopyFile(in pFrom as String, in pTo as String, \
+		in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsCopyFile(pFrom, pTo, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Lists a folder in the background, with the folders inside it if asked, and sends a message with the listing.
+
+Example:
+on mouseUp
+   get asyncListFolder("//server/projects", true, "projectsListed")
+end mouseUp
+
+on projectsListed pJob, pListing, pError, pCode
+   if pError is not empty then exit projectsListed
+   -- the files only: a folder's line ends with a slash
+   filter pListing without ("*" & slash)
+   put pListing into field "Files"
+end projectsListed
+
+Parameters:
+pPath: The path of the folder.
+pRecursive: True to list the folders inside the folder too, and those inside them; false for the folder alone.
+pMessage: The name of the message to send to this object when the folder has been listed.
+
+Returns: The number of the job.
+
+Description:
+Use the <asyncListFolder> function to list a folder that is large, or
+on a network share, or a whole tree of folders, without the stack
+waiting for it.
+
+<asyncListFolder> returns at once. When the folder has been listed, the
+object whose script called it is sent <pMessage> with four parameters:
+
+- the number of the job
+- the listing: one line for each file and folder, with a line break
+  after the last too. A line is the path from <pPath>, with "/"
+  between its parts, and a folder's ends with "/". The entries of a
+  folder are in the order of their bytes (not that of <files>), and a
+  folder is followed by what it holds.
+- an error: empty, or "can't open folder", "out of memory" or
+  "cancelled"
+- the system's error code, when the system reported one
+
+A link to a folder is listed as a folder and not gone into. A folder
+inside <pPath> that cannot be read is listed and left out, without an
+error. A file whose name has a line break in it is left out.
+
+If the <securityPermissions> do not allow access to the disk, the call
+fails with an error. Where a script has its own <asyncListFolder>
+handler, that handler is called instead.
+
+Tags: Library
+
+References: files (function), folders (function),
+asyncProgress (handler), asyncCancel (handler), filter (command)
+*/
+public handler asyncListFolder(in pPath as String, in pRecursive as Boolean, \
+		in pMessage as String) returns Number
+	variable tJob as Number
+	unsafe
+		put MCAsyncJobsListFolder(pPath, pRecursive, pMessage) into tJob
+	end unsafe
+	return tJob
+end handler
+
+/**
+Summary: Stops a background job.
+
+Example:
+on closeStack
+   asyncCancel sConvertJob
+end closeStack
+
+Parameters:
+pJob: The number of the job, as the function that started it returned it.
+
+Description:
+Use the <asyncCancel> command to stop a job that is no longer wanted. A
+shell command or a program is ended at once, with the programs it
+started; a file job stops at its next step.
+
+The job still sends its message, once, with the error "cancelled" (for
+a program started with <asyncProcessOpen>, the event "cancelled"); a
+job that was over before it could be stopped sends the message it would
+have sent. A cancelled shell command's message has the output it had
+written.
+
+The <result> is empty, or "no such job" if <pJob> is not a job that is
+running or waiting to: one that has ended, or a variable that was never
+given a job's number. That is not an error.
+
+Tags: Library
+
+References: asyncShell (handler), asyncProcessOpen (handler),
+asyncStatus (handler), result (function)
+*/
+public handler asyncCancel(in pJob as any) returns String
+	variable tCancelled as Boolean
+	unsafe
+		put MCAsyncJobsCancel(pJob) into tCancelled
+	end unsafe
+	if tCancelled then
+		return ""
+	end if
+	return "no such job"
+end handler
+
+/**
+Summary: Says whether a background job is waiting, running or over.
+
+Example:
+if asyncStatus(sConvertJob) is not empty then
+   answer "The conversion is still running."
+end if
+
+Parameters:
+pJob: The number of the job, as the function that started it returned it.
+
+Returns: "queued" for a job that is waiting for others to end, "running" for one that is being done, and empty for one that is over (its last message has been sent, or is about to arrive) or that never was.
+
+Description:
+Use the <asyncStatus> function to find out whether a job is still to
+come. Four file jobs are done at once, and the others wait their turn,
+"queued"; shell commands and programs start at once.
+
+Tags: Library
+
+References: asyncProgress (handler), asyncJobs (handler),
+asyncCancel (handler)
+*/
+public handler asyncStatus(in pJob as any) returns String
+	variable tStatus as String
+	unsafe
+		MCAsyncJobsStatus(pJob, tStatus)
+	end unsafe
+	return tStatus
+end handler
+
+/**
+Summary: Says how far a background job has got.
+
+Example:
+put asyncProgress(sCopyJob) into tProgress
+if tProgress is not empty and item 2 of tProgress > 0 then
+   put round(100 * item 1 of tProgress / item 2 of tProgress) & "%" into field "Percent"
+end if
+
+Parameters:
+pJob: The number of the job, as the function that started it returned it.
+
+Returns: Two numbers with a comma between them: how much has been done and how much there is to do, or empty for a job that is over or never was.
+
+Description:
+Use the <asyncProgress> function to show the progress of a job while it
+runs, for example from a handler that sends itself a message every few
+hundred milliseconds.
+
+For reading, writing and copying a file the numbers are bytes. For a
+folder listing the first is the number of entries found, and for a
+shell command or a program it is the number of bytes of output so far;
+the second is 0 for these, since the total is not known.
+
+Tags: Library
+
+References: asyncStatus (handler), asyncCopyFile (handler),
+asyncReadFile (handler)
+*/
+public handler asyncProgress(in pJob as any) returns String
+	variable tProgress as String
+	unsafe
+		MCAsyncJobsProgress(pJob, tProgress)
+	end unsafe
+	return tProgress
+end handler
+
+/**
+Summary: Lists the background jobs that have not ended.
+
+Example:
+on closeStackRequest
+   if asyncJobs() is not empty then
+      answer "Work is still running. Close anyway?" with "Cancel" or "Close"
+      if it is "Cancel" then exit closeStackRequest
+   end if
+   pass closeStackRequest
+end closeStackRequest
+
+Returns: The numbers of the jobs whose last message has not been sent, one on each line, in the order they were started. Empty if there are none.
+
+Description:
+Use the <asyncJobs> function to find out whether any background work is
+still to be done, or to stop all of it:
+
+    repeat for each line tJob in asyncJobs()
+       asyncCancel tJob
+    end repeat
+
+The list has the jobs of every stack, not only those that this object
+started.
+
+Tags: Library
+
+References: asyncStatus (handler), asyncCancel (handler)
+*/
+public handler asyncJobs() returns String
+	variable tJobs as String
+	unsafe
+		MCAsyncJobsList(tJobs)
+	end unsafe
+	return tJobs
+end handler
+
+end library
