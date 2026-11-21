@@ -15,9 +15,11 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 # The dark switch check (tools/ci/dark_switch_check.py: a standard button,
-# an option menu and a combo box are drawn for the appearance Windows has,
-# when the engine starts in it and when Windows is switched to it while the
-# engine runs) with the Windows portable zip of a published release, on
+# an option menu, a combo box and a field are drawn for the appearance
+# Windows has, when the engine starts in it and when Windows is switched to
+# it while the engine runs, and an older stack's fields and buttons with a
+# light background of their own keep their dark words in both appearances)
+# with the Windows portable zip of a published release, on
 # Windows Server 2022 (Windows 10's code base) and 2025 (Windows 11's), with
 # visual styles on. The Windows build runs the same check on the package it
 # makes; this one shows what a release does, without a build: by hand, and

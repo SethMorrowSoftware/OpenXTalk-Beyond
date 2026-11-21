@@ -47,14 +47,44 @@ LIGHT = ((225, 225, 225), (0, 0, 0))
 # What 0.2.7 drew after a switch to dark while it ran: the kept light
 # background under the dark appearance's white words
 FAULT = ((240, 240, 240), (255, 255, 255))
+# A field with a white background of its own and no text colour: black
+# words, as LiveCode Community drew them; and what 0.2.8-dp.1 drew in the
+# dark appearance (seth's Windows 11 PC, 2026-11-21): white on white
+PAPER = ((255, 255, 255), (0, 0, 0))
+WHITE_ON_WHITE = ((255, 255, 255), (255, 255, 255))
+# A field with a dark background of its own and no text colour, in each
+# appearance
+NIGHT = {'dark': ((40, 48, 64), (255, 255, 255)), 'light': ((40, 48, 64), (0, 0, 0))}
+# The fields and buttons whose effective foregroundColor the script logs
+# (kWords: not the menus)
+WORDS = ('Plain',) + dsc.LEGACY + dsc.DARK_OWN
 
 
 def measure(label, control, pair):
     return 'MEASURE %s %s face=%d,%d,%d ink=%d,%d,%d size=160x32' % ((label, control) + pair[0] + pair[1])
 
 
-def log_of(label, pair, appearance, changed=1, noticed=0):
-    return (['NOTICED %s %d' % (label, noticed)] + [measure(label, c, pair) for c in dsc.CONTROLS]
+def pairs(pair, appearance, legacy=PAPER):
+    """{control: (face, ink)}: pair for the controls that follow the
+    appearance, legacy for LEGACY, and DARK_OWN's for the appearance."""
+    out = {c: pair for c in dsc.FOLLOWING}
+    out.update({c: legacy for c in dsc.LEGACY})
+    out.update({c: NIGHT[appearance] for c in dsc.DARK_OWN})
+    return out
+
+
+def counted(appearance):
+    """How many checks of a step's drawing and effective colours there are
+    in an appearance."""
+    return len(dsc.judged(appearance)) + len([c for c in dsc.judged(appearance) if c not in dsc.FOLLOWING])
+
+
+def log_of(label, pair, appearance, changed=1, noticed=0, legacy=PAPER, drawn_in=None):
+    """A step's log; appearance is the one the script reports, drawn_in
+    (the same when not given) the one the controls are drawn in."""
+    drawn = pairs(pair, drawn_in or appearance, legacy)
+    return (['NOTICED %s %d' % (label, noticed)] + [measure(label, c, drawn[c]) for c in dsc.CONTROLS]
+            + ['EFFECTIVE %s %s %d,%d,%d' % ((label, c) + drawn[c][1]) for c in WORDS]
             + ['APPEARANCE %s %s' % (label, appearance), 'CHANGED %s %d' % (label, changed), 'MEASURED ' + label])
 
 
@@ -109,20 +139,79 @@ class Judge(unittest.TestCase):
         self.assertGreater(dsc.luma((0, 255, 0)), dsc.luma((255, 0, 0)))
 
 
+class Legacy(unittest.TestCase):
+    """The colours of an older stack: its words stay readable."""
+
+    def test_dark_words_on_a_light_colour_of_its_own_pass(self):
+        ok, detail = dsc.judge_legacy(*PAPER)
+        self.assertTrue(ok, detail)
+        self.assertTrue(dsc.judge_legacy((240, 242, 246), (0, 0, 0))[0])
+        self.assertTrue(dsc.judge_legacy((225, 229, 236), (28, 34, 46))[0])
+
+    def test_white_on_white_fails(self):
+        ok, detail = dsc.judge_legacy(*WHITE_ON_WHITE)
+        self.assertFalse(ok)
+        self.assertIn('light words on its light colour', detail)
+        self.assertFalse(dsc.judge_legacy((240, 242, 246), (255, 255, 255))[0])
+
+    def test_its_colour_must_be_its_face(self):
+        ok, detail = dsc.judge_legacy((32, 32, 32), (255, 255, 255))
+        self.assertFalse(ok)
+        self.assertIn('its light colour is not its face', detail)
+
+    def test_the_effective_colour_is_the_colour_of_the_words(self):
+        self.assertTrue(dsc.judge_effective('Paper', (0, 0, 0))[0])
+        self.assertFalse(dsc.judge_effective('Paper', (255, 255, 255))[0])
+        self.assertTrue(dsc.judge_effective('Night', (255, 255, 255))[0])
+        self.assertFalse(dsc.judge_effective('Night', (0, 0, 0))[0])
+
+    def test_a_dark_colour_of_its_own_is_judged_in_the_dark_appearance_only(self):
+        self.assertEqual(dsc.judged('dark'), dsc.CONTROLS)
+        self.assertEqual(dsc.judged('light'), dsc.FOLLOWING + dsc.LEGACY)
+        self.assertTrue(dsc.judge_control('Night', 'dark', *NIGHT['dark'])[0])
+        # the dark appearance's words left as they were: on its own dark
+        # colour, white
+        self.assertFalse(dsc.judge_control('Night', 'dark', (40, 48, 64), (0, 0, 0))[0])
+
+    def test_the_sets_are_apart(self):
+        self.assertEqual(len(set(dsc.CONTROLS)), len(dsc.CONTROLS))
+        self.assertEqual(dsc.CONTROLS, dsc.FOLLOWING + dsc.LEGACY + dsc.DARK_OWN)
+
+    def test_a_step_of_the_release_fails_each_older_control_in_the_dark(self):
+        got = steps(log_of('quiet-dark', DARK, 'dark', legacy=WHITE_ON_WHITE), 'quiet-dark', 'dark')
+        self.assertEqual(failed(got), ['%s is drawn for the dark appearance' % c for c in dsc.LEGACY]
+                         + ['the effective foregroundColor of %s is the colour of its words' % c
+                            for c in dsc.LEGACY])
+        # and in the light appearance, where it drew them black, nothing
+        got = steps(log_of('quiet-light', LIGHT, 'light'), 'quiet-light', 'light')
+        self.assertEqual(failed(got), [])
+
+    def test_an_effective_colour_that_was_not_logged_fails_rather_than_passes(self):
+        log = [x for x in log_of('quiet-dark', DARK, 'dark') if not x.startswith('EFFECTIVE quiet-dark Paper ')]
+        got = steps(log, 'quiet-dark', 'dark')
+        self.assertEqual([(w, d) for w, ok, d in got if not ok],
+                         [('the effective foregroundColor of Paper is the colour of its words', 'not logged')])
+
+    def test_an_effective_line_is_read_for_its_own_step(self):
+        log = ['EFFECTIVE a Paper 0,0,0', 'EFFECTIVE b Paper 255,255,255', 'EFFECTIVE a Night 1,2']
+        self.assertEqual(dsc.effective(log, 'a'), {'Paper': (0, 0, 0)})
+        self.assertEqual(dsc.effective(log, 'b'), {'Paper': (255, 255, 255)})
+
+
 class Steps(unittest.TestCase):
     def test_a_good_step_passes_every_check(self):
         got = steps(log_of('quiet-dark', DARK, 'dark'), 'quiet-dark', 'dark')
         self.assertEqual(failed(got), [])
-        self.assertEqual(len(got), len(dsc.CONTROLS) + 2)
+        self.assertEqual(len(got), counted('dark') + 2)
 
     def test_the_start_asks_for_no_message(self):
         got = steps(log_of('start', LIGHT, 'light', changed=0), 'start', 'light', switched=False)
         self.assertEqual(failed(got), [])
-        self.assertEqual(len(got), len(dsc.CONTROLS) + 1)
+        self.assertEqual(len(got), counted('light') + 1)
 
     def test_the_fault_fails_each_control(self):
         got = steps(log_of('quiet-dark', FAULT, 'dark'), 'quiet-dark', 'dark')
-        self.assertEqual(failed(got), ['%s is drawn for the dark appearance' % c for c in dsc.CONTROLS])
+        self.assertEqual(failed(got), ['%s is drawn for the dark appearance' % c for c in dsc.FOLLOWING])
 
     def test_one_control_is_enough_to_fail(self):
         log = log_of('quiet-dark', DARK, 'dark')
@@ -137,21 +226,21 @@ class Steps(unittest.TestCase):
 
     def test_another_steps_measurements_are_not_taken_for_this_one(self):
         log = log_of('start', DARK, 'dark')
-        self.assertEqual(len(failed(steps(log, 'quiet-dark', 'dark'))), len(dsc.CONTROLS) + 2)
+        self.assertEqual(len(failed(steps(log, 'quiet-dark', 'dark'))), counted('dark') + 2)
 
     def test_no_message_after_a_switch_fails(self):
         got = steps(log_of('quiet-dark', DARK, 'dark', changed=0), 'quiet-dark', 'dark')
         self.assertEqual(failed(got), ['the stack was sent systemAppearanceChanged'])
 
     def test_the_wrong_appearance_in_script_fails(self):
-        got = steps(log_of('quiet-dark', DARK, 'light'), 'quiet-dark', 'dark')
+        got = steps(log_of('quiet-dark', DARK, 'light', drawn_in='dark'), 'quiet-dark', 'dark')
         self.assertEqual(failed(got), ['the systemAppearance is dark'])
 
     def test_a_told_switch_asks_for_the_message_before_anything_was_measured(self):
         notice = 'Windows\' notice alone sent systemAppearanceChanged'
         got = steps(log_of('told-dark', DARK, 'dark', changed=1, noticed=1), 'told-dark', 'dark', told=True)
         self.assertEqual(failed(got), [])
-        self.assertEqual(len(got), len(dsc.CONTROLS) + 3)
+        self.assertEqual(len(got), counted('dark') + 3)
         # the message came, but only once the script had measured: not the notice's doing
         got = steps(log_of('told-dark', DARK, 'dark', changed=1, noticed=0), 'told-dark', 'dark', told=True)
         self.assertEqual(failed(got), [notice])
@@ -191,7 +280,7 @@ class Steps(unittest.TestCase):
         log = log_of('quiet-dark', DARK, 'dark') + [on_screen('quiet-dark', 'Push', FAULT)]
         self.assertEqual(failed(steps(log, 'quiet-dark', 'dark')), [])
         self.assertEqual(dsc.measurements(log, 'quiet-dark', 'SCREEN'), {'Push': FAULT})
-        self.assertEqual(dsc.measurements(log, 'quiet-dark'), {c: DARK for c in dsc.CONTROLS})
+        self.assertEqual(dsc.measurements(log, 'quiet-dark'), pairs(DARK, 'dark'))
 
     def test_a_line_that_is_not_a_measurement_is_not_read_as_one(self):
         self.assertEqual(dsc.measurements(['MEASURE x Push face=1,2 ink=3,4,5 size=1x1', 'MEASURED x'], 'x'), {})
@@ -202,8 +291,9 @@ class TheScreen(unittest.TestCase):
     """What the screen showed is checked as the snapshots are, and a screen
     that could not be read does not pass for one that was."""
 
-    def seen(self, label, pair):
-        return [on_screen(label, c, pair) for c in dsc.CONTROLS]
+    def seen(self, label, pair, appearance='dark', legacy=PAPER):
+        drawn = pairs(pair, appearance, legacy)
+        return [on_screen(label, c, drawn[c]) for c in dsc.CONTROLS]
 
     def test_each_control_on_the_screen_is_a_check(self):
         got, lines = screen(self.seen('quiet-dark', DARK), 'quiet-dark', 'dark')
@@ -216,7 +306,7 @@ class TheScreen(unittest.TestCase):
         log = log_of('quiet-dark', DARK, 'dark') + self.seen('quiet-dark', FAULT)
         self.assertEqual(failed(steps(log, 'quiet-dark', 'dark')), [])
         got, _ = screen(log, 'quiet-dark', 'dark')
-        self.assertEqual(failed(got), ['on the screen %s is drawn for the dark appearance' % c for c in dsc.CONTROLS])
+        self.assertEqual(failed(got), ['on the screen %s is drawn for the dark appearance' % c for c in dsc.FOLLOWING])
         self.assertIn('240,240,240', got[0][2])
         # with or without --need-screen: a reading that was taken always counts
         self.assertEqual(failed(screen(log, 'quiet-dark', 'dark', need_screen=False)[0]), failed(got))
@@ -377,18 +467,89 @@ class ThePlan(unittest.TestCase):
         make = script[script.index('private command makeStack'):script.index('end makeStack')]
         self.assertIn('create invisible stack kStack', make)
         self.assertLess(make.index('go stack kStack'), make.index('show stack kStack'))
-        # counted from the window itself, wherever it is
-        self.assertIn('import snapshot from rect (the rect of button pName of stack kStack) '
+        # counted from the window itself, wherever it is: the control's
+        # rect (measureRect) is the card's, which is the window's
+        self.assertIn('import snapshot from rect (measureRect(pName)) '
                       'of window (the windowID of stack kStack)', script)
+        self.assertIn('put the rect of control pName of stack kStack into tRect', script)
         self.assertNotIn('globalLoc', script)
 
     def test_the_script_measures_the_controls_the_check_reads(self):
         with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
             script = f.read()
         self.assertIn('constant kControls = "%s"' % ','.join(dsc.CONTROLS), script)
-        # No colour of its own on the stack or on a control: it would hide
-        # what the appearance draws
-        self.assertIsNone(re.search(r'(?im)^\s*set the \w*color\w* of', script))
+        self.assertIn('constant kWords = "%s"' % ','.join(WORDS), script)
+        # the buttons and menus as the check always measured them, the
+        # others from the card, where what their words are on is
+        self.assertIn('constant kOwnSnapshot = "Push,Option,Combo"', script)
+        self.assertIn('import snapshot from rect (measureRect(pName)) of card 1 of stack kStack', script)
+
+    def test_the_checked_check_box_is_measured_past_its_box(self):
+        # Tick is checked, and its box is drawn by the theme in colours of
+        # its own: measured with it, the box could be the ink while white
+        # words vanished on the white (seth's PC, 2026-11-21: measured past
+        # it, face and ink were both 255,255,255 on 0.2.8-dp.1)
+        with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
+            script = f.read()
+        self.assertIn('Tick', dsc.LEGACY)
+        self.assertIn('set the style of button "Tick" to "checkbox"', script)
+        self.assertIn('set the hilite of button "Tick" to true', script)
+        self.assertIn('set the opaque of button "Tick" to true', script)
+        # its label in the middle, the box and the space after it left out
+        self.assertIn('set the textAlign of button "Tick" to "center"', script)
+        self.assertIn('constant kBox = 24', script)
+        self.assertIn('if the style of control pName of stack kStack is "checkbox" then\n'
+                      '      add kBox to item 1 of tRect', script)
+        # the card's snapshot and the screen's both use it
+        self.assertEqual(script.count('import snapshot from rect (measureRect(pName))'), 2)
+        # and it fits in the window
+        rect = re.search(r'set the rect of button "Tick" to (\d+),(\d+),(\d+),(\d+)', script).groups()
+        stack = re.search(r'set the rect of stack kStack to (\d+),(\d+),(\d+),(\d+)', script).groups()
+        self.assertLessEqual(int(rect[3]), int(stack[3]) - int(stack[1]))
+        self.assertLessEqual(int(rect[2]), int(stack[2]) - int(stack[0]))
+
+    def test_only_the_older_stacks_controls_have_colours_and_none_a_text_colour(self):
+        # No colour of its own on the stack or on a control that follows
+        # the appearance: it would hide what the appearance draws. The
+        # older stack's controls (and the group of one) have a background
+        # colour of their own and no text colour, which the engine gives
+        with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
+            script = f.read()
+        sets = re.findall(r'(?im)^\s*set the (\w*colou?r\w*|\w*pattern\w*) of (\w+) "?(\w+)"?', script)
+        self.assertEqual(sorted((prop, kind, name) for prop, kind, name in sets),
+                         sorted([('backgroundColor', 'field', 'Paper'), ('backgroundColor', 'group', 'Panel'),
+                                 ('backgroundColor', 'button', 'Key'), ('backgroundColor', 'button', 'Tick'),
+                                 ('backgroundColor', 'field', 'Night'), ('backgroundColor', 'field', 'Shade'),
+                                 ('backgroundColor', 'line', '1')]))
+        self.assertIn('create field "Label" in group "Panel"', script)
+        self.assertIn('set the backgroundColor of line 1 of field "Shade" to "40,48,64"', script)
+        code = re.sub(r'/\*.*?\*/', '', script, flags=re.S)
+        code = '\n'.join(x for x in code.split('\n') if not x.lstrip().startswith('--'))
+        self.assertIn('the effective foregroundColor of control pName of stack kStack', code)
+        self.assertIn('the effective foregroundColor of line 1 of field pName of stack kStack', code)
+        self.assertIsNone(re.search(r'(?i)(foreground|text)colou?r', code.replace(
+            'the effective foregroundColor of control', '').replace(
+            'the effective foregroundColor of line 1 of field', '')))
+
+    def test_the_dark_line_fills_what_is_measured(self):
+        # Shade's words are on its line's dark colour, and it is measured
+        # like Night: the line must be most of what is read, inside the
+        # inset (no margins, one line as tall as the field's inside, which
+        # its border of 2 leaves)
+        with open(os.path.join(ROOT, 'tools', 'ci', 'dark-switch-check.livecodescript'), encoding='utf-8') as f:
+            script = f.read()
+        self.assertIn('Shade', dsc.DARK_OWN)
+        self.assertIn('set the margins of field "Shade" to "0,0,0,0"', script)
+        self.assertIn('set the fixedLineHeight of field "Shade" to true', script)
+        rect = [int(v) for v in re.search(r'set the rect of field "Shade" to (\d+),(\d+),(\d+),(\d+)', script).groups()]
+        height = int(re.search(r'set the textHeight of field "Shade" to (\d+)', script).group(1))
+        self.assertEqual(height, rect[3] - rect[1] - 2 * 2)
+        stack = [int(v) for v in re.search(r'set the rect of stack kStack to (\d+),(\d+),(\d+),(\d+)', script).groups()]
+        self.assertLessEqual(rect[3], stack[3] - stack[1])
+        # its effective foregroundColor is its line's, the colour its words
+        # are drawn in
+        self.assertIn('constant kLineWords = "Shade"', script)
+        self.assertIn('logLine "EFFECTIVE" && tLabel && tName && effectiveWords(tName)', script)
 
 
 # A stand-in for the engine running the script: it speaks the script's lines.
@@ -403,11 +564,19 @@ class ThePlan(unittest.TestCase):
 #                first half alone
 #   notice-only  on every notice, changed or not, and never by reading: what
 #                0.2.7's code was written to do
+# A field (Plain) is drawn for the appearance read, as the combo box is.
+# FAKE_WORDS says what the words of the older stack's controls (LEGACY) are:
+#   black        LiveCode Community's, in both appearances: the fix
+#   white        the appearance's: white in the dark one, 0.2.8-dp.1 as it
+#                was measured on seth's PC
+# and a field with a dark colour of its own has the appearance's words.
 FAKE_ENGINE = r"""
 import os, sys, time
 log, go, state, mode = (os.environ[x] for x in ('OXT_DARK_LOG', 'OXT_DARK_GO', 'FAKE_STATE', 'FAKE_MODE'))
+words = os.environ.get('FAKE_WORDS', 'black')
 FACE = {'dark': '32,32,32', 'light': '225,225,225'}
 INK = {'dark': '255,255,255', 'light': '0,0,0'}
+WORDS = {'dark': '0,0,0' if words == 'black' else '255,255,255', 'light': '0,0,0'}
 def now():
     while True:
         try:
@@ -468,10 +637,18 @@ while True:
     if mode in ('good', 'reads-only') and kept != live:
         follow(live)
         changed += 1
+    others = (('Plain', FACE[live], INK[live]), ('Paper', '255,255,255', WORDS[live]),
+              ('Label', '240,242,246', WORDS[live]), ('Key', '225,229,236', WORDS[live]),
+              ('Tick', '255,255,255', WORDS[live]), ('Night', '40,48,64', INK[live]),
+              ('Shade', '40,48,64', INK[live]))
     for word in ('MEASURE', 'SCREEN'):
         for control in ('Push', 'Option', 'Combo'):
             face = FACE[live] if live == 'light' or control == 'Combo' else FACE[kept]
             out('%s %s %s face=%s ink=%s size=160x32' % (word, label, control, face, INK[live]))
+        for control, face, ink in others:
+            out('%s %s %s face=%s ink=%s size=160x32' % (word, label, control, face, ink))
+    for control, face, ink in others:
+        out('EFFECTIVE %s %s %s' % (label, control, ink))
     out('APPEARANCE %s %s' % (label, live))
     out('CHANGED %s %d' % (label, changed))
     out('MEASURED %s' % label)
@@ -572,6 +749,9 @@ class TheSteps(unittest.TestCase):
     BUTTONS = ['%s is drawn for the dark appearance' % c for c in ('Push', 'Option')]
     SEEN = ['on the screen ' + x for x in BUTTONS]
     STEPS = sum(1 + len(run_steps) for _, _, run_steps in dsc.RUNS)
+    # the controls judged on the screen over every step of every run
+    SCREENED = sum(len(dsc.judged(start)) + sum(len(dsc.judged(x[1])) for x in run_steps)
+                   for _, start, run_steps in dsc.RUNS)
     MESSAGE = 'the stack was sent systemAppearanceChanged'
     NOTICE = 'Windows\' notice alone sent systemAppearanceChanged'
     NOTHING = 'a notice that changed nothing sent no systemAppearanceChanged'
@@ -583,7 +763,7 @@ class TheSteps(unittest.TestCase):
         with open(self.fake, 'w') as f:
             f.write(FAKE_ENGINE)
 
-    def run_all(self, mode, need_screen=True, over=None, engine=None):
+    def run_all(self, mode, need_screen=True, over=None, engine=None, words='black'):
         lines, problems, results = [], [], []
         # (a folder of its own for each call: the engine's log and the
         # answers to its steps are files there, and a second run in one
@@ -595,7 +775,7 @@ class TheSteps(unittest.TestCase):
             with open(self.fake, 'w') as f:
                 f.write(engine)
         with mock.patch.object(dsc, 'SCRIPT', self.fake), mock.patch.object(dsc, 'NOTICE_WAIT', 0.3), \
-                mock.patch.dict(os.environ, {'FAKE_STATE': w.state, 'FAKE_MODE': mode}):
+                mock.patch.dict(os.environ, {'FAKE_STATE': w.state, 'FAKE_MODE': mode, 'FAKE_WORDS': words}):
             for run, start, run_steps in dsc.RUNS:
                 dsc.run_engine(w, sys.executable, work, run, start, run_steps, 20, lines, problems,
                                lambda name, what, ok, detail: results.append((name, what, ok)), need_screen)
@@ -620,8 +800,7 @@ class TheSteps(unittest.TestCase):
                                        for label in ['start'] + [x[0] for x in run_steps]))
         self.assertTrue(any('with no notice' in x for x in lines))
         # the screen was checked at every step, each control, and nothing about it was only reported
-        self.assertEqual(len([x for x in results if x[1].startswith('on the screen ')]),
-                         len(dsc.CONTROLS) * self.STEPS)
+        self.assertEqual(len([x for x in results if x[1].startswith('on the screen ')]), self.SCREENED)
         self.assertFalse(any('screen' in x for x in lines), lines)
         # the windows the notice went to are named, with how each takes its strings
         self.assertTrue(any('switched to light with Windows\' notice to 2 windows '
@@ -652,6 +831,19 @@ class TheSteps(unittest.TestCase):
             'starts light, told-again': self.BUTTONS + self.SEEN + ['the title bar is dark'],
         })
 
+    def test_0_2_8_dp_1_fails_an_older_stacks_words_in_the_dark_as_it_was_measured(self):
+        # (seth's Windows 11 PC in dark mode, 21 November 2026: white words
+        # on the white field, on the group's light grey and on the button's
+        # own, and 255,255,255 their effective foregroundColor; the dark
+        # field's words white, as they should be. A switch it followed)
+        words = ['%s is drawn for the dark appearance' % c for c in dsc.LEGACY]
+        effective = ['the effective foregroundColor of %s is the colour of its words' % c for c in dsc.LEGACY]
+        seen = ['on the screen ' + x for x in words]
+        dark_steps = ['starts dark, start', 'starts light, quiet-dark', 'starts light, told-dark',
+                      'starts light, told-again']
+        self.assertEqual(self.failures('good', words='white'),
+                         {name: words + effective + seen for name in dark_steps})
+
     def test_an_engine_that_follows_only_by_reading_fails_what_the_notice_alone_must_do(self):
         self.assertEqual(self.failures('reads-only'), {
             'starts light, told-light': ['after Windows\' notice alone the title bar is light', self.NOTICE],
@@ -678,15 +870,16 @@ class TheSteps(unittest.TestCase):
     def test_an_engine_that_gives_no_reading_of_the_screen_fails_when_the_screen_is_needed(self):
         engine = FAKE_ENGINE.replace("for word in ('MEASURE', 'SCREEN'):", "for word in ('MEASURE',):")
         self.assertNotEqual(engine, FAKE_ENGINE)
-        seen = ['on the screen %s is drawn for the %%s appearance' % c for c in dsc.CONTROLS]
+        def seen(appearance):
+            return ['on the screen %s is drawn for the %s appearance' % (c, appearance) for c in dsc.judged(appearance)]
         got = self.failures('good', engine=engine)
         self.assertEqual(len(got), self.STEPS)
-        self.assertEqual(got['starts dark, start'], [x % 'dark' for x in seen])
-        self.assertEqual(got['starts light, told-light'], [x % 'light' for x in seen])
+        self.assertEqual(got['starts dark, start'], seen('dark'))
+        self.assertEqual(got['starts light, told-light'], seen('light'))
         # without --need-screen it is reported at every step, and fails nothing
         lines, problems, results = self.run_all('good', need_screen=False, engine=engine)
         self.assertEqual((problems, [x for x in results if not x[2]]), ([], []))
-        self.assertEqual(len([x for x in lines if x.endswith(': not read')]), len(dsc.CONTROLS) * self.STEPS)
+        self.assertEqual(len([x for x in lines if x.endswith(': not read')]), self.SCREENED)
 
     def test_a_window_over_the_stacks_fails_the_steps_it_is_there_for(self):
         covered = 'the screen shows the stack\'s window'

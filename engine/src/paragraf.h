@@ -666,6 +666,10 @@ public:
 	// MW-2012-03-05: [[ HiddenText ]] Get whether the paragraph is hidden or not.
 	bool gethidden(void) const;
 
+	// OXT-Beyond: the paragraph's own backgroundColor, when it has one (its
+	//   words are on it: MCBlock::GetEffectiveForeColor)
+	bool getownbackcolor(MCColor &r_color) const;
+
 	// Get the (effective) listStyle.
 	uint32_t getliststyle(void) const;
 	// Set the liststyle property directly.
