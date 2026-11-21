@@ -137,6 +137,9 @@ void MCStack::realize()
         gdkwa.event_mask = GDK_ALL_EVENTS_MASK & ~GDK_POINTER_MOTION_HINT_MASK;
         
         window = gdk_window_new(screen->getroot(), &gdkwa, gdk_valid_wa);
+        // OXT-Beyond: a new window is opaque, and applyupdates gives it the
+        // stack's blendLevel when that differs (MCStack::SetBlendLevel)
+        old_blendlevel = 100;
         
         // OXT-Beyond: [[ HiDPI ]] Draw the window at the desktop's scale (as
         // on Windows, w32stack.cpp), before its shape is made at that scale.

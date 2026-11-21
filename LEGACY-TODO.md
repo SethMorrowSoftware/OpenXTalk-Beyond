@@ -233,7 +233,7 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/exec-tests/text/EvalFontNames.test:11](engine/exec-tests/text/EvalFontNames.test#L11) TODO - check for standard fonts on other platforms
 - [engine/exec-tests/text/EvalFontSizes.test:10](engine/exec-tests/text/EvalFontSizes.test#L10) TODO - test font sizes on other platforms
 - [engine/exec-tests/text/EvalFontStyles.test:8](engine/exec-tests/text/EvalFontStyles.test#L8) TODO - test font sizes on other platforms
-- [engine/src/block.cpp:2368](engine/src/block.cpp#L2368) else if (!IsMacLF()) // TODO: if platform reverses selected text
+- [engine/src/block.cpp:2377](engine/src/block.cpp#L2377) else if (!IsMacLF()) // TODO: if platform reverses selected text
 - [engine/src/browser.lcb:221](engine/src/browser.lcb#L221) TODO - replace literal values with constants when possible
 - [engine/src/browser.lcb:240](engine/src/browser.lcb#L240) TODO - replace literal values with constants when possible
 - [engine/src/browser.lcb:244](engine/src/browser.lcb#L244) TODO - replace literal values with constants when possible
@@ -250,7 +250,7 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/desktop-dc.cpp:275](engine/src/desktop-dc.cpp#L275) COCOA-TODO: These values should be queryable (once we figure out what
 - [engine/src/desktop-menu.cpp:128](engine/src/desktop-menu.cpp#L128) COCOA-TODO: Will require some restructuring in the engine menu code to support unicode
 - [engine/src/desktop-stack.cpp:101](engine/src/desktop-stack.cpp#L101) \|\| mode == WM_DRAWER)  // COCOA-TODO: Implement drawers
-- [engine/src/desktop-stack.cpp:267](engine/src/desktop-stack.cpp#L267) COCOA-TODO: Make sure contained views also scroll (?)
+- [engine/src/desktop-stack.cpp:269](engine/src/desktop-stack.cpp#L269) COCOA-TODO: Make sure contained views also scroll (?)
 - [engine/src/desktop.cpp:112](engine/src/desktop.cpp#L112) TODO[2017-04-05] X_init() failed before initialising global
 - [engine/src/desktop.cpp:664](engine/src/desktop.cpp#L664) PLATFORM-TODO: Should we do more than this? i.e. Should the dragDrop
 - [engine/src/dispatch.cpp:260](engine/src/dispatch.cpp#L260) TODO[19681]: This can be removed when all engine messages are sent with
@@ -314,10 +314,10 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/lnxdcs.cpp:289](engine/src/lnxdcs.cpp#L289) TODO: equivalent in GDK?
 - [engine/src/lnxdcs.cpp:583](engine/src/lnxdcs.cpp#L583) TODO - We may need to do clipboard persistance here
 - [engine/src/lnxflst.cpp:47](engine/src/lnxflst.cpp#L47) TODO: We need to revise the situation periodically and implement
-- [engine/src/lnxstack.cpp:301](engine/src/lnxstack.cpp#L301) TODO: initial input focus
-- [engine/src/lnxstack.cpp:353](engine/src/lnxstack.cpp#L353) TODO: is this just another way of ensuring on-top-ness?
-- [engine/src/lnxstack.cpp:375](engine/src/lnxstack.cpp#L375) TODO: input modality hints
-- [engine/src/lnxstack.cpp:453](engine/src/lnxstack.cpp#L453) TODO: test if this comment is still true
+- [engine/src/lnxstack.cpp:304](engine/src/lnxstack.cpp#L304) TODO: initial input focus
+- [engine/src/lnxstack.cpp:356](engine/src/lnxstack.cpp#L356) TODO: is this just another way of ensuring on-top-ness?
+- [engine/src/lnxstack.cpp:378](engine/src/lnxstack.cpp#L378) TODO: input modality hints
+- [engine/src/lnxstack.cpp:456](engine/src/lnxstack.cpp#L456) TODO: test if this comment is still true
 - [engine/src/mac-av-player.mm:1556](engine/src/mac-av-player.mm#L1556) TODO: Add more types??
 - [engine/src/mac-av-player.mm:1605](engine/src/mac-av-player.mm#L1605) TODO
 - [engine/src/mac-core.mm:1688](engine/src/mac-core.mm#L1688) 0x47 */ kMCPlatformKeyCodeNumLock, // COCO-TODO: This should be keypad-clear - double-check!
@@ -395,20 +395,20 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/module-engine.cpp:531](engine/src/module-engine.cpp#L531) TODO[C++11] This should be "static" but MSVC2010 doesn't support
 - [engine/src/object.cpp:683](engine/src/object.cpp#L683) TODO: filter out the C1 control codes too
 - [engine/src/object.cpp:1142](engine/src/object.cpp#L1142) TODO[19681]: This can be removed when all engine messages are sent with
-- [engine/src/object.h:1769](engine/src/object.h#L1769) TODO[C++11] uint32_t m_part_id = 0;
-- [engine/src/object.h:1772](engine/src/object.h#L1772) TODO[2017-04-27] These constructors should be constexpr
-- [engine/src/object.h:1773](engine/src/object.h#L1773) TODO[C++11] constexpr MCObjectPartHandle() = default;
-- [engine/src/object.h:1778](engine/src/object.h#L1778) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1781](engine/src/object.h#L1781) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
-- [engine/src/object.h:1792](engine/src/object.h#L1792) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
-- [engine/src/object.h:1799](engine/src/object.h#L1799) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
+- [engine/src/object.h:1774](engine/src/object.h#L1774) TODO[C++11] uint32_t m_part_id = 0;
+- [engine/src/object.h:1777](engine/src/object.h#L1777) TODO[2017-04-27] These constructors should be constexpr
+- [engine/src/object.h:1778](engine/src/object.h#L1778) TODO[C++11] constexpr MCObjectPartHandle() = default;
+- [engine/src/object.h:1783](engine/src/object.h#L1783) TODO[C++11] MCObjectPartHandle(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1786](engine/src/object.h#L1786) TODO[C++11] MCObjectPartHandle(MCObjectPartHandle&& other) = deafult;
+- [engine/src/object.h:1797](engine/src/object.h#L1797) TODO[C++11] MCObjectPartHandle& operator=(const MCObjectPartHandle&) = default;
+- [engine/src/object.h:1804](engine/src/object.h#L1804) TODO[C++11] MCObjectPartHandle& operator=(MCObjectPartHandle&&) = default;
 - [engine/src/paragraf.cpp:172](engine/src/paragraf.cpp#L172) TODO: trunctation
-- [engine/src/paragraf.cpp:2247](engine/src/paragraf.cpp#L2247) TODO: truncation if the paragraph would be too long
-- [engine/src/paragraf.cpp:2405](engine/src/paragraf.cpp#L2405) TODO: find out if ICU break iterator makes this redundant
-- [engine/src/paragraf.cpp:2421](engine/src/paragraf.cpp#L2421) TODO: find out if ICU break iterator makes this redundant
-- [engine/src/paragraf.cpp:2598](engine/src/paragraf.cpp#L2598) TODO: is this necessary with the ICU break iterator?
-- [engine/src/paragraf.cpp:2616](engine/src/paragraf.cpp#L2616) TODO: is this necessary with the ICU break iterator?
-- [engine/src/paragraf.h:885](engine/src/paragraf.h#L885) TODO: this should probably return a StringRef or a codepoint...
+- [engine/src/paragraf.cpp:2267](engine/src/paragraf.cpp#L2267) TODO: truncation if the paragraph would be too long
+- [engine/src/paragraf.cpp:2425](engine/src/paragraf.cpp#L2425) TODO: find out if ICU break iterator makes this redundant
+- [engine/src/paragraf.cpp:2441](engine/src/paragraf.cpp#L2441) TODO: find out if ICU break iterator makes this redundant
+- [engine/src/paragraf.cpp:2618](engine/src/paragraf.cpp#L2618) TODO: is this necessary with the ICU break iterator?
+- [engine/src/paragraf.cpp:2636](engine/src/paragraf.cpp#L2636) TODO: is this necessary with the ICU break iterator?
+- [engine/src/paragraf.h:889](engine/src/paragraf.h#L889) TODO: this should probably return a StringRef or a codepoint...
 - [engine/src/platform-recorder.cpp:50](engine/src/platform-recorder.cpp#L50) TODO - compression
 - [engine/src/platform.h:35](engine/src/platform.h#L35) COCOA-TODO: Remove external declaration.
 - [engine/src/platform.h:460](engine/src/platform.h#L460) COCOA-TODO: Do these key codes need to be mapped?
@@ -461,8 +461,8 @@ Work left for later. 434 notes, by part of the repository:
 - [engine/src/w32dcw32.cpp:1122](engine/src/w32dcw32.cpp#L1122) TODO: pay attention to the CS_INSERTCHAR and CS_NOMOVECARET flags
 - [engine/src/w32dcw32.cpp:1504](engine/src/w32dcw32.cpp#L1504) TODO - look in to this further:
 - [engine/src/w32printer.cpp:543](engine/src/w32printer.cpp#L543) TODO - fix half pixels lost when insetting by odd integers
-- [engine/src/w32stack.cpp:555](engine/src/w32stack.cpp#L555) TODO - Windows 8 implementation will require getting the appropriate per-window value
-- [engine/src/w32stack.cpp:1236](engine/src/w32stack.cpp#L1236) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
+- [engine/src/w32stack.cpp:560](engine/src/w32stack.cpp#L560) TODO - Windows 8 implementation will require getting the appropriate per-window value
+- [engine/src/w32stack.cpp:1241](engine/src/w32stack.cpp#L1241) TODO - Windows 8.1 per-monitor DPI-awareness may require the update region be in logical coords
 - [engine/src/widget-events.cpp:190](engine/src/widget-events.cpp#L190) WIDGET-TODO: Reinstate FocusEnter
 - [engine/src/widget-events.cpp:202](engine/src/widget-events.cpp#L202) WIDGET-TODO: Reinstate FocusLeave
 - [engine/src/widget-events.cpp:206](engine/src/widget-events.cpp#L206) TODO: does the unfocus *always* happen before the next focus?
@@ -542,23 +542,23 @@ Work left for later. 434 notes, by part of the repository:
 
 ### TODO: revbrowser (19)
 
-- [revbrowser/src/cefbrowser.cpp:1010](revbrowser/src/cefbrowser.cpp#L1010) TODO - Load error handling
-- [revbrowser/src/cefbrowser.cpp:1337](revbrowser/src/cefbrowser.cpp#L1337) TODO - implement advanced event messages
-- [revbrowser/src/cefbrowser.cpp:1373](revbrowser/src/cefbrowser.cpp#L1373) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1378](revbrowser/src/cefbrowser.cpp#L1378) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1384](revbrowser/src/cefbrowser.cpp#L1384) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1475](revbrowser/src/cefbrowser.cpp#L1475) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1481](revbrowser/src/cefbrowser.cpp#L1481) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1486](revbrowser/src/cefbrowser.cpp#L1486) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1492](revbrowser/src/cefbrowser.cpp#L1492) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1648](revbrowser/src/cefbrowser.cpp#L1648) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1707](revbrowser/src/cefbrowser.cpp#L1707) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1843](revbrowser/src/cefbrowser.cpp#L1843) TODO - get result of search
-- [revbrowser/src/cefbrowser.cpp:1887](revbrowser/src/cefbrowser.cpp#L1887) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1892](revbrowser/src/cefbrowser.cpp#L1892) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1912](revbrowser/src/cefbrowser.cpp#L1912) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1917](revbrowser/src/cefbrowser.cpp#L1917) TODO - IMPLEMENT
-- [revbrowser/src/cefbrowser.cpp:1922](revbrowser/src/cefbrowser.cpp#L1922) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1023](revbrowser/src/cefbrowser.cpp#L1023) TODO - Load error handling
+- [revbrowser/src/cefbrowser.cpp:1350](revbrowser/src/cefbrowser.cpp#L1350) TODO - implement advanced event messages
+- [revbrowser/src/cefbrowser.cpp:1386](revbrowser/src/cefbrowser.cpp#L1386) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1391](revbrowser/src/cefbrowser.cpp#L1391) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1397](revbrowser/src/cefbrowser.cpp#L1397) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1488](revbrowser/src/cefbrowser.cpp#L1488) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1494](revbrowser/src/cefbrowser.cpp#L1494) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1499](revbrowser/src/cefbrowser.cpp#L1499) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1505](revbrowser/src/cefbrowser.cpp#L1505) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1661](revbrowser/src/cefbrowser.cpp#L1661) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1720](revbrowser/src/cefbrowser.cpp#L1720) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1856](revbrowser/src/cefbrowser.cpp#L1856) TODO - get result of search
+- [revbrowser/src/cefbrowser.cpp:1900](revbrowser/src/cefbrowser.cpp#L1900) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1905](revbrowser/src/cefbrowser.cpp#L1905) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1925](revbrowser/src/cefbrowser.cpp#L1925) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1930](revbrowser/src/cefbrowser.cpp#L1930) TODO - IMPLEMENT
+- [revbrowser/src/cefbrowser.cpp:1935](revbrowser/src/cefbrowser.cpp#L1935) TODO - IMPLEMENT
 - [revbrowser/src/cefbrowser_lnx.cpp:190](revbrowser/src/cefbrowser_lnx.cpp#L190) TODO - implement
 - [revbrowser/src/cefprocess.cpp:166](revbrowser/src/cefprocess.cpp#L166) TODO - IMPLEMENT
 
@@ -640,9 +640,9 @@ Work left for later. 434 notes, by part of the repository:
 
 - [libbrowser/src/libbrowser_android.cpp:601](libbrowser/src/libbrowser_android.cpp#L601) TODO - implement (not needed when used with native layers)
 - [libbrowser/src/libbrowser_android.cpp:607](libbrowser/src/libbrowser_android.cpp#L607) TODO - implement (not needed when used with native layers)
-- [libbrowser/src/libbrowser_cef.cpp:508](libbrowser/src/libbrowser_cef.cpp#L508) TODO[Bug 19381] On Linux and Windows, the in-git-checkout
-- [libbrowser/src/libbrowser_cef.cpp:1324](libbrowser/src/libbrowser_cef.cpp#L1324) TODO - Implement OnDownload callback
-- [libbrowser/src/libbrowser_cef.cpp:2098](libbrowser/src/libbrowser_cef.cpp#L2098) TODO - IMPLEMENT
+- [libbrowser/src/libbrowser_cef.cpp:511](libbrowser/src/libbrowser_cef.cpp#L511) TODO[Bug 19381] On Linux and Windows, the in-git-checkout
+- [libbrowser/src/libbrowser_cef.cpp:1337](libbrowser/src/libbrowser_cef.cpp#L1337) TODO - Implement OnDownload callback
+- [libbrowser/src/libbrowser_cef.cpp:2111](libbrowser/src/libbrowser_cef.cpp#L2111) TODO - IMPLEMENT
 - [libbrowser/src/libbrowser_cef_lnx.cpp:226](libbrowser/src/libbrowser_cef_lnx.cpp#L226) TODO - implement
 - [libbrowser/src/libbrowser_cef_lnx.cpp:233](libbrowser/src/libbrowser_cef_lnx.cpp#L233) TODO - implement
 - [libbrowser/src/libbrowser_cef_lnx.cpp:240](libbrowser/src/libbrowser_cef_lnx.cpp#L240) TODO - implement

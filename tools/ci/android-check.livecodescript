@@ -83,6 +83,8 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --    OXT_ANDROID_AAR       an Android library (.aar) to build the probe
 --                          with (its "aarFiles"; none when empty)
 --    OXT_ANDROID_XTALK     the xTalk Suite's probe's list (see kXtalkSays)
+--    OXT_ANDROID_XTALK_TESTS  the file of its functional tests (see
+--                          kXtalkTestsBegin)
 --
 -- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
 -- before it turns green: it asks the Java layer of the runtime for what
@@ -194,13 +196,19 @@ constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQV
 -- tools/oxt/xtalk-extensions.json and the installed extensions, a line a
 -- tab-separated record:
 --    extension <id> <probe expression> <expected value, a regex>
+--    test <key> <function call> <expected value, a regex>
+--                         a functional test (see kXtalkTestsBegin),
+--                         called after every extension's smoke test
 --    permission <name>    a permission an extension declares
 --                         (metadata android.permissions), which the
 --                         builder must have put in the manifest
--- It says each extension's answer in the device's log (kXtalkSays, then
--- the id, then "ok:", "unexpected:" or "threw:" and what it got;
--- android_check.py device --xtalk reads them) and turns kFailColor when
--- any is not ok, green otherwise. A permission is not the probe's to
+-- An extension record's id is an LCB extension with native code or a
+-- script library over one (or over none): both go into the settings'
+-- "extensions" and the builder loads each its own way. It says each
+-- extension's and each test's answer in the device's log (kXtalkSays,
+-- then the id or key, then "ok:", "unexpected:" or "threw:" and what it
+-- got; android_check.py device --xtalk reads them) and turns kFailColor
+-- when any is not ok, green otherwise. A permission is not the probe's to
 -- ask: with LiveCode's Java layer, and OXT-Beyond's until 0.2.8-dp.3,
 -- androidHasPermission returns empty, neither true nor false, for one
 -- Android lists in no permission group, as INTERNET is on Android 10 and
@@ -208,6 +216,17 @@ constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQV
 -- permission name" error stops no script on Android), so device --xtalk
 -- asks the package manager (dumpsys package) that the app holds it.
 constant kXtalkSays = "OXT-Beyond probe: xtalk"
+-- kXtalkTestsBegin: the xTalk Suite's functional tests are the handlers of
+-- android-xtalk-tests.livecodescript (OXT_ANDROID_XTALK_TESTS; its header
+-- says what each does and the rules they keep), from the line that is
+-- kXtalkTestsBegin on. That text is appended to the xTalk probe's script,
+-- so each test record's function is the stack's own and runs in the app,
+-- on the device, called as the smoke tests are. One call per extension
+-- shows that a library loads and answers; a test uses the library for
+-- what it is for (known answers, two ends of a connection inside the one
+-- app, a file where an Android app may write). android_check.py
+-- (XTALK_TESTS_BEGIN) holds the same line
+constant kXtalkTestsBegin = "-- BEGIN the xTalk Suite's functional tests"
 constant kProbeCopyName = "oxt-probe.txt"
 constant kProbeCopy = "OXT-Beyond probe copy file"
 
@@ -1237,6 +1256,9 @@ private function probeScript
    end if
    if probeName() is "AndroidXtalkProbe" then
       put return & xtalkHandlers() after tScript
+      -- and its functional tests, their text as it is: its constants are
+      -- declared where it begins, above every handler that reads them
+      put return & xtalkTests() after tScript
    end if
    -- a tap: a script waiting (kWaitColor), then green again
    put return & "on mouseUp" & return & \
@@ -1264,6 +1286,8 @@ private function xtalkRecords
    repeat for each line tLine in tText
       if item 1 of tLine is "extension" and the number of items of tLine is 4 then
          put tLine & return after tRecords
+      else if item 1 of tLine is "test" and the number of items of tLine is 4 then
+         put tLine & return after tRecords
       else if item 1 of tLine is "permission" and the number of items of tLine is 2 then
          put tLine & return after tRecords
       else if tLine is not empty then
@@ -1283,17 +1307,22 @@ private function scriptLiteral pText
 end scriptLiteral
 
 -- The xTalk Suite's probe's openStack lines: a call of xtalkProbe for
--- each extension record (a permission record is device --xtalk's: see
+-- each extension record and then for each test record, whatever order
+-- the file has them in, so that no test runs before every library has
+-- answered once (a permission record is device --xtalk's: see
 -- kXtalkSays), and kFailColor when any answered something
 private function xtalkCalls
-   local tScript, tLine
+   local tScript, tLine, tKind, tRecords
    put "   local tFailed" & return & "   put false into tFailed" & return into tScript
+   put xtalkRecords() into tRecords
    set the itemDelimiter to tab
-   repeat for each line tLine in xtalkRecords()
-      if item 1 of tLine is not "extension" then next repeat
-      put "   xtalkProbe" && scriptLiteral(item 2 of tLine) & comma && scriptLiteral(item 3 of tLine) & \
-            comma && scriptLiteral(item 4 of tLine) & return after tScript
-      put "   if the result is not empty then put true into tFailed" & return after tScript
+   repeat for each item tKind in "extension" & tab & "test"
+      repeat for each line tLine in tRecords
+         if item 1 of tLine is not tKind then next repeat
+         put "   xtalkProbe" && scriptLiteral(item 2 of tLine) & comma && scriptLiteral(item 3 of tLine) & \
+               comma && scriptLiteral(item 4 of tLine) & return after tScript
+         put "   if the result is not empty then put true into tFailed" & return after tScript
+      end repeat
    end repeat
    put "   if tFailed then" & return & \
          "      set the backgroundColor of me to" && quote & kFailColor & quote & return & \
@@ -1303,16 +1332,21 @@ private function xtalkCalls
 end xtalkCalls
 
 -- The xTalk Suite's probe's own handlers: xtalkProbe evaluates a smoke
--- test (a library that does not load throws) and matches its value. It
--- says what it got (see kXtalkSays) and returns empty when it is ok
+-- test or a functional test (a library that does not load throws) and
+-- matches its value. It says what it got (see kXtalkSays) and returns
+-- empty when it is ok. Of an error it says the first four lines as one:
+-- what an extension throws is in the second (the first is the engine's
+-- "runtime" line)
 private function xtalkHandlers
    return "command xtalkProbe pId, pProbe, pExpect" & return & \
          "   local tValue, tError" & return & \
          "   try" & return & \
          "      do" && quote & "put" & quote && "&& pProbe &&" && quote & "into tValue" & quote & return & \
          "   catch tError" & return & \
+         "      put line 1 to 4 of tError into tError" & return & \
+         "      replace return with" && quote & " | " & quote && "in tError" & return & \
          "      put" && quote & kXtalkSays & quote && "&& pId &&" && quote & "threw:" & quote && \
-         "&& line 1 of tError" & return & \
+         "&& tError" & return & \
          "      return" && quote & "threw" & quote & return & \
          "   end try" & return & \
          "   if matchText(tValue, pExpect) then" & return & \
@@ -1324,6 +1358,22 @@ private function xtalkHandlers
          "   return" && quote & "unexpected" & quote & return & \
          "end xtalkProbe"
 end xtalkHandlers
+
+-- The xTalk Suite's functional tests, as script: the text of the file
+-- OXT_ANDROID_XTALK_TESTS names from its kXtalkTestsBegin line on (what
+-- is above it is the file's licence and prose). Empty, or without that
+-- one line, is an error: the probe's test records would call functions
+-- the stack has not
+private function xtalkTests
+   local tText, tAt
+   put textDecode(url ("binfile:" & $OXT_ANDROID_XTALK_TESTS), "UTF-8") into tText
+   replace numToChar(13) with empty in tText
+   put lineOffset(kXtalkTestsBegin, tText) into tAt
+   if tAt is 0 or line tAt of tText is not kXtalkTestsBegin then
+      throw "OXT_ANDROID_XTALK_TESTS: no line" && quote & kXtalkTestsBegin & quote && "in" && $OXT_ANDROID_XTALK_TESTS
+   end if
+   return line tAt to -1 of tText
+end xtalkTests
 
 private command makeProbeStack
    local tProbe
@@ -1356,6 +1406,11 @@ private command makeProbeStack
    end if
    set the fullscreenMode of stack tProbe to "exactFit"
    set the script of stack tProbe to probeScript()
+   -- the xTalk Suite's probe carries a file's worth of script: one that
+   -- does not compile would be a stack that says nothing on the device
+   if tProbe is "AndroidXtalkProbe" and the result is not empty then
+      throw "the xTalk probe's script does not compile:" && the result
+   end if
    local tDefault
    put the defaultStack into tDefault
    set the defaultStack to tProbe
