@@ -20,11 +20,13 @@ Playwright installs them (the action says why).
 
 It checks that every job whose browsers include WebKit installs Playwright
 through the action, at the Playwright version its workflow pins elsewhere;
-that the action reads the package list from Playwright's dry run as the
-pinned version prints it, run as root and through sudo, and reads none
-(so the install runs as before) from anything else; that a fetch that does
-not finish never stops the job before Playwright's own install; and that
-web-ide.yml starts on a change to the action.
+that the action installs through tools/ci/apt-install.sh --playwright,
+which reads the package list from Playwright's dry run as the pinned
+version prints it, run as root and through sudo, and reads none (so the
+install runs as before) from anything else; that a fetch that does not
+finish never stops the job before Playwright's own install (the helper's
+own tests run it: test_apt_retry.py); and that web-ide.yml starts on a
+change to the action.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -40,6 +42,7 @@ import yaml
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 ACTION_DIR = os.path.join('.github', 'actions', 'install-playwright')
 ACTION = os.path.join(REPO, ACTION_DIR, 'action.yml')
+HELPER = os.path.join(REPO, 'tools', 'ci', 'apt-install.sh')
 WORKFLOWS = os.path.join(REPO, '.github', 'workflows')
 
 # What Playwright 1.56.0's `install-deps --dry-run webkit` printed, as root
@@ -105,8 +108,13 @@ class TheAction(unittest.TestCase):
         for part in ('ImageOS', 'ImageVersion', 'VERSION', 'uname -m', 'names'):
             self.assertIn(part, key_step)
 
+    def helper(self):
+        with open(HELPER, encoding='utf-8') as f:
+            return f.read()
+
     def sed_expression(self):
-        m = re.search(r"\| sed -n '([^']*)'", self.script)
+        # (the helper's --playwright reads it)
+        m = re.search(r"install-deps --dry-run \"\$@\" \|\s*sed -n '([^']*)'", self.helper())
         self.assertIsNotNone(m, 'the dry run is read with sed -n')
         return m.group(1)
 
@@ -124,24 +132,45 @@ class TheAction(unittest.TestCase):
                                  capture_output=True, check=True).stdout
             self.assertEqual(out.strip(), '', text)
 
-    def test_fetch_is_bounded_and_never_fatal(self):
+    def test_installs_through_the_helper_after_the_cache(self):
         s = self.script
-        # every apt-get of the fetch has a time limit, and is tried 3 times
-        fetch = s[s.index('for i in 1 2 3; do'):s.index('done', s.index('for i in 1 2 3; do'))]
-        self.assertEqual(fetch.count('timeout 300 "${apt[@]}"'), 2)
-        self.assertIn('--download-only', fetch)
-        # the loop is an if, so a try that fails does not end the step
-        self.assertIn('if timeout 300', fetch)
-        # Playwright's own install comes after the fetch, with --with-deps,
-        # whatever the fetch did
-        self.assertGreater(s.index('-m playwright install --with-deps "${browsers[@]}"'),
-                           s.index('for i in 1 2 3; do'))
-        # nothing stops the install itself
-        self.assertNotIn('timeout 300 "$VENV/bin/python" -m playwright install', s)
+        call = 'bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$VENV/bin/python" "${browsers[@]}"'
+        self.assertEqual(s.count(call), 1)
+        # the cached packages are in apt's cache before it, and nothing
+        # else installs
+        self.assertLess(s.index('sudo cp "$debs"/*.deb /var/cache/apt/archives/'), s.index(call))
+        self.assertNotIn('-m playwright install', s.replace(call, ''))
+        self.assertNotIn('apt-get install', s)
 
-    def test_saves_only_a_finished_fetch_on_a_miss(self):
+    def test_the_helper_fetches_within_a_limit_and_never_fatally(self):
+        h = self.helper()
+        # the fetch's apt-get calls have a time limit; Playwright's install
+        # (and any install) none
+        self.assertIn('timeout "$limit" "${apt[@]}" update', h)
+        self.assertIn('timeout "$limit" "${apt[@]}" install -y "${recommends[@]}" --download-only "$@"', h)
+        # (without the packages they only recommend, as Playwright's own
+        # install asks: only --with-recommends, which is not the playwright
+        # mode, takes them; #597's review)
+        self.assertIn('recommends=(--no-install-recommends)\n', h)
+        self.assertEqual(h.count('recommends=()'), 1)
+        self.assertIn('--with-recommends) recommends=(); shift ;;', h)
+        self.assertNotIn('timeout "$limit" "$python"', h)
+        # the playwright mode installs after the fetch whatever it did: the
+        # script does not stop on a failure (no set -e), and the fetch is
+        # not in an and-list with the install
+        self.assertNotRegex(h, r'(?m)^set -[a-z]*e')
+        playwright = h[h.index('  playwright)'):]
+        self.assertLess(playwright.index('tries "${pkgs[@]}"'),
+                        playwright.index('"$python" -m playwright install --with-deps "$@"'))
+        self.assertNotIn('tries "${pkgs[@]}" &&', playwright)
+
+    def test_saves_on_a_miss_after_the_install(self):
+        # every package installed is in apt's cache once the install
+        # finished, fetched first or by Playwright (the step ends, under
+        # bash -e, when the install fails)
         s = self.script
-        self.assertIn('if [ "$fetched" = true ] && [ "$HIT" != true ]; then', s)
+        self.assertIn('if [ "$HIT" != true ]; then', s)
+        self.assertLess(s.index('apt-install.sh" --playwright'), s.index('if [ "$HIT" != true ]; then'))
         self.assertIn('echo "save=true" >> "$GITHUB_OUTPUT"', s)
 
 

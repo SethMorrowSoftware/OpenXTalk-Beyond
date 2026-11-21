@@ -901,8 +901,12 @@ class Workflow(unittest.TestCase):
             self.assertIs(checkout['with']['persist-credentials'], False)
 
     def test_apt_asks_the_public_name_servers_first(self):
+        # through tools/ci/apt-install.sh, which asks them before apt does
+        # (test_apt_retry.py, test_the_name_servers_come_first) and tries a
+        # package server that is out again; apt-get itself, never
         run = self.runs('stage')
-        self.assertLess(run.index('apt-name-servers.sh'), run.index('apt-get -o Acquire::Retries=3 update'))
+        self.assertIn('bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${missing[@]}"', run)
+        self.assertNotIn('apt-get', run)
 
     def test_the_builds_do_not_start_for_it(self):
         for build in ('build-linux.yml', 'build-windows.yml', 'build-macos.yml'):

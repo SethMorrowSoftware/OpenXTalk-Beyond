@@ -344,6 +344,72 @@ class TheIndex(unittest.TestCase):
         self.assertIn('is not wholly in view', measure)
 
 
+class ThePage(unittest.TestCase):
+    """The page of the stack or library in front. With 0.2.8-dp.2 the last
+    line of a page longer than the window (the Easing library's) stayed
+    partly below it at the end of the scroll: its lower 8 points were cut
+    off (bwmilby on the forum, Linux and macOS). The page, like the
+    Release Notes' page and the About window's panel, is a label of the
+    kit's (a top margin of kTextInset, none below) that scrolls; the kit's
+    lkPageEnd gives it the bottom margin the engine's scroll needs. The
+    step community-stacks of the tour measures it in the IDE, and the
+    dp.2 engine, with the kit's lkLabel, put the last line 8 points below
+    a 364 point page before and wholly in it after."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.kit = read(KIT)
+        cls.tour = read(TOUR)
+
+    def test_the_kits_page_end_leaves_room_for_the_last_line(self):
+        # The engine stops a field's scroll at its text and two margins
+        # less twice TEXT_Y_OFFSET (MCField::vscroll); the margins must add
+        # up to that and 2 points more, for 2 points under the last line
+        end = code(handler(self.kit, 'lkPageEnd'))
+        m = re.search(r'set the bottomMargin of pObj to max\(the bottomMargin of pObj, (\d+) - the topMargin of pObj\)', end)
+        self.assertIsNotNone(m, 'lkPageEnd sets no bottom margin')
+        offset = int(re.search(r'^#define TEXT_Y_OFFSET (\d+)$', read(os.path.join(ENGINE, 'objdefs.h')), re.M).group(1))
+        self.assertEqual(int(m.group(1)), 2 * offset + 2)
+        # it only ever adds room: a bottom margin a window set is kept
+        self.assertNotIn('set the margins', end)
+        field = read(os.path.join(ENGINE, 'field.cpp'))
+        scroll = field[field.index('Exec_stat MCField::vscroll(int4 offset, Boolean doredraw)'):]
+        scroll = scroll[:scroll.index('\n}\n')]
+        self.assertIn('uint4 theight = textheight + topmargin + bottommargin - TEXT_Y_OFFSET * 2;', scroll)
+        # and a kit label has no bottom margin of its own: without
+        # lkPageEnd its last line is cut
+        label = code(handler(self.kit, 'lkLabel'))
+        self.assertIn('set the margins of tObj to "0," & kTextInset & ",0,0"', label)
+        self.assertEqual(constant(self.kit, 'kTextInset'), '4')
+
+    def test_every_page_that_scrolls_has_it(self):
+        pages = (
+            (WINDOW, 'csBuild', 'lkScroller "pageThumb", tObj'),
+            (os.path.join(TOOLSET, 'palettes', 'updates', 'revreleasenotes.livecodescript'), 'rnBuild',
+             'lkScroller "pageThumb", tObj'),
+            (os.path.join(TOOLSET, 'palettes', 'about', 'revabout.livecodescript'), None, 'lkScroller "panelThumb", tObj'),
+        )
+        for path, name, scroller in pages:
+            text = code(read(path))
+            if name is not None and re.search(r'^(?:private +)?(?:on|command) +%s\b' % name, text, re.M):
+                text = code(handler(read(path), name))
+            self.assertIn(scroller, text, path)
+            self.assertIn('lkPageEnd tObj', text, path)
+            # before the thumb is made, which measures the scroll
+            self.assertLess(text.index('lkPageEnd tObj'), text.index(scroller), path)
+
+    def test_the_tour_measures_it_in_the_ide(self):
+        step = handler(self.tour, 'tour_community_stacks')
+        self.assertIn('tourCsPageEnd tWin', step)
+        end = handler(self.tour, 'tourCsPageEnd')
+        self.assertIn('set the vScroll of field "page" of stack pWin to 30000', end)
+        self.assertIn('put the formattedRect of line -1 of field "page" of stack pWin into tRect', end)
+        self.assertIn('if item 4 of tRect > tBottom then\n      throw', end)
+        self.assertIn('throw "the tour\'s long page fits the page', end)
+        # the window's own text is put back
+        self.assertIn('set the htmlText of field "page" of stack pWin to tSaved', end)
+
+
 class Menu(unittest.TestCase):
     def test_the_file_menu_has_it(self):
         menubar = read(MENUBAR)

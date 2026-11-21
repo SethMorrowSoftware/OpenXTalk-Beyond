@@ -6908,6 +6908,11 @@ on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
    put revIDEPaletteToStackName("message box") into tMB
+   -- opened again, it keeps the window it opened with. A moment after
+   -- each openStack its tWDTroubleshooting set the systemWindow, to the
+   -- value it had, and the engine made the window again: the Message Box
+   -- was drawn twice (bwmilby on the forum, 0.2.8-dp.2 on Linux)
+   tourMessageBoxOneWindow tMB
    tourShotStack tMB, "11-message-box"
    -- However often its card is laid out, one positionOpenStacksButton
    -- waits for it, and that one is delivered. Each layout sent one more,
@@ -6933,6 +6938,23 @@ on tour_message_box
    -- a palette, in front of the windows of the later steps
    close stack tMB
 end tour_message_box
+
+-- The Message Box, closed and opened again, has the window it opened
+-- with once the messages its openStack sent have been delivered. (The
+-- second open is the one checked: by then the stack has the systemWindow
+-- of its platform and the preferences, which the first may have to set.)
+private command tourMessageBoxOneWindow pMB
+   local tOpened, tSettled
+   close stack pMB
+   revIDEOpenPalette "message box"
+   put the windowId of stack pMB into tOpened
+   tourWait 500
+   put the windowId of stack pMB into tSettled
+   tourRecord "INFO message-box opened with window" && tOpened && "and has" && tSettled && "half a second later"
+   if tSettled is not tOpened then
+      throw "the Message Box's window was made again after it opened (" & tOpened && "then" && tSettled & "): it is drawn twice"
+   end if
+end tourMessageBoxOneWindow
 
 -- how many positionOpenStacksButton messages wait
 function tourMessageBoxWaiting
@@ -10524,6 +10546,12 @@ on tour_community_stacks
          tourCsLastLine tWin, "with the last stack in front"
          get tourSelectedLineMiddle(tWin, "Community Stacks")
          if it is not empty then throw it
+         -- A page longer than the window (a long library's, the Easing
+         -- library's): its last line comes wholly into view at the end of
+         -- the scroll. The page had no bottom margin, and the end of the
+         -- scroll left the lower 8 points of its last line below it
+         -- (bwmilby on the forum, 0.2.8-dp.2 on Linux and macOS)
+         tourCsPageEnd tWin
          tourShotStack tWin, "24c10-community-stacks-long"
          -- (the list of three and its signature again, for what follows)
          put tIndex into url ("binfile:" & tSite & "/index.json")
@@ -10875,6 +10903,37 @@ private command tourCsLastLine pWin, pWhen
             "and the index shows" && tTop && "to" && tBottom && "(scroll" && the vScroll of field "idx" of stack pWin & ")"
    end if
 end tourCsLastLine
+
+-- The last line of the window's page, made longer than the page shows,
+-- is wholly in view at the end of the scroll: none of it below the page's
+-- bottom. The page's own text is put back after.
+private command tourCsPageEnd pWin
+   local tSaved, tHtml, tRect, tTop, tBottom, tCount
+   put the htmlText of field "page" of stack pWin into tSaved
+   put tSaved into tHtml
+   repeat with tCount = 1 to 60
+      put "<p>Line" && tCount && "of a long page, with gypsy letters that reach below the line</p>" after tHtml
+   end repeat
+   set the htmlText of field "page" of stack pWin to tHtml
+   if the formattedHeight of field "page" of stack pWin <= the height of field "page" of stack pWin then
+      throw "the tour's long page fits the page (" & the formattedHeight of field "page" of stack pWin && "of" && \
+            the height of field "page" of stack pWin & "): it is too short to scroll"
+   end if
+   set the vScroll of field "page" of stack pWin to 30000
+   put the formattedRect of line -1 of field "page" of stack pWin into tRect
+   put the top of field "page" of stack pWin into tTop
+   put the bottom of field "page" of stack pWin into tBottom
+   tourRecord "INFO community-stacks: the last line of a long page at the end of the scroll:" && item 2 of tRect && "to" && \
+         item 4 of tRect && "in the page's" && tTop && "to" && tBottom & ", scroll" && the vScroll of field "page" of stack pWin & \
+         ", margins" && the topMargin of field "page" of stack pWin & "," && the bottomMargin of field "page" of stack pWin
+   if item 4 of tRect > tBottom then
+      throw "the last line of a long page is cut at the end of the scroll: its line is" && item 2 of tRect && "to" && \
+            item 4 of tRect && "and the page shows" && tTop && "to" && tBottom && "(scroll" && \
+            the vScroll of field "page" of stack pWin & ")"
+   end if
+   set the htmlText of field "page" of stack pWin to tSaved
+   set the vScroll of field "page" of stack pWin to 0
+end tourCsPageEnd
 
 -- Waits for the window to have asked its site, at most ten seconds
 private command tourCsWait pWin
