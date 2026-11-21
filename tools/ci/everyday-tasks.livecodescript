@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -1939,6 +1939,139 @@ on ed_standalone_engine_missing
    edFront
    edShotStack sStack, "41-standalone-engine-missing"
 end ed_standalone_engine_missing
+
+-- File > Import As Control > Image File... with the system's own file
+-- dialog (the systemFileSelector true, as a person has it) and a lot of
+-- windows open, on macOS: the dialog must open, on the screen, in front
+-- of the IDE's windows. A person on macOS 15.2 found that "with a lot of
+-- windows/stacks open" the item's "Finder window does not always open"
+-- (CamelCaps, openxtalk.org p=26676). The dialog holds the IDE until it
+-- closes, so the IDE cannot look at it: a watcher of its own
+-- (edDialogWatcher), started before the item is picked, lists the
+-- system's windows until a new window of the IDE's is there, writes what
+-- it found and which windows were in front of it, and presses Escape,
+-- which cancels the dialog. Three times: with the stack in front, after
+-- a palette was, and after a stack that was just made. Last of the
+-- tasks, so that a dialog that held the IDE for good holds no task after
+-- it
+on ed_import_image_system_dialog
+   local tMany, tName, tFront, tRound, tFile, tFound, tMiss, tCount, i
+   if the platform is not "MacOS" then
+      edRecord "INFO import-image-system-dialog: the system's file dialog is looked at on macOS (CamelCaps, p=26676)"
+      return "skipped"
+   end if
+   if sStack is empty or there is not a stack sStack then throw "the task's stack is not there"
+   -- (a lot of windows: a dozen stacks over the screen, and the palettes
+   -- a person has open)
+   lock messages
+   repeat with i = 1 to 12
+      put "Everyday Many" && i into tName
+      if there is a stack tName then delete stack tName
+      create stack tName
+      set the rect of stack tName to (40 + i * 30) & "," & (60 + i * 24) & "," & (440 + i * 30) & "," & (360 + i * 24)
+      put tName & return after tMany
+   end repeat
+   unlock messages
+   repeat for each line tName in tMany
+      go stack tName
+   end repeat
+   revIDEOpenPalette "message box"
+   revIDEOpenPalette "project browser"
+   put the number of images of card 1 of stack sStack into tCount
+   set the systemFileSelector to true
+   repeat for each item tRound in "the stack,a palette,a new stack"
+      put empty into tFront
+      switch tRound
+         case "a palette"
+            if there is a stack "Message Box" then go stack "Message Box"
+            break
+         case "a new stack"
+            put "Everyday Many New" into tFront
+            if there is a stack tFront then delete stack tFront
+            create stack tFront
+            set the rect of stack tFront to "300,200,700,500"
+            go stack tFront
+            break
+      end switch
+      -- (the item is the stack in front's: Import As Control is enabled
+      -- for a stack that can be edited)
+      edFront
+      put sWork & "/dialog-" & word -1 of tRound & ".txt" into tFile
+      edDialogWatcher tFile
+      if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then
+         put tRound & ": the watcher did not start" & return after tMiss
+         next repeat
+      end if
+      edMenu "File", "Import As Control|image"
+      -- (the dialog has closed: Escape, or the watcher's last try)
+      if not edWaitFor("there is a file pAx", 15000, tFile) then
+         put tRound & ": the watcher wrote nothing" & return after tMiss
+         next repeat
+      end if
+      put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound
+      edRecord "INFO import-image-system-dialog, after" && tRound & ":" && edJoin(tFound)
+      if line 1 of tFound is not "opened" then
+         put tRound & ":" && line 1 of tFound & return after tMiss
+      else if line 2 of tFound is not "in front" then
+         put tRound & ": the dialog opened behind" && line 2 of tFound & return after tMiss
+      else if line 3 of tFound is not "closed" then
+         put tRound & ": Escape did not close the dialog (" & line 3 of tFound & ")" & return after tMiss
+      end if
+      if tFront is not empty and there is a stack tFront then delete stack tFront
+   end repeat
+   set the systemFileSelector to false
+   repeat for each line tName in tMany
+      if there is a stack tName then delete stack tName
+   end repeat
+   edFront
+   if the number of images of card 1 of stack sStack is not tCount then put "a cancelled dialog imported an image" & return after tMiss
+   if tMiss is not empty then throw "the system's file dialog with a lot of windows open:" && edJoin(tMiss)
+   edRecord "INFO File > Import As Control > Image File... opened the system's file dialog in front of a dozen stacks and the palettes, three times"
+end ed_import_image_system_dialog
+
+-- A watcher of the system's windows, for a dialog that holds the IDE
+-- while it is open: osascript, in the background, lists the windows
+-- (CGWindowListCopyWindowInfo, which needs no permission for what it is
+-- asked here: owners, layers and bounds) and writes pFile & ".base" once
+-- it has listed those there before. Then, for up to ten seconds, it looks
+-- for a window of the IDE's that was not there before (or of the system's
+-- service that shows an open panel for a program, should the system show
+-- it that way: its owner's name has "Open" or "Panel" in it). pFile says, a
+-- line each: "opened" or what it found instead; "in front" or the
+-- windows in front of it that overlap it (each owner, layer and bounds;
+-- below the Dock's layer, 20, and the menu bar's: a window of the IDE's
+-- or of any program, not the system's own);
+-- "closed" or what is still there after Escape, pressed up to four
+-- times; the dialog; then every window on the screen, front to back, as
+-- they were while the dialog was open
+command edDialogWatcher pFile
+   local tScript
+   put "ObjC.import('CoreGraphics'); ObjC.import('Foundation'); " & \
+         "var pid = " & the processID & "; var path = '" & pFile & "'; " & \
+         "function all() { return ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(0, 0))) || []; } " & \
+         "function shown() { return ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17, 0))) || []; } " & \
+         "function write(p, t) { $.NSString.alloc.initWithUTF8String(t).writeToFileAtomicallyEncodingError(p, true, 4, null); } " & \
+         "function box(w) { var b = w.kCGWindowBounds || {}; return [b.X, b.Y, b.Width, b.Height].join(','); } " & \
+         "function say(w) { return w.kCGWindowOwnerName + ' ' + w.kCGWindowOwnerPID + ' layer ' + w.kCGWindowLayer + ' at ' + box(w) + (w.kCGWindowIsOnscreen ? '' : ' (not on the screen)'); } " & \
+         "function meets(a, b) { var p = a.kCGWindowBounds, q = b.kCGWindowBounds; " & \
+         "return p.X < q.X + q.Width && q.X < p.X + p.Width && p.Y < q.Y + q.Height && q.Y < p.Y + p.Height; } " & \
+         "function esc() { [true, false].forEach(function (d) { $.CGEventPost(0, $.CGEventCreateKeyboardEvent(null, 53, d)); delay(0.1); }); } " & \
+         "var before = {}; all().forEach(function (w) { before[w.kCGWindowNumber] = true; }); write(path + '.base', 'listed'); " & \
+         "var found = null; for (var i = 0; i < 40 && !found; i++) { delay(0.25); " & \
+         "all().forEach(function (w) { if (!found && (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20) found = w; }); } " & \
+         "var lines = [], now = []; if (!found) { lines.push('no new window of the IDE in ten seconds'); lines.push(''); } else { delay(1); " & \
+         "now = shown(); var at = -1; now.forEach(function (w, n) { if (w.kCGWindowNumber == found.kCGWindowNumber) at = n; }); " & \
+         "if (at < 0) { lines.push('opened, but not on the screen: ' + say(found)); lines.push(''); } else { lines.push('opened'); " & \
+         "var over = now.slice(0, at).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20 && w.kCGWindowBounds.Width > 1 && meets(w, found); }); " & \
+         "lines.push(over.length ? over.map(say).join('; ') : 'in front'); } } " & \
+         "var gone = false; for (var k = 0; k < 4 && !gone; k++) { esc(); delay(1.5); " & \
+         "gone = !found || !all().some(function (w) { return w.kCGWindowNumber == found.kCGWindowNumber && w.kCGWindowIsOnscreen; }); } " & \
+         "lines.push(gone ? 'closed' : 'still open after Escape four times'); " & \
+         "lines.push('the dialog: ' + (found ? say(found) : 'none')); " & \
+         "(now.length ? now : shown()).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 24; }).forEach(function (w) { lines.push(say(w)); }); " & \
+         "write(path, lines.join(String.fromCharCode(10)));" into tScript
+   get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")
+end edDialogWatcher
 
 -- the stack closed and deleted from memory; what was changed set back
 on ed_finish

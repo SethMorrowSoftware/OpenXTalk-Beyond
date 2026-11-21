@@ -1231,6 +1231,97 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
         self.assertIn('edRecord "INFO the system\'s keyboard reaches the IDE:" && tWorks', works)
 
 
+class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
+    """import-image-system-dialog picks File > Import As Control > Image
+    File... with the system's own file dialog and a lot of windows open,
+    on macOS, where a person found that "with a lot of windows/stacks
+    open" the dialog "does not always open" (CamelCaps, openxtalk.org
+    p=26676). The dialog holds the IDE while it is open, so a watcher
+    started before the item is picked (osascript, in the background) lists
+    the system's windows, writes what it found and presses Escape."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.body = cls.handlers['ed_import_image_system_dialog']
+        cls.code = '\n'.join(line for line in cls.body.split('\n') if not line.lstrip().startswith('--'))
+        cls.watcher = cls.handlers['edDialogWatcher']
+
+    def watcher_script(self):
+        """The watcher's JavaScript as the shell gets it, the IDE's process
+        ID and the file put in."""
+        expr = self.watcher.split('put "', 1)[1].split(' into tScript', 1)[0]
+        expr = '"' + expr.replace('& \\\n', '&')
+        parts = []
+        for text, name in re.findall(r'"([^"]*)"|& (the processID|pFile) &', expr):
+            parts.append({'the processID': '1234', 'pFile': '/tmp/dialog.txt'}.get(name, text))
+        return ''.join(parts)
+
+    def test_the_task_is_the_last_before_finish(self):
+        # a dialog that held the IDE for good holds no task after it
+        names = tasks(self.text)
+        self.assertEqual(names[-2:], ['import-image-system-dialog', 'finish'])
+
+    def test_it_is_macos_s(self):
+        self.assertRegex(self.code, r'^\s*local [^\n]*\n\s*if the platform is not "MacOS" then\n[^\n]*\n\s*return "skipped"\n')
+
+    def test_the_systems_dialog_with_a_lot_of_windows_open(self):
+        made = self.code.index('repeat with i = 1 to 12')
+        self.assertIn('create stack tName', self.code[made:])
+        self.assertIn('revIDEOpenPalette "message box"', self.code)
+        self.assertIn('revIDEOpenPalette "project browser"', self.code)
+        on = self.code.index('set the systemFileSelector to true')
+        self.assertLess(made, on)
+        self.assertLess(on, self.code.index('repeat for each item tRound in "the stack,a palette,a new stack"'))
+
+    def test_the_watcher_starts_before_the_item_is_picked(self):
+        started = self.code.index('edDialogWatcher tFile')
+        listed = self.code.index('if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then')
+        picked = self.code.index('edMenu "File", "Import As Control|image"')
+        self.assertLess(started, listed)
+        self.assertLess(listed, picked)
+        # (and what it wrote is read once the dialog has closed)
+        self.assertLess(picked, self.code.index('put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound'))
+
+    def test_each_round_asks_for_the_dialog_in_front_and_closed(self):
+        for line in ('if line 1 of tFound is not "opened" then',
+                     'else if line 2 of tFound is not "in front" then',
+                     'else if line 3 of tFound is not "closed" then'):
+            self.assertIn(line, self.code)
+        # (each round's record, whatever it found)
+        self.assertIn('edRecord "INFO import-image-system-dialog, after" && tRound & ":" && edJoin(tFound)', self.code)
+
+    def test_the_ide_is_as_it_was_before_the_throw(self):
+        throw = self.code.index('if tMiss is not empty then throw')
+        self.assertEqual(self.code.count('throw'), 2, 'a throw before the rounds end would leave the stacks and the dialog setting')
+        tail = self.code[self.code.index('end repeat\n   set the systemFileSelector to false'):throw]
+        self.assertIn('if there is a stack tName then delete stack tName', tail)
+        # (a cancelled dialog imports nothing)
+        self.assertIn('if the number of images of card 1 of stack sStack is not tCount then', tail)
+
+    def test_the_watcher_reaches_osascript_as_written(self):
+        # one argument in double quotes to the shell: no double quote,
+        # backslash or backtick in it, and no $ the shell would expand
+        script = self.watcher_script()
+        self.assertTrue(script.startswith("ObjC.import('CoreGraphics');"), script[:60])
+        for char in '"\\`':
+            self.assertNotIn(char, script)
+        self.assertIsNone(re.search(r'\$[A-Za-z_{(]', script))
+        self.assertIn('get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")', self.watcher)
+
+    def test_the_watcher_lists_before_it_looks_and_presses_escape(self):
+        script = self.watcher_script()
+        self.assertIn('var pid = 1234;', script)
+        base = script.index("write(path + '.base', 'listed');")
+        self.assertLess(script.index('all().forEach(function (w) { before[w.kCGWindowNumber] = true; });'), base)
+        self.assertLess(base, script.index('var found = null;'))
+        # (Escape is key 53, kVK_Escape, down and up)
+        self.assertIn('$.CGEventCreateKeyboardEvent(null, 53, d)', script)
+        self.assertLess(script.index('var found = null;'), script.index('esc(); delay(1.5);'))
+        self.assertIn("lines.push(gone ? 'closed' : 'still open after Escape four times');", script)
+        self.assertIn("write(path, lines.join(String.fromCharCode(10)));", script)
+
+
 class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
     """quick-start-first-lesson does the Quick Start Guide's first lesson
     as its notes say: the first example Learn offers. A newcomer could not
