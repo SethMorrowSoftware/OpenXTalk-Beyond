@@ -269,6 +269,7 @@ XTALK_TESTS = collections.OrderedDict([
     ('test.sodium', ('xtalkTestSodium', ('org.openxtalk.library.sodium',))),
     ('test.coin', ('xtalkTestCoin', ('org.openxtalk.library.coin', 'coinxt'))),
     ('test.box2d', ('xtalkTestBox2d', ('org.openxtalk.box2dxt',))),
+    ('test.box3d', ('xtalkTestBox3d', ('org.openxtalk.library.boxthreed',))),
     ('test.enet', ('xtalkTestEnet', ('org.openxtalk.library.enet',))),
     ('test.datachannel', ('xtalkTestDataChannel', ('org.openxtalk.library.datachannel',))),
     ('test.torrent', ('xtalkTestTorrent', ('org.openxtalk.library.torrent',))),

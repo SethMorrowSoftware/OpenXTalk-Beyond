@@ -218,6 +218,48 @@ function xtalkTestBox2d
    return "passed: a box dropped from 4 rests on the floor at" && round(tY, 3) && "after 240 steps"
 end xtalkTestBox2d
 
+-- Box3Dxt: a ball of half a metre dropped onto a floor comes to rest on it,
+-- in three dimensions. The mass is a known answer too: a ball of density 1
+-- weighs its volume
+function xtalkTestBox3d
+   local tWorld, tFloor, tBall, tShape, tMass, tStart, tFell, tY
+   -- one worker: the step runs on the thread that asks for it
+   put b3WorldCreate(0, -10, 0, 1) into tWorld
+   if tWorld <= 0 then return "b3WorldCreate answered" && tWorld & ":" && b3LastError()
+   -- the floor's top is at 0: a box of half height 1 centred at -1
+   put b3BodyCreate(tWorld, 0, 0, -1, 0) into tFloor
+   get b3ShapeAddBox(tFloor, 20, 1, 20, 0, 0.6, 0)
+   put b3BodyCreate(tWorld, 2, 0, 5, 0) into tBall
+   put b3ShapeAddSphere(tBall, 0, 0, 0, 0.5, 1, 0.6, 0) into tShape
+   if tFloor <= 0 or tBall <= 0 or tShape <= 0 then
+      get b3LastError()
+      b3WorldDestroy tWorld
+      return "a floor, a ball and its shape answered" && tFloor & "," && tBall & "," && tShape & ":" && it
+   end if
+   put b3BodyMass(tBall) into tMass
+   put b3BodyY(tBall) into tStart
+   repeat 30 times
+      b3WorldStep tWorld, 1 / 60, 4
+   end repeat
+   put b3BodyY(tBall) into tFell
+   repeat 240 times
+      b3WorldStep tWorld, 1 / 60, 4
+   end repeat
+   put b3BodyY(tBall) into tY
+   b3WorldDestroy tWorld
+   if tMass is not a number or abs(tMass - 4 / 3 * pi * 0.125) > 0.001 then
+      return "a ball of radius 0.5 and density 1 weighs" && tMass & ", not" && 4 / 3 * pi * 0.125
+   end if
+   if tStart is not 5 or tFell is not a number or tFell > tStart - 0.5 then
+      return "a ball dropped from" && tStart && "is at" && tFell && "after 30 steps: it has not fallen"
+   end if
+   if tY is not a number or abs(tY - 0.5) > 0.03 then
+      return "a ball dropped from" && tStart && "onto a floor rests at" && tY & ", not 0.5"
+   end if
+   if b3WorldIsValid(tWorld) then return "the world is still there after b3WorldDestroy"
+   return "passed: a ball dropped from 5 rests on the floor at" && round(tY, 3) && "after 270 steps, its mass" && round(tMass, 4)
+end xtalkTestBox3d
+
 -- enetxt: a server and a client in the app, on 127.0.0.1 over UDP: the
 -- client connects, sends a small message and one of 60000 bytes (which
 -- ENet splits and joins again), and disconnects

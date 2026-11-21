@@ -1136,7 +1136,7 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
 `code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
-x86 and arm64, macOS, and, for the seven native members, Android's
+x86 and arm64, macOS, and, for the eight native members, Android's
 `arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
 (the IDE maps the one for its platform into `revLibraryMapping`, the
 standalone builder copies the one for the target into a standalone, and
@@ -1147,7 +1147,7 @@ Android builder workflow builds an app with them, and with the script
 libraries over them, for all four ABIs, and on its emulators runs each
 extension's smoke test in it and then the suite's functional tests
 (`tools/ci/android-xtalk-tests.livecodescript`: known answers through
-SodiumXT and CoinXT, a Box2D world stepped, an ENet connection, a WebRTC
+SodiumXT and CoinXT, a Box2D and a Box3D world stepped, an ENet connection, a WebRTC
 data channel, a torrent session and a curl request, each between two ends
 inside the one app, and a Nostr event signed and verified;
 `android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
