@@ -143,6 +143,13 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # xlsxt: the shim, and libxlsxwriter, zlib and Expat under the names
+    # the member's web build gives their globals (src/xlsx_web_names.h).
+    # It reads and writes files in the page's own file system, which
+    # never yields. Their file-local functions keep their own names and
+    # are instrumented where they call through a pointer (Expat's
+    # handlers, zlib's allocator)
+    'xlx_*', 'xlxw_*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

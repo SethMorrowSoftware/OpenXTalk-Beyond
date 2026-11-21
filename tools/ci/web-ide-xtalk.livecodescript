@@ -14,8 +14,8 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, CoinXT and DataChannelXT
--- (a shim over the browser's WebRTC) into itself
+-- The web IDE's engine links SodiumXT, Box2Dxt, CoinXT, xlsxt and
+-- DataChannelXT (a shim over the browser's WebRTC) into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -30,6 +30,10 @@ script "oxtwebxtalk"
 --    box2d       Box2Dxt: a ball dropped for 60 steps of 1/60 s
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
+--    xlsx        xlsxt: a workbook with a table, a formula, a date, a
+--                chart and text outside ASCII is written into the page's
+--                file system and read back cell for cell; a file that is
+--                no workbook is refused in words
 --    nostr       NostrXT's relay library over the browser's WebSocket:
 --                connect to the local relay, subscribe, publish a signed
 --                event, have it accepted and delivered back
@@ -62,7 +66,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,coinxt,xlsx,nostr,chat,holdem,platformer,datachannel,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -237,6 +241,54 @@ on xt_coinxt
    xtExpect "it verifies", cxSchnorrVerify(xtBytes(kBip340Pub), xtBytes(xtZeros(32)), tSig), true
    xtExpect "a changed message does not", cxSchnorrVerify(xtBytes(kBip340Pub), xtBytes(xtZeros(31) & "01"), tSig), false
 end xt_coinxt
+
+on xt_xlsx
+   local tPath, tBook, tSheet, tBold, tChart, tTable, tReader, tWide
+   -- xlsxt: libxlsxwriter, zlib and Expat. A workbook is written into the
+   -- page's own file system (a browser has no other) and read back
+   tourRecord "INFO xlLibraryVersion()" && xlLibraryVersion()
+   xtExpect "the ABI the binding wants", xlABIVersion(), 1
+   put the temporary folder & "/oxt-web-xlsx.xlsx" into tPath
+   put xlWorkbookNew(tPath) into tBook
+   xtExpect "a workbook", tBook > 0 and xlWorkbookIsValid(tBook), true
+   put xlWorkbookAddSheet(tBook, "Sales") into tSheet
+   put xlWorkbookAddFormat(tBook) into tBold
+   xlFormatSetBold tBold, true
+   put "Month" & tab & "Units" & tab & "Price" & return & \
+         "January" & tab & "12" & tab & "9.5" & return & \
+         "February" & tab & "7" & tab & "10.25" into tTable
+   xtExpect "cells written from a table", xlSheetWriteGrid(tSheet, 1, 1, tTable, "numbers", 0), 9
+   xlSheetWriteText tSheet, 1, 1, "Month", tBold
+   xlSheetWriteFormulaValue tSheet, 4, 3, "=SUM(C2:C3)", 19.75, 0
+   xlSheetWriteDate tSheet, 5, 1, xlDateToSerial(2026, 11, 20, 0, 0, 0), 0
+   xlSheetWriteBoolean tSheet, 5, 2, true, 0
+   -- text outside ASCII: Latin-1, three bytes of UTF-8, and four
+   put "caf" & numToCodepoint(233) && numToCodepoint(9731) && numToCodepoint(128512) into tWide
+   xlSheetWriteText tSheet, 6, 1, tWide, 0
+   put xlWorkbookAddChart(tBook, "column") into tChart
+   xtExpect "a chart series", xlChartAddSeries(tChart, xlRangeFormula("Sales", 2, 1, 3, 1), xlRangeFormula("Sales", 2, 3, 3, 3)), 1
+   xlSheetInsertChart tSheet, 2, 5, tChart, 1, 1
+   xtExpect "nothing was refused", xlWorkbookErrorCount(tBook) && xlLastError(), "0 "
+   -- Boolean results cross the web engine's FFI as a C int here
+   xtExpect "close writes the file", xlWorkbookClose(tBook) & comma & (there is a file tPath), "true,true"
+   xtExpect "the file is a zip", byte 1 to 2 of URL ("binfile:" & tPath), "PK"
+   put xlReadOpen(tPath) into tReader
+   xtExpect "a reader", tReader > 0 and xlReadIsValid(tReader), true
+   xtExpect "its sheet", xlReadSheetCount(tReader) && xlReadSheetName(tReader, 1), "1 Sales"
+   xtExpect "the sheet loads", xlReadLoad(tReader, 1), true
+   xtExpect "the table read back", xlReadGrid(tReader, 1, 1, 1, 3, 3) is tTable, true
+   xtExpect "a number", xlReadCellNumber(tReader, 1, 3, 3), 10.25
+   xtExpect "a formula and its stored result", xlReadCellFormula(tReader, 1, 4, 3) && xlReadCellNumber(tReader, 1, 4, 3), "=SUM(C2:C3) 19.75"
+   xtExpect "a date", xlReadCell(tReader, 1, 5, 1) && xlReadCellKind(tReader, 1, 5, 1), "2026-11-20 date"
+   xtExpect "a boolean", xlReadCell(tReader, 1, 5, 2), "true"
+   xtExpect "text outside ASCII", xlReadCell(tReader, 1, 6, 1) is tWide, true
+   xlReadClose tReader
+   -- A file that is no workbook is refused in words, not by a trap
+   put "not a workbook" into URL ("binfile:" & tPath)
+   xtExpect "a file that is no workbook", xlReadOpen(tPath) & comma & (xlLastError() is not empty), "0,true"
+   delete file tPath
+   xtExpect "nothing is left open", xlWorkbookCount() && xlReadCount(), "0 0"
+end xt_xlsx
 
 on xt_nostr
    local tUrl, tRelay, tSk, tEvent, tFilter
