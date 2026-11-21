@@ -1,0 +1,4 @@
+# The test files are stacks and damaged copies of stacks: keep every byte as
+# it is, line endings included (CRLF.rev is a stack whose line feeds were
+# turned into CR LF on the way, as a text-mode transfer does).
+* -text

@@ -15,6 +15,7 @@ Pages site, so that anyone can open them with nothing to download:
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
 | `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue, Wobble Forts and Puzzle Almanac play the player's own samples in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
+| `.../welcome/` | the pages for people coming from LiveCode ([welcome/](welcome/README.md)): a front page, a guide, the GPL for in-house tools, and a stack checker that reads a stack in the visitor's browser, each with its own card for link previews |
 
 The front page is one self-contained file: its look (a night sky over an
 orange horizon, a small stack whose button answers as its script says,
@@ -271,6 +272,26 @@ with what changed beside any that differs.
 [test_pages_lessons.py](../ci/tests/test_pages_lessons.py) holds the
 build, the example rules (the palette's among them), the code the check
 runs on a card, the links and the picture comparison without an engine.
+
+## The welcome pages
+
+The welcome pages ([welcome/](welcome/README.md)) are four pages for
+people who use LiveCode, in the front page's look: a front page, a guide
+to coming over, the GPL for in-house tools, and a stack checker that
+reads a stack in the visitor's browser and runs nothing in it. They are
+written by hand: their own `build/build.py` writes them from
+`welcome/build/pages`, and `build_pages.py` copies the folder to the
+site's `welcome/` with every site, without its builder, tests and README.
+They show the site's logo (`../brand/`) and ask no other host for
+anything. Each names its one address and has the Open Graph and X tags a
+link preview reads, with a 1200 by 630 picture of its own in
+`welcome/share/`, drawn from `welcome/build/share.html`. Every fact on
+them names its release, so their downloads and their list of where every
+feature stands are changed by hand with each release (welcome/README.md,
+"Keeping it current").
+[test_pages_welcome.py](../ci/tests/test_pages_welcome.py) holds them,
+and [check_site_rest.py](check_site_rest.py) holds their front page at
+rest.
 
 ## Turning it on
 
