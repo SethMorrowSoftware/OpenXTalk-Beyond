@@ -31,6 +31,7 @@ script "Render3D Tour"
 constant kViewW = 640
 constant kViewH = 480
 constant kExhibits = 10
+constant kFrameMs = 16      -- a frame: a sixtieth of a second, near enough
 constant kExLights = 5
 constant kExAim = 9
 constant kTags = 6
@@ -53,6 +54,10 @@ local sSmooth, sFog, sSpin
 local sFogNear, sFogFar, sBack
 local sDragging, sDragX, sDragY, sDragMoved
 local sFrames, sFpsClock, sFpsFrames, sFps
+local sQuick                 -- true while pictures in motion are drawn without smooth edges, to keep up
+local sDrawnAt               -- the samples a side (1 or 2) the scene is set to draw with
+local sGap                   -- the longest wait between two frames since the stats were written, ms
+local sWork                  -- the most script one frame took in that time, ms
 local sTagAt                 -- array: tag number -> "x,y,z" it floats over
 local sHover                 -- the node under the pointer in "Click and aim"
 local sPicked                -- what the last click said
@@ -331,8 +336,10 @@ end rtGo
 command rtApplyLook
    if sSmooth is true then
       r3SceneSetSupersample sScene, 2
+      put 2 into sDrawnAt
    else
       r3SceneSetSupersample sScene, 1
+      put 1 into sDrawnAt
    end if
    if sFog is true then
       r3SceneSetFog sScene, item 1 of sBack, item 2 of sBack, item 3 of sBack, sFogNear, sFogFar
@@ -417,7 +424,7 @@ end rtZoom
 -- The loop
 
 on rtFrame
-   local tNow, tSpent
+   local tNow, tWait, tWant, tCost
    -- a message that comes later finds its controls in the default stack
    set the defaultStack to the short name of me
    put empty into sFrameMsg
@@ -425,23 +432,27 @@ on rtFrame
       exit rtFrame
    end if
    put the milliseconds into tNow
+   -- THE PACE. A frame is due a sixtieth of a second after the last one,
+   -- by the clock. A timer is not trusted to say when that is: asked for 16
+   -- milliseconds, a system whose clock ticks every 15.6 (Windows) answers
+   -- after one tick or after two, and the picture goes at 60 and 30 a
+   -- second by turns (37 was counted there, 2026-11-21, with 3 ms pictures).
+   -- So the timer is asked for less than is left, and a frame that comes
+   -- early looks at the clock and goes back to wait.
+   if tNow - sClock < kFrameMs - 1 then
+      put kFrameMs - (tNow - sClock) into tWait
+      send "rtFrame" to me in max(1, tWait - 8) milliseconds
+      put the result into sFrameMsg
+      exit rtFrame
+   end if
+   put max(sGap, tNow - sClock) into sGap
+   -- one redraw of the window for the picture and its labels together
+   lock screen
    if sBegun is true then
       put false into sBegun
       rtShow r3SceneFrame(sScene)
       add 1 to sFrames
       add 1 to sFpsFrames
-      if tNow - sFpsClock >= 500 then
-         put sFpsFrames * 1000 / (tNow - sFpsClock) into sFps
-         put tNow into sFpsClock
-         put 0 into sFpsFrames
-         rtShowStats
-      end if
-   else if tNow - sFpsClock >= 500 then
-      -- nothing is being drawn: nothing moves and nothing was touched
-      put 0 into sFps
-      put tNow into sFpsClock
-      put 0 into sFpsFrames
-      rtShowStats
    end if
    if sSpin is true then
       -- by the clock, so a slow machine shows fewer pictures and never a
@@ -452,12 +463,45 @@ on rtFrame
       put true into sStale
    end if
    put tNow into sClock
-   if sStale is true then
+   -- smooth edges are four samples a pixel, four times the filling. Where
+   -- that is too slow to keep up (sQuick, decided below), a picture in
+   -- motion is drawn with one sample, and the smooth one is drawn when the
+   -- scene stands still, which is when an edge can be looked at
+   if sSmooth is true and not (sQuick is true and (sSpin is true or sDragging is true)) then
+      put 2 into tWant
+   else
+      put 1 into tWant
+   end if
+   if sStale is true or (tWant is not sDrawnAt and sBegun is not true) then
       put false into sStale
+      if tWant is not sDrawnAt then
+         r3SceneSetSupersample sScene, tWant
+         put tWant into sDrawnAt
+      end if
       put (r3SceneRenderBegin(sScene, kViewW, kViewH) > 0) into sBegun
    end if
-   put the milliseconds - tNow into tSpent
-   send "rtFrame" to me in max(1, 16 - tSpent) milliseconds
+   -- twice a second: how fast it went, and what the slowest frame cost
+   if tNow - sFpsClock >= 500 then
+      -- a smooth picture that takes more than 9 ms leaves too little of a
+      -- frame for everything else; a plain one that would be under 7 ms
+      -- smooth (four times the samples, about three times the time) can
+      -- be smooth again
+      put item 3 of r3SceneStats(sScene) into tCost
+      if sDrawnAt is 2 and tCost > 9 and (sSpin is true or sDragging is true) then
+         put true into sQuick
+      else if sDrawnAt is 1 and tCost * 3 < 7 then
+         put false into sQuick
+      end if
+      put sFpsFrames * 1000 / (tNow - sFpsClock) into sFps
+      put tNow into sFpsClock
+      put 0 into sFpsFrames
+      rtShowStats
+      put 0 into sGap
+      put 0 into sWork
+   end if
+   unlock screen
+   put max(sWork, the milliseconds - tNow) into sWork
+   send "rtFrame" to me in max(1, kFrameMs - (the milliseconds - tNow) - 8) milliseconds
    put the result into sFrameMsg
 end rtFrame
 
@@ -487,7 +531,7 @@ command rtShow pPicture
 end rtShow
 
 command rtShowStats
-   local tStats, tText
+   local tStats, tText, tAt
    if sScene is empty then
       exit rtShowStats
    end if
@@ -498,6 +542,13 @@ command rtShowStats
    end if
    if sFps > 0 then
       put ";" && round(sFps) && "pictures a second" after tText
+      if sGap > 0 then
+         -- what a person feels is the worst frame, not the average one
+         put " (the longest wait" && sGap && "ms, the most script in a frame" && sWork && "ms)" after tText
+      end if
+      if sQuick is true and sSmooth is true then
+         put "; smooth edges when it stands still" after tText
+      end if
    else if sRunning is true then
       put "; nothing moves, so nothing is drawn" after tText
    end if
@@ -510,6 +561,14 @@ command rtShowStats
       put round(sFps) && "fps   " & format("%.1f", item 3 of tStats) && "ms" into field "Fps"
    else
       put "at rest" into field "Fps"
+   end if
+   -- the badge is as wide as its words, whatever the font: in a fixed box
+   -- they were off its middle on Windows
+   if the formattedWidth of field "Fps" > 0 then
+      put the topLeft of field "Fps" into tAt
+      set the width of field "Fps" to the formattedWidth of field "Fps"
+      set the height of field "Fps" to max(20, the formattedHeight of field "Fps")
+      set the topLeft of field "Fps" to tAt
    end if
 end rtShowStats
 
@@ -624,10 +683,19 @@ command rtPlaceTags
       put r3SceneProject(sScene, kViewW, kViewH, item 1 of tAt, item 2 of tAt, item 3 of tAt) into tSpot
       if tSpot is empty or item 1 of tSpot < 50 or item 1 of tSpot > kViewW - 50 \
             or item 2 of tSpot < 12 or item 2 of tSpot > kViewH - 12 then
-         hide field ("Tag" & tTag)
+         if the visible of field ("Tag" & tTag) then
+            hide field ("Tag" & tTag)
+         end if
       else
-         set the loc of field ("Tag" & tTag) to round(tLeft + item 1 of tSpot), round(tTop + item 2 of tSpot)
-         show field ("Tag" & tTag)
+         -- a field is moved or shown only when that changes something: each
+         -- is a redraw of the window
+         put round(tLeft + item 1 of tSpot) & comma & round(tTop + item 2 of tSpot) into tSpot
+         if the loc of field ("Tag" & tTag) is not tSpot then
+            set the loc of field ("Tag" & tTag) to tSpot
+         end if
+         if not the visible of field ("Tag" & tTag) then
+            show field ("Tag" & tTag)
+         end if
       end if
    end repeat
 end rtPlaceTags
@@ -809,7 +877,7 @@ end rtTailTriangles
 
 command rtBuildOrrery
    local tBall, tLow, tSmall, tMat, tIndex, tStar, tStarMat, tAngle, tUp, tNode, tSize, tPathMat, tOrbit, tMoon
-   put "Welcome. A sun with a lamp inside it, four planets wearing pictures this stack worked out pixel by pixel, three moons, a ring built corner by corner, a comet and 160 stars: all of it drawn by render3dxt into an ordinary image. Click a planet to fly to it and the sun to come back. Drag to look round, and turn the wheel to come closer." into field "About"
+   put "Welcome. A sun with a lamp inside it, four planets wearing pictures this stack worked out pixel by pixel, three moons, a ring built corner by corner, a comet and 160 stars, all drawn by render3dxt into an ordinary image. Click a planet to fly to it and the sun to come back. Drag to look round; the wheel comes closer." into field "About"
    put "0,0,0" into sTarget
    put kWide into sDist
    put 0.6 into sYaw
@@ -1549,6 +1617,20 @@ command rtTestBegin
    end if
 end rtTestBegin
 
+-- And the loop again, as when the stack is opened
+command rtTestEnd
+   put false into sTesting
+   if sScene is empty or sRunning is true then
+      exit rtTestEnd
+   end if
+   put true into sRunning
+   put the milliseconds into sClock
+   put sClock into sFpsClock
+   put 0 into sFpsFrames
+   send "rtFrame" to me in 1 millisecond
+   put the result into sFrameMsg
+end rtTestEnd
+
 -- Moves the exhibit on by pSeconds and draws it
 command rtTestStep pSeconds
    if sScene is empty then
@@ -1571,6 +1653,9 @@ function rtState
    put "fog=" & (sFog is true) & return after tState
    put "spin=" & (sSpin is true) & return after tState
    put "picked=" & sPicked & return after tState
+   put "frames=" & sFrames & return after tState
+   put "running=" & (sRunning is true) & return after tState
+   put "quick=" & (sQuick is true) & return after tState
    put "hover=" & sHover & return after tState
    if sHave is true then
       put "live=" & r3LiveCounts() & return after tState

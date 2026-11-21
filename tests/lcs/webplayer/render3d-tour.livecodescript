@@ -273,6 +273,42 @@ on TestTheSunAndItsPlanets
    TestAssert "the picture is drawn through all of it", the number of bytes of picture() is kViewW * kViewH * 4 and paintedPixels(picture()) > 40
 end TestTheSunAndItsPlanets
 
+-- How many rtFrame messages wait to be delivered
+private function framesWaiting
+   local tLine, tCount
+   put 0 into tCount
+   repeat for each line tLine in the pendingMessages
+      if item 3 of tLine is "rtFrame" then
+         add 1 to tCount
+      end if
+   end repeat
+   return tCount
+end framesWaiting
+
+on TestTheLoopKeepsItsPace
+   local tFrames, tSpan, tStarted
+   if not needRenderer("the loop") then
+      exit TestTheLoopKeepsItsPace
+   end if
+   tour "rtGo", 1
+   put st("frames") into tFrames
+   put the milliseconds into tStarted
+   tour "rtTestEnd"
+   wait 1500 milliseconds with messages
+   put the milliseconds - tStarted into tSpan
+   put st("frames") - tFrames into tFrames
+   -- a frame is due every sixteen milliseconds and never sooner; a slow
+   -- machine shows fewer, so only the top is strict
+   TestAssert "the loop shows pictures, and never more than sixty-odd a second (" & tFrames && "in" && tSpan && "ms)", \
+         tFrames >= 10 and tFrames <= tSpan / 15 + 2
+   TestAssert "one frame is waiting, not a pile of them", framesWaiting() is 1
+   TestAssert "the corner and the stats line say how fast", fieldText("Fps") contains "fps" and fieldText("Stats") contains "pictures a second" \
+         and fieldText("Stats") contains "the longest wait"
+   TestAssert "the badge is as wide as its words", abs(the width of field "Fps" of card "Tour" of stack kStack - the formattedWidth of field "Fps" of card "Tour" of stack kStack) <= 1
+   tour "rtTestBegin"
+   TestAssert "and it stops when told", framesWaiting() is 0 and st("running") is false
+end TestTheLoopKeepsItsPace
+
 on TestShapesAndTheirLabels
    local tN, tLoc, tRect
    if not needRenderer("the shapes") then

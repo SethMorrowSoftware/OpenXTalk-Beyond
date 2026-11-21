@@ -93,9 +93,9 @@ private command buildStack pFile
    set the backgroundColor of card "Tour" to kPage
 
    makeLabel "Heading", "Render3D Tour", 22, kInk, "bold"
-   set the rect of field "Heading" to kViewLeft, 12, 360, 44
+   set the rect of field "Heading" to kViewLeft, 6, 360, 46
    makeLabel "Sub", "A 3D picture in an ordinary image, drawn by render3dxt. Drag it to look round; the wheel, or + and -, comes closer.", 12, kSoft, "plain"
-   set the rect of field "Sub" to 250, 18, kSideRight, 40
+   set the rect of field "Sub" to 250, 16, kSideRight, 40
 
    -- the picture and what frames it
    create graphic "Frame"
@@ -119,7 +119,7 @@ private command buildStack pFile
    set the backgroundColor of field "Fps" to kPage
    set the blendLevel of field "Fps" to 20
    set the margins of field "Fps" to 5
-   set the rect of field "Fps" to kViewLeft + 8, kViewTop + 8, kViewLeft + 156, kViewTop + 34
+   set the rect of field "Fps" to kViewLeft + 8, kViewTop + 8, kViewLeft + 156, kViewTop + 38
 
    -- the labels over the picture
    repeat with tIndex = 1 to kTags
@@ -128,35 +128,35 @@ private command buildStack pFile
       set the opaque of field ("Tag" & tIndex) to true
       set the backgroundColor of field ("Tag" & tIndex) to kPage
       set the blendLevel of field ("Tag" & tIndex) to 25
-      set the rect of field ("Tag" & tIndex) to 0, 0, 150, 20
+      set the rect of field ("Tag" & tIndex) to 0, 0, 170, 24
       set the visible of field ("Tag" & tIndex) to false
    end repeat
 
    -- the exhibits, two to a row
    makeLabel "Exhibits", "EXHIBITS", 11, kAccent, "bold"
-   set the rect of field "Exhibits" to kSideLeft, kViewTop - 9, kSideRight, kViewTop + 13
+   set the rect of field "Exhibits" to kSideLeft, kViewTop - 6, kSideRight, kViewTop + 16
    repeat with tIndex = 1 to the number of items of kExhibitNames
-      put kViewTop + 18 + ((tIndex - 1) div 2) * 30 into tTop
+      put kViewTop + 20 + ((tIndex - 1) div 2) * 30 into tTop
       put kSideLeft + ((tIndex - 1) mod 2) * 138 into tLeft
       makeButton "Ex" & tIndex, tIndex & "." && item tIndex of kExhibitNames
       set the rect of button ("Ex" & tIndex) to tLeft, tTop, tLeft + 134, tTop + 26
    end repeat
 
    makeLabel "Look", "THE PICTURE (LIT IS ON)", 11, kAccent, "bold"
-   set the rect of field "Look" to kSideLeft, kViewTop + 172, kSideRight, kViewTop + 194
+   set the rect of field "Look" to kSideLeft, kViewTop + 178, kSideRight, kViewTop + 200
    makeTick "Smooth", "Smooth edges"
-   set the rect of button "Smooth" to kSideLeft, kViewTop + 198, kSideLeft + 118, kViewTop + 222
+   set the rect of button "Smooth" to kSideLeft, kViewTop + 204, kSideLeft + 118, kViewTop + 228
    makeTick "Fog", "Fog"
-   set the rect of button "Fog" to kSideLeft + 124, kViewTop + 198, kSideLeft + 190, kViewTop + 222
+   set the rect of button "Fog" to kSideLeft + 124, kViewTop + 204, kSideLeft + 190, kViewTop + 228
    makeTick "Spin", "Move"
-   set the rect of button "Spin" to kSideLeft + 196, kViewTop + 198, kSideRight, kViewTop + 222
+   set the rect of button "Spin" to kSideLeft + 196, kViewTop + 204, kSideRight, kViewTop + 228
 
    makeLabel "AboutCap", "WHAT THIS SHOWS", 11, kAccent, "bold"
-   set the rect of field "AboutCap" to kSideLeft, kViewTop + 230, kSideRight, kViewTop + 252
+   set the rect of field "AboutCap" to kSideLeft, kViewTop + 240, kSideRight, kViewTop + 262
    makeText "About", empty, 13, kInk
-   set the rect of field "About" to kSideLeft, kViewTop + 254, kSideRight, kViewTop + 420
+   set the rect of field "About" to kSideLeft, kViewTop + 264, kSideRight, kViewTop + 432
    makeText "Stats", empty, 12, kSoft
-   set the rect of field "Stats" to kSideLeft, kViewTop + 426, kSideRight, kViewTop + 486
+   set the rect of field "Stats" to kSideLeft, kViewTop + 436, kSideRight, kViewTop + 492
 
    -- last: the script, which runs when the stack is opened
    put stackScript() into tScript
@@ -177,6 +177,7 @@ private command makeLabel pName, pText, pSize, pColor, pStyle
    setQuiet pName
    set the dontWrap of field pName to true
    set the textSize of field pName to pSize
+   roomyLines pName, pSize
    set the textStyle of field pName to pStyle
    set the foregroundColor of field pName to pColor
    put pText into field pName
@@ -188,9 +189,19 @@ private command makeText pName, pText, pSize, pColor
    setQuiet pName
    set the dontWrap of field pName to false
    set the textSize of field pName to pSize
+   roomyLines pName, pSize
    set the foregroundColor of field pName to pColor
    put pText into field pName
 end makeText
+
+-- Lines tall enough for any system's font. Left alone, a line is as tall
+-- as the font the stack was BUILT with wants, and where it is opened the
+-- font may be taller: on Windows the tops of the capitals were cut off
+-- (seen 2026-11-21). So the height is said: half as much again as the size.
+private command roomyLines pName, pSize
+   set the fixedLineHeight of field pName to true
+   set the textHeight of field pName to round(pSize * 1.5)
+end roomyLines
 
 private command setQuiet pName
    set the lockText of field pName to true
