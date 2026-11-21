@@ -350,6 +350,36 @@
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
       ]
+    },
+    {
+      "name": "xlsxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "9ebbd6e3c7ec19f20c8fa1bb68072a4cd844c343",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "xlsxt/src/xlsxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link libxlsxwriter (BSD-2-Clause), zlib (the zlib licence) and Expat (MIT)",
+      "files": [
+        {"path": "xlsxt/src/xlsxt.lcb", "role": "source", "sha256": "36b04df085428b811ccdf9f80a96d0c05ce795b7d46e70da35753c532adb0e30", "size": 95489},
+        {"path": "xlsxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "8eeed1f6fa70a9714d6b1fd7286404da850c2f6d573d502605cea8d549077b3b", "size": 974},
+        {"path": "xlsxt/src/code/x86_64-win32/xlsxt.dll", "role": "library", "sha256": "3033da2a805558ed1372ad4e01f81203d58ce78eb22b8173c982a0d763ab8a13", "size": 774144, "imports": ["KERNEL32.dll"]},
+        {"path": "xlsxt/src/code/x86-win32/xlsxt.dll", "role": "library", "sha256": "c64dfe5ed8e82fc61319ee0e4580355912a1f44041324680b1391c57ffc4ad61", "size": 640000, "imports": ["KERNEL32.dll"]},
+        {"path": "xlsxt/src/code/x86_64-linux/xlsxt.so", "role": "library", "sha256": "339a9999f5d6dd4f71995bc3f0746fb580ad470617e8be4282af4a6f53fd7aa4", "size": 763120},
+        {"path": "xlsxt/src/code/x86-linux/xlsxt.so", "role": "library", "sha256": "45b66dce6098622665a46e110457c73b53a15dd2a332af54f30a0e451b28f685", "size": 806208},
+        {"path": "xlsxt/src/code/arm64-linux/xlsxt.so", "role": "library", "sha256": "bd0ea30bae9250576aceca2ed2aa7395db0dbe7d39d6bd02dce4d851877b5380", "size": 792816},
+        {"path": "xlsxt/src/code/universal-mac/xlsxt.dylib", "role": "library", "sha256": "bc3ffba96a2bba9678a9eb56c6cff64a0313af7aee5114f16448fcc860591bce", "size": 1391144},
+        {"path": "xlsxt/src/code/arm64-android/xlsxt.so", "role": "library", "sha256": "dd22c23dab78e4d254b4839bfb7bf35d7e636936ee01cb090a2e9abbfea9ab19", "size": 593768},
+        {"path": "xlsxt/src/code/armv7-android/xlsxt.so", "role": "library", "sha256": "7da1753bb0c1d419fe81337ed89cfc124f3aa4e3712f805808b5556599951948", "size": 434240},
+        {"path": "xlsxt/src/code/x86_64-android/xlsxt.so", "role": "library", "sha256": "743127477af9fccd812a7e23591db0df2005c059ba0ae38757384eabe97e9cfc", "size": 640552},
+        {"path": "xlsxt/src/code/x86-android/xlsxt.so", "role": "library", "sha256": "aa6e480765d5873421bea0346cd1c3bd244061e08cba50eedaebf3c08338f0e2", "size": 645360},
+        {"path": "xlsxt/LICENSE", "role": "licence", "sha256": "8fd9a78ff32a09a94995b5afd6bbf794f883c348cfba7c4a4fbbaecc6e8ff507", "size": 1298},
+        {"path": "xlsxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "50e5e350ba76f7791f256643d82310322f7464b83a655c13d8eb98c414599d91", "size": 9915}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.xlsxt", "folder": "org.openxtalk.library.xlsxt", "main": "xlsxt/src/xlsxt.lcb", "probe": "xlLibraryVersion()", "expect": "^xlsxt ABI [0-9]+; libxlsxwriter [0-9]"}
+      ]
     }
   ],
   "web_libraries": {
@@ -398,6 +428,15 @@
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
         "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
         "size": 1852826,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "xlsxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "9ebbd6e3c7ec19f20c8fa1bb68072a4cd844c343",
+        "path": "xlsxt/src/code/wasm32-emscripten/xlsxt.a",
+        "sha256": "29efa861fc88373eb019e68860befdbe88383e7df1672c1810e9ae3b1cf6221c",
+        "size": 877288,
         "emscripten": "6.0.12"
       }
     ]

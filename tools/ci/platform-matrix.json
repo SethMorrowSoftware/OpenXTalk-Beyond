@@ -82,8 +82,16 @@
         "elf": {
           "GLIBC": "2.33"
         },
-        "readme": "still need glibc 2.33 (SodiumXT)",
+        "readme": "still need glibc 2.33 (SodiumXT and xlsxt)",
         "reason": "SodiumXT's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/xlsxt.so",
+        "elf": {
+          "GLIBC": "2.33"
+        },
+        "readme": "still need glibc 2.33 (SodiumXT and xlsxt)",
+        "reason": "xlsxt's 32-bit library is built on a newer system than the IDE: its stat() is glibc 2.33's (README.md, Linux)"
       },
       {
         "files": "Extensions/*/code/x86-linux/box2dxt.so",
