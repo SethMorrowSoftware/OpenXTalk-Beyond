@@ -1801,7 +1801,23 @@ void MCStack::SetWindowShape(MCExecContext& ctxt, uinteger_t p_shape)
 
 void MCStack::SetBlendLevel(MCExecContext& ctxt, uinteger_t p_level)
 {
+	// OXT-Beyond: on the desktop and the web, old_blendlevel is the opacity
+	// the stack's window was last given (when it was made, by applyupdates
+	// or by a visual effect), and applyupdates gives the window the stack's
+	// blendLevel when the two differ. It was moved on here to the blendLevel
+	// being replaced, so a second set before the window was updated lost the
+	// first: set twice in one handler, or while the stack was closed in the
+	// window it keeps, the window kept the opacity it had. The IDE opens the
+	// Message Box invisible at a blendLevel of 99 as it starts, closes it,
+	// and sets it to 0 twice before it is opened again: on a Mac its window
+	// stayed see-through and the Message Box never appeared (bwmilby,
+	// openxtalk.org p=26650, once the Message Box stopped making its window
+	// again at every open). Elsewhere nothing gives the window the new
+	// opacity after it is made (applyupdates is the desktop's and the
+	// web's), and it is moved on here as before.
+#if !(defined(_DESKTOP) || defined(__EMSCRIPTEN__))
 	old_blendlevel = blendlevel;
+#endif
 	MCObject::SetBlendLevel(ctxt, p_level);
 
 	// MW-2011-11-03: [[ Bug 9852 ]] Make sure an update is scheduled to sync the

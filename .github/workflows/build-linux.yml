@@ -130,6 +130,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
       - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -159,8 +160,6 @@ on:
       - 'tools/ci/mac_ide_start.sh'
       - 'tools/ci/mac-menu-backdrop.livecodescript'
       - 'tools/ci/mac_menu_backdrop.py'
-      - 'tools/ci/visual-effect-check.livecodescript'
-      - 'tools/ci/visual_effect_check.py'
       - 'tools/ci/merge_universal.py'
       - 'tools/ci/sign_mac_app.py'
       - 'tools/ci/win_crashtrace.py'
@@ -1858,6 +1857,21 @@ jobs:
           case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
           python3 tools/ci/backdrop_focus_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/backdrop-focus-check.log" --shots "$RUNNER_TEMP/logs/backdrop-focus-shots"
+
+      # A stack's window at the opacity of its blendLevel: set twice with
+      # the screen locked, and the IDE's way with the Message Box (made
+      # invisible as a palette at blendLevel 99, closed, set to 0 twice
+      # while closed, opened again). The window's _NET_WM_WINDOW_OPACITY is
+      # read with xprop; 0.2.8-dp.2 left both at the opacity of 99, and on
+      # a Mac the Message Box never appeared (the forum's report of
+      # 2026-11-21; tools/ci/window_opacity_check.py)
+      - name: Window opacity check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/window_opacity_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --out "$RUNNER_TEMP/logs/window-opacity"
 
       # A group that grabs itself from the mouseDown of a popup, option or
       # pulldown menu button in it, pressed and released with the system's
