@@ -1962,6 +1962,32 @@ jobs:
             --filter '^lcs: webplayer/wobble-forts:' --log "$RUNNER_TEMP/logs/wobble-forts-tests.log"
           tail -n 1 "$RUNNER_TEMP/logs/wobble-forts-tests.log" | grep -q ' 0 skip$'
 
+      # The Render3D Tour's tests of its pictures
+      # (tests/lcs/webplayer/render3d-tour.livecodescript), which the engine
+      # tests above skip: the tour draws with render3dxt, and a desktop
+      # engine has it only as an extension. Here the build's standalone
+      # engine runs them with the package's render3dxt (OXT_RENDER3DXT: the
+      # test finds Extensions/org.openxtalk.library.renderthreed in it). A
+      # package made without the xTalk Suite's extensions has none: then
+      # the step says so and does nothing.
+      - name: Render3D Tour with render3dxt
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          if [ ! -f "$OXT_ROOT/Extensions/org.openxtalk.library.renderthreed/module.lcm" ]; then
+            echo "::notice title=Render3D Tour::the package has no render3dxt, so the tests of its pictures were not run"
+            exit 0
+          fi
+          bin_dir="$RUNNER_TEMP/render3d-tour-bin"
+          rm -rf "$bin_dir"
+          mkdir -p "$bin_dir"
+          tar -xJf "$BIN_TAR" -C "$bin_dir"
+          OXT_RENDER3DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
+            --filter '^lcs: webplayer/render3d-tour:' --log "$RUNNER_TEMP/logs/render3d-tour-tests.log"
+          tail -n 1 "$RUNNER_TEMP/logs/render3d-tour-tests.log" | grep -q ' 0 skip$'
+
       # The IDE's own windows, as a user sees them under the Adwaita GTK
       # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE
       # (on an Xvfb screen) with tools/ci/ui-tour.livecodescript, which
