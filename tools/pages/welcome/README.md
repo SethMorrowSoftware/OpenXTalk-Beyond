@@ -29,7 +29,7 @@ folder is in its place in `tools/pages`.
 
 | Page | What it is for |
 | --- | --- |
-| `index.html` | The front page: "There's another road for your stacks." A stack window that reads a stack dropped on it, four numbers, the stack checker with a sample report and three more ways to try OXT-Beyond, every stack format it opens, what is in it (each with the release it arrived in), the Stack Player, what it isn't yet, the 3D work on the bench, and the downloads, always the stable release and the preview side by side, with this computer's files marked. |
+| `index.html` | The front page: "There's another road for your stacks." A stack window that reads a stack dropped on it, four numbers, the stack checker with a sample report and three more ways to try OXT-Beyond, every stack format it opens, what is in it (each with the release it arrived in), the Stack Player, what it isn't yet, the 3D work in the preview, and the downloads, always the stable release and the preview side by side, with this computer's files marked. |
 | `check.html` | The stack checker. Drop a stack, a script-only stack, a HyperCard stack or a `.zip` of them: it reports the format and the LiveCode that saved it, the widgets, the libraries its scripts call, the platforms it was set up for, passwords and damage, then what to do next. Two of LiveCode Community's sample stacks are there to try. Nothing is uploaded, and nothing in the stack runs. |
 | `in-house.html` | "Free for your in-house tools": the GPL in plain words, a "Who will get a copy?" helper with seven cases (each quotes the licence and links where it comes from), three example tools, E2NB, where OXT-Beyond doesn't fit, where to ask a lawyer, and the sources. It says it is not legal advice. |
 | `guide.html` | Coming from LiveCode: five steps to try it, what opens, where its files live beside LiveCode, where each library went (tsNet, mergJSON, revDB, the browser widget and more), what is different, where every feature stands (Ready today, In the preview, Experimental, Not available, Not tested yet, with a filter for each), where OXT-Beyond comes from, and how to report a stack that doesn't open. A bar under the top one follows the reader through the page. |
@@ -136,9 +136,9 @@ or its date. With each release:
 3. **Not tested yet:** stacks from LiveCode 10 and 11, and round trips
    back to LiveCode. The pages and the checker say so; change them when
    that is tested.
-4. **The 3D clips** show box3dxt, built into OXT-Beyond since 21 November
-   2026 and in no release yet, and render3dxt, still in development. The
-   page says so. Update it when each ships.
+4. **The 3D clips** show box3dxt and render3dxt, in the preview since
+   0.2.8-dp.2.1. Their chips say so; move them to the stable release's
+   when 0.2.8 is stable.
 5. **Dates.** The footers and the page comments say "as of 21 November
    2026"; change them with the facts.
 
@@ -172,6 +172,7 @@ change:
 | Where OXT-Beyond comes from: Terry Little began OpenXTalk Lite, Tom Perry built it from 0.91 to 1.15 | `README.md`, "Where OXT-Beyond comes from" and "Credits" |
 | The ATL and OpenSSL exception, and which parts carry it | `LICENSE-EXCEPTION.md` |
 | Box3D is Erin Catto's 3D engine, the successor of Box2D | the xTalk Suite's `box3dxt/README.md` |
-| box3dxt joined the xTalk Suite on 20 November and is built into OXT-Beyond since 21 November (#606), in no release yet; render3dxt is still a pull request of the suite's | the xTalk Suite's `CLAUDE.md` and `box3dxt/README.md`; `changelog/606.md` (in `CHANGELOG.md` once folded) |
+| box3dxt, render3dxt, audioxt, xlsxt, gamepadxt, webpxt and barcodext built in, in 0.2.8-dp.2.1; Render3D Tour a Stack Player sample | `CHANGELOG.md` 0.2.8-dp.2.1 |
+| LiveCode 11's kinds of array and `as`; SQLite's math functions and REGEXP in every connection (0.2.8-dp.2.1) | `CHANGELOG.md` 0.2.8-dp.2.1 |
 | The xTalk Suite's extensions and what each binds: libsodium, libtorrent, ENet, libdatachannel, Box2D v3, trezor-crypto and libsecp256k1; Tor and Nostr in plain script | the xTalk Suite's `README.md`, the table of members |
 | Quotations of the GPLv3 | `LICENSE` in this repository, the same text as gnu.org |

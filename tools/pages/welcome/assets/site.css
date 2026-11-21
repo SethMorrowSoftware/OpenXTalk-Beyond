@@ -614,6 +614,8 @@ a.pill:hover, a.chip:hover { box-shadow: inset 0 0 0 1px currentColor; }
 .suite-grid svg { width: 18px; height: 18px; flex: none; color: var(--teal); }
 .suite-grid li > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .suite-grid small { font: 500 .7rem/1.3 var(--mono); color: var(--faint); }
+.b .suite-more { margin-top: 14px; }
+.suite-more .pill { margin-right: 6px; vertical-align: 1px; }
 .b-suite .suite-grid { flex: 1; grid-auto-rows: 1fr; }
 .db-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .db-row span { padding: 6px 12px; border-radius: 10px; font: 600 .82rem/1.2 var(--mono); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); }
