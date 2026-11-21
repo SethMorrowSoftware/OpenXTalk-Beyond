@@ -135,6 +135,10 @@ asyncify_remove_xtalk = [
     'blake2b*', 'fe25519_*', 'ge25519_*', 'sc25519_*', 'ristretto255_*',
     # Box2Dxt: the shim and Box2D
     'b2*',
+    # box3dxt: the shim and Box3D. Their calls through a pointer reach
+    # only their own allocator, task and tree-query callbacks, none of
+    # which yields; without this the physics step is instrumented
+    'b3*',
     # CoinXT: the shim, trezor-crypto and libsecp256k1
     # (a pattern no function matches is a warning of the link: the families
     # the shims never reach are left out)

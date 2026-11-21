@@ -63,6 +63,7 @@ extern "C"
 	__attribute__((weak)) const MCSLibraryStaticExport *box2dxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *coinxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *datachannelxt_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *box3dxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *audioxt_web_exports(void);
 }
 
@@ -74,6 +75,7 @@ static MCSLibraryStaticInfo s_mc_xtalk_web_libraries[] =
 	{ nullptr, "box2dxt", nullptr },
 	{ nullptr, "coinxt", nullptr },
 	{ nullptr, "datachannelxt", nullptr },
+	{ nullptr, "box3dxt", nullptr },
 	{ nullptr, "audioxt", nullptr },
 };
 
@@ -88,6 +90,7 @@ MCEmscriptenRegisterXTalkWebLibraries(void)
 		box2dxt_web_exports,
 		coinxt_web_exports,
 		datachannelxt_web_exports,
+		box3dxt_web_exports,
 		audioxt_web_exports,
 	};
 

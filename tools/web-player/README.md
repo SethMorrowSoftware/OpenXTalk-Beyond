@@ -88,9 +88,9 @@ stack while it is open (a name the player's own files have there,
 `DroidSansCombined.ttf` or an `extensionNN` folder, is not linked). A script error shows in a dialog with the object and the line.
 
 The xTalk Suite's native libraries that have a web build (box2dxt's
-Box2D, so the platformer and the Box2D games; sodiumxt, coinxt,
-datachannelxt over the browser's own WebRTC, and audioxt's miniaudio
-over Web Audio) are linked into the web
+Box2D, so the platformer and the Box2D games; box3dxt's Box3D and its
+renderer; sodiumxt, coinxt, datachannelxt over the browser's own WebRTC,
+and audioxt's miniaudio over Web Audio) are linked into the web
 engine the player is built on, as into every HTML5 standalone's
 (EXPERIMENTAL; `engine/src/em-xtalk-web.cpp`).
 

@@ -597,9 +597,9 @@ What it needs:
   (from 0.2.7-rc.1): their 64-bit libraries need glibc 2.28 at most and
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
-  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt),
-  2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3 (TorrentXT and
-  DataChannelXT).
+  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt and
+  box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3
+  (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4946,6 +4946,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
+| `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
 | `org.openxtalk.library.audioxt` | audioxt: sound through miniaudio, beside the engine's own `play` (mixing, streaming, tones, 3D sound and microphone capture; WAV, FLAC and MP3) | [xtalk-suite, `audioxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/audioxt) |
 
 - The IDE loads them when it starts, like its other built-in
@@ -4986,9 +4987,11 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   INTERNET permission to an app that includes them. Each one's smoke test
   runs in an Android app on the Android builder workflow's x86_64
   emulators (Android 13, and Android 16 with 16 KB pages); the ARM
-  libraries have not run on a device yet. audioxt has Android libraries
-  too, probed by the same app; an app that records with it must ask for
-  the RECORD_AUDIO permission itself. The standalone builder
+  libraries have not run on a device yet. box3dxt has Android libraries
+  too, tested where the xTalk Suite builds them and not yet in an app.
+  audioxt has Android libraries too, which the same emulator app
+  probes; an app that records with it must ask for the RECORD_AUDIO
+  permission itself. The standalone builder
   never adds the script libraries by itself: tick them in *Standalone
   Settings*, with the LCB libraries they need (for example `coinxt` with
   `org.openxtalk.library.coin`).
@@ -5165,7 +5168,7 @@ describes.
 | `tools/oxt/` | Python tools that map an installed OpenXTalk Lite folder to the repository and back (`layout.py`), stage OXT-Beyond's installed layout (`package.py`), fetch the external assets listed in `external-assets.json`, pin, fetch and build the xTalk Suite extensions listed in `xtalk-extensions.json` (`xtalk_extensions.py`), and write the text dictionary's entries (`text_dictionary.py`). See [tools/oxt/README.md](tools/oxt/README.md). |
 | `Installer/oxt-beyond/` | The Inno Setup script of the installer, the scripts that make its images, and the icon's source art. |
 | `tools/ci/` | PowerShell, Python and shell scripts used by CI to install components, build, generate the dictionary and the guides (`build_docs.sh`), check, package, smoke-test, compile-check the IDE, run the engine tests of `tests/` (and trace a Windows crash), build and test the installer, join and sign the macOS app, test the Linux package, and assemble a release and its notes. |
-| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `docs.yml`, which each of them calls, generates the dictionary and the guides, and `web.yml`, which each of them calls too, builds the web runtime; `release.yml` builds all three from a `v` tag and publishes the release; `tag-release.yml` tags `main` and starts it; `runtimes.yml` makes the standalone runtimes asset; `media-check.yml` checks the browser and player in a published release. |
+| `.github/workflows/` | The GitHub Actions workflows: `build-windows.yml`, `build-macos.yml` and `build-linux.yml` build, package and test each platform on every push to `main` and every pull request into it; `docs.yml`, which each of them calls, generates the dictionary and the guides, and `web.yml`, which each of them calls too, builds the web runtime; `release.yml` builds all three from a `v` tag and publishes the release; `tag-release.yml` tags `main` and starts it; `runtimes.yml` makes the standalone runtimes asset; `web-prerelease.yml` publishes main's Stack Player between releases for the community gallery; `media-check.yml` checks the browser and player in a published release. |
 | `Installer/package.txt`, `builder/` | LiveCode's packaging manifest (the packager follows its rules for Windows, Linux and macOS) and LiveCode's build tools, whose docs builder makes the dictionary and the guides (its installer builder is not used). |
 | `tests/`, `engine/exec-tests/` and others | Upstream test suites; CI runs those of `tests/` (see [Engine tests](BUILDING.md#engine-tests)). |
 

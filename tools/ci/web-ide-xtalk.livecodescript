@@ -14,8 +14,8 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, CoinXT, DataChannelXT
--- (a shim over the browser's WebRTC) and audioxt into itself
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT,
+-- DataChannelXT (a shim over the browser's WebRTC) and audioxt into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -28,6 +28,10 @@ script "oxtwebxtalk"
 --                derive one or refuse with an error the script can catch,
 --                and the library still works after
 --    box2d       Box2Dxt: a ball dropped for 60 steps of 1/60 s
+--    box3d       box3dxt: a ball dropped onto a floor, found by a ray, and
+--                drawn by the library's renderer into a picture whose
+--                middle pixel shows it; the picture set as an image's
+--                imageData
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
 --    nostr       NostrXT's relay library over the browser's WebSocket:
@@ -67,7 +71,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,coinxt,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -231,6 +235,54 @@ on xt_box2d
    xtExpect "vy after 60 steps", format("%.2f", b2BodyVY(tBody)), "-10.00"
    b2DestroyWorld tWorld
 end xt_box2d
+
+on xt_box3d
+   local tWorld, tFloor, tBall, tShape, tRay, tData, tWas
+   tourRecord "INFO b3LibraryVersion()" && b3LibraryVersion()
+   xtExpect "the library's ABI", word 1 to 3 of b3LibraryVersion(), "box3dxt ABI 2;"
+   put b3WorldCreate(0, -10, 0, 1) into tWorld
+   put b3BodyCreate(tWorld, 0, 0, -0.5, 0) into tFloor
+   get b3ShapeAddBox(tFloor, 5, 0.5, 5, 0, 0.6, 0)
+   put b3BodyCreate(tWorld, 2, 0, 5, 0) into tBall
+   put b3ShapeAddSphere(tBall, 0, 0, 0, 0.5, 1, 0.5, 0) into tShape
+   repeat 30 times
+      b3WorldStep tWorld, 1/60, 4
+   end repeat
+   -- What Box3D's step gives for half a second of free fall from y = 5
+   -- (the exact answer is 3.75), on the desktop as here
+   xtExpect "y after 30 steps", format("%.4f", item 2 of b3BodyPosition(tBall)), "3.7396"
+   repeat 150 times
+      b3WorldStep tWorld, 1/60, 4
+   end repeat
+   xtExpect "y at rest on the floor", format("%.2f", item 2 of b3BodyPosition(tBall)), "0.50"
+   xtExpect "a ray down finds the ball", b3CastRayClosest(tWorld, 0, 10, 0, 0, -20, 0) && (b3HitShape(1) is tShape), "1 true"
+   -- The renderer: the ball in its own colour at the middle of the
+   -- picture, the background at its corner (the desktop's numbers)
+   b3RenderSetCamera 0, 2, 8, 0, 0.5, 0, 50
+   b3RenderSetLight 0, 0, -1
+   b3RenderSetBackground 32, 36, 42
+   b3ShapeSetColor tShape, 200, 100, 50
+   xtExpect "a picture is drawn", b3RenderWorld(tWorld, 64, 48, 0), "true"
+   put b3RenderPixels() into tData
+   xtExpect "the picture's bytes", the number of bytes in tData, 64 * 48 * 4
+   xtExpect "the middle pixel shows the ball", b3RenderShapeAt(32, 24) is tShape, "true"
+   xtExpect "the corner is the background", b3RenderPixel(0, 0), 32 * 65536 + 36 * 256 + 42
+   put b3RenderRay(32.5, 24.5) into tRay
+   xtExpect "the ray through that pixel finds it too", b3CastRayClosest(tWorld, item 1 of tRay, item 2 of tRay, item 3 of tRay, \
+         50 * item 4 of tRay, 50 * item 5 of tRay, 50 * item 6 of tRay) && (b3HitShape(1) is tShape), "1 true"
+   -- An image takes the picture as its imageData and gives it back
+   put the defaultStack into tWas
+   create invisible stack "oxtWebBox3d"
+   set the defaultStack to "oxtWebBox3d"
+   create image "picture"
+   set the defaultStack to tWas
+   set the width of image "picture" of stack "oxtWebBox3d" to 64
+   set the height of image "picture" of stack "oxtWebBox3d" to 48
+   set the imageData of image "picture" of stack "oxtWebBox3d" to tData
+   xtExpect "an image takes the picture", the number of bytes in the imageData of image "picture" of stack "oxtWebBox3d", 64 * 48 * 4
+   delete stack "oxtWebBox3d"
+   b3WorldDestroy tWorld
+end xt_box3d
 
 on xt_coinxt
    local tSec, tSig
