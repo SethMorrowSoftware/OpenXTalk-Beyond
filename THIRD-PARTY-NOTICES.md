@@ -503,6 +503,7 @@ below.
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
 | `org.openxtalk.library.boxthreed` | `xtalk-suite` (`box3dxt/`) | MIT, © 2026 Seth Morrow | Box3D (a pinned commit, before its first release): MIT, © 2026 Erin Catto. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with Box3D's notice) |
+| `org.openxtalk.library.renderthreed` | `xtalk-suite` (`render3dxt/`) | MIT, © 2026 Seth Morrow | stb_image 2.34 (the picture reader, built with its PNG, JPEG, BMP and TGA decoders): MIT, © Sean Barrett; offered as MIT or public domain, taken as MIT. fast_obj 1.3 (the OBJ reader): MIT, © 2018 thisistherk. Both are compiled into the library from pinned commits. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with the notices of stb_image and fast_obj) |
 
 Notes:
 

@@ -90,7 +90,7 @@
         "elf": {
           "GLIBC": "2.34"
         },
-        "readme": "2.34 (Box2Dxt and box3dxt)",
+        "readme": "2.34 (Box2Dxt, box3dxt and render3dxt)",
         "reason": "Box2Dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
       },
       {
@@ -98,8 +98,16 @@
         "elf": {
           "GLIBC": "2.34"
         },
-        "readme": "2.34 (Box2Dxt and box3dxt)",
+        "readme": "2.34 (Box2Dxt, box3dxt and render3dxt)",
         "reason": "box3dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/render3dxt.so",
+        "elf": {
+          "GLIBC": "2.34"
+        },
+        "readme": "2.34 (Box2Dxt, box3dxt and render3dxt)",
+        "reason": "render3dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
       },
       {
         "files": "Extensions/*/code/x86-linux/curlxt.so",

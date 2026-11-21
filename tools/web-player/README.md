@@ -62,7 +62,8 @@ cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
 at full size; **Box2Dxt Platformer**, the xTalk Suite's seven scrolling
-levels on Box2D; and three that the build makes), and **About**, which says in plain English
+levels on Box2D; **Render3D Tour**, ten small 3D scenes drawn by the
+xTalk Suite's render3dxt; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -89,7 +90,7 @@ stack while it is open (a name the player's own files have there,
 
 The xTalk Suite's native libraries that have a web build (box2dxt's
 Box2D, so the platformer and the Box2D games; box3dxt's Box3D and its
-renderer; sodiumxt, coinxt, and
+renderer; render3dxt, so the Render3D Tour; sodiumxt, coinxt, and
 datachannelxt over the browser's own WebRTC) are linked into the web
 engine the player is built on, as into every HTML5 standalone's
 (EXPERIMENTAL; `engine/src/em-xtalk-web.cpp`).
@@ -208,6 +209,7 @@ answering no.
 | `ember-bricks.livecodescript`, `ember-bricks-stack.livecodescript`, `ember-bricks/` | build `stacks/Ember Bricks.oxtstack` from its levels, the sounds made for it and Atkinson Hyperlegible (see below) |
 | `beyond-beats.livecodescript`, `beyond-beats-stack.livecodescript`, `beyond-beats/` | build `stacks/Beyond Beats.oxtstack` with its audio core (see below) |
 | `box2dxt-platformer.livecodescript`, `box2dxt_platformer_files.py`, `box2dxt-platformer/pin.json` | build `stacks/Box2Dxt Platformer.oxtstack` from the xTalk Suite's platformer and sheets, as pinned (see below) |
+| `render3d-tour.livecodescript`, `render3d-tour-stack.livecodescript` | build `stacks/Render3D Tour.oxtstack` from its script alone (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -449,6 +451,40 @@ plays this sample in the bare player. The stack's `cJavascriptHandlers`
 are `wfPageHidden` (the page is hidden: a level pauses) and `wfState`, so
 that `tools/pages/check_wobble_forts_page.py` can ask the game how it is
 there; `build_player.py --check` runs that check on the player it builds.
+
+## The Render3D Tour
+
+`stacks/Render3D Tour.oxtstack` shows what render3dxt, the xTalk Suite's
+3D renderer, can do, one thing at a time. It has ten exhibits: a sun
+and its planets, with moons, a ring and a comet, where a click on a planet
+flies the camera to it; the
+shapes made to measure and a model; textures from a checkerboard, from
+imageData and from a PNG with gaps; five materials; a sun and three
+coloured lamps to switch by a click; a model read from the text of an OBJ
+file; hills built corner by corner; fog between two rows of columns;
+finding what is under the pointer and what a ray meets; and 225 cubes
+moved in one call a frame. Drag the picture to look round, and turn the
+wheel (or press + and -) to come closer. Every texture and model is made
+in its script: the stack carries no file.
+
+The picture is an ordinary image, 640 by 480, whose imageData render3dxt
+writes. On a desktop the next picture is drawn on other threads while the
+engine does its own work; in a browser there are none, so it is drawn at
+once, and Smooth edges starts off there. The corner of the picture says
+how many pictures a second it is showing. An engine without render3dxt
+opens the stack on a notice and draws nothing.
+
+`render3d-tour.livecodescript` builds it with any OXT-Beyond engine
+(`<engine> -ui tools/web-player/render3d-tour.livecodescript`), from
+`render3d-tour-stack.livecodescript`.
+`tests/lcs/webplayer/render3d-tour.livecodescript` opens it on a desktop
+engine and drives every exhibit through the hooks its script has
+(`rtTestBegin`, `rtTestStep`, `rtClickView`, `rtHoverView`, `rtState`);
+with `OXT_RENDER3DXT` set to a folder that has the extension it checks the
+pictures, the click on a lamp and on a ball, the labels, the camera and
+that closing gives back everything render3dxt made.
+`tools/ci/tests/test_render3d_tour.py` holds the committed stack to its
+script.
 
 ## The Box2Dxt platformer
 

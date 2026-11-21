@@ -147,6 +147,12 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # render3dxt: the shim, and the stb_image and fast_obj compiled into
+    # it, whose readers call their input functions through pointers (as
+    # the shim's text results reach snprintf's). Its drawing calls none,
+    # so Asyncify leaves a picture alone either way; its other functions
+    # have plain names that could be anyone's, and are not listed
+    'r3x_*', 'stbi*', 'fast_obj*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that
