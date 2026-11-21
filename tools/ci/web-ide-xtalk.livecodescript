@@ -14,8 +14,8 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT and
--- DataChannelXT (a shim over the browser's WebRTC) into itself
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT,
+-- DataChannelXT (a shim over the browser's WebRTC) and audioxt into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -49,6 +49,11 @@ script "oxtwebxtalk"
 --                own harness (datachannelxt/tests/datachannel-selftest.
 --                livecodescript, --add) runs to its summary, the live
 --                in-page loopback included, with nothing failing
+--    audio       audioxt: a tone mixed with no device, its samples the
+--                desktop's bit for bit, made into a WAV file and read
+--                back the same; then the browser's own playback device
+--                opened (or refused with a reason: nothing may throw)
+--                and everything closed
 --    unavailable TorrentXT and ENetXT, which need raw TCP and UDP that a
 --                page cannot open, are not in the web engine: a call to
 --                each throws an error the script can catch, and the IDE
@@ -66,10 +71,14 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+-- SHA-1 of audioxt's mix of a 440 Hz sine of amplitude 0.5, 800 frames
+-- of 16-bit stereo at 8000 Hz: the desktop's (OXT-Beyond 0.2.7-rc.6's
+-- server engine, Linux x86-64), which the WebAssembly build gives too
+constant kAudioMixSha1 = "6057c40db065f7ab02a05917470c3423288100f4"
 constant kSecp256k1G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
 -- BIP-340's test vector 0
 constant kBip340Pub = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
@@ -522,6 +531,44 @@ function oxtWebDcDone
    put the result into tReport
    return "== summary ==" is in tReport and "RUN NOT FINISHED" is not in tReport
 end oxtWebDcDone
+
+on xt_audio
+   local tEngine, tTone, tBlock, tWav, tPeak
+   tourRecord "INFO auLibraryVersion()" && auLibraryVersion()
+   xtExpect "the library's ABI", word 1 to 3 of auLibraryVersion(), "audioxt ABI 1;"
+   xtExpect "the audio system", auBackendName(), "Web Audio"
+   -- An engine with no device, whose mix is read as samples: the same
+   -- bytes as on the desktop
+   put auEngineCreateOffline(8000, 2) into tEngine
+   put auSoundTone(tEngine, "sine", 440, 0.5) into tTone
+   auSoundStart tTone
+   put auEngineRender(tEngine, 800, "s16") into tBlock
+   xtExpect "800 frames of two 16-bit channels", the number of bytes in tBlock, 3200
+   xtExpect "the mix, bit for bit", xtHex(sha1Digest(tBlock)), kAudioMixSha1
+   xtExpect "the clock counts them", format("%.4f", auEngineTime(tEngine)), "0.1000"
+   put auEnginePeak(tEngine) into tPeak
+   xtExpect "the meter reads half scale", format("%.2f,%.2f", item 1 of tPeak, item 2 of tPeak), "0.50,0.50"
+   -- A WAV file made of the mix, and read back
+   put auWAVEncode(tBlock, "s16", 8000, 2) into tWav
+   xtExpect "a WAV file", byte 1 to 4 of tWav && the number of bytes in tWav, "RIFF 3244"
+   xtExpect "read back bit for bit", auDecodeData(tWav, "s16", 0, 0) is tBlock, "true"
+   auEngineFree tEngine
+   -- The browser's own device: it opens, or it is refused with a reason,
+   -- and nothing throws (miniaudio's JavaScript once threw through the
+   -- whole engine on a page with no Web Audio). A browser holds a page's
+   -- sound until the visitor's first gesture, so its clock is not asked.
+   put auEngineCreate(0, 0, 0) into tEngine
+   if tEngine > 0 then
+      put auSoundTone(tEngine, "sine", 440, 0.1) into tTone
+      auSoundStart tTone
+      tourRecord "INFO a playback device opened at" && auEngineSampleRate(tEngine) && "Hz; a tone on it plays:" && auSoundIsPlaying(tTone)
+   else
+      tourRecord "INFO no playback device here:" && auLastError()
+      xtExpect "and it says why", auLastError() is not empty, "true"
+   end if
+   auShutDown
+   xtExpect "everything closed", auEngineIsValid(tEngine), "false"
+end xt_audio
 
 on xt_unavailable
    local tError, tGot

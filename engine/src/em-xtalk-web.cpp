@@ -39,6 +39,14 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
  * CoinXT, cannot clash), and util/emscripten-javascriptify.py links the
  * objects into both engines.
  *
+ * audioxt (miniaudio) is the first library that JavaScript calls INTO: a
+ * Web Audio ScriptProcessorNode asks it for the next block of sound from
+ * the browser's own event loop, between the engine's turns, and so also
+ * while the engine is asleep under Asyncify. That is safe because nothing
+ * in it yields or calls back into the engine: it is a mixer and decoders,
+ * and its events (a sound's end) are polled by script, never delivered.
+ * util/emscripten-javascriptify.py keeps its names out of Asyncify.
+ *
  * The functions are declared weak: an engine linked without a library (a
  * local build that did not fetch them) has a null address for its function,
  * and that library is simply not registered, so its extension's first call
@@ -56,6 +64,7 @@ extern "C"
 	__attribute__((weak)) const MCSLibraryStaticExport *coinxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *datachannelxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *box3dxt_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *audioxt_web_exports(void);
 }
 
 /* The names are those the extensions load: their libraries' files without
@@ -67,6 +76,7 @@ static MCSLibraryStaticInfo s_mc_xtalk_web_libraries[] =
 	{ nullptr, "coinxt", nullptr },
 	{ nullptr, "datachannelxt", nullptr },
 	{ nullptr, "box3dxt", nullptr },
+	{ nullptr, "audioxt", nullptr },
 };
 
 /* Registered before main(), as em-externals.cpp's are early in startup:
@@ -81,6 +91,7 @@ MCEmscriptenRegisterXTalkWebLibraries(void)
 		coinxt_web_exports,
 		datachannelxt_web_exports,
 		box3dxt_web_exports,
+		audioxt_web_exports,
 	};
 
 	for (size_t i = 0; i < sizeof(t_exports) / sizeof(t_exports[0]); i++)
