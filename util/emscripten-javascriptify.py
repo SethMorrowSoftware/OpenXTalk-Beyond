@@ -147,6 +147,16 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # webpxt: the shim and libwebp (decoder, encoder, mux, demux and
+    # libsharpyuv), whose pixel code is reached through function pointers
+    # it sets on first use; buffers in, buffers out
+    'wpx_*', 'WebP*', 'VP8*', 'SharpYuv*',
+    # barcodext: the shim, zxing-cpp (C++, so by its namespace wherever it
+    # stands in a name: a template's name begins with its return type) and
+    # the Zint writer backend, its GS1 checks and libzueci under it; a
+    # picture in, symbols out. Their file-local functions keep their own
+    # names and are instrumented where they call through a pointer
+    'bcx_*', '*ZXing::*', '*librscpp::*', 'ZBarcode_*', 'zint_*', 'gs1_*', 'zueci_*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

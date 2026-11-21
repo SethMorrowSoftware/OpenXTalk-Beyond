@@ -598,8 +598,8 @@ What it needs:
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
   standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt and
-  box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3
-  (TorrentXT and DataChannelXT).
+  box3dxt), 2.34 and OpenSSL 3 (curlxt), 2.38 (barcodext), or 2.38 and
+  OpenSSL 3 (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4947,6 +4947,8 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 | `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
+| `org.openxtalk.library.webpxt` | webpxt: WebP pictures read and written through libwebp, lossy and lossless, with transparency, and animations a frame at a time | [xtalk-suite, `webpxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/webpxt) |
+| `org.openxtalk.library.barcodext` | barcodext: QR codes and barcodes read out of pictures and made as pictures, SVG or rows of squares, through zxing-cpp | [xtalk-suite, `barcodext/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/barcodext) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4978,19 +4980,18 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   inclusions a stack needs, adds an LCB library whose handlers your
   scripts use, together with its native library for the target platform.
   The extensions have native libraries for Windows x86-64 and x86, Linux
-  x86-64, x86 and arm64, and macOS. The seven LCB libraries (SodiumXT,
-  TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT and curlxt) also have
-  them for Android's four architectures (arm64-v8a, armeabi-v7a, x86_64
-  and x86), which the Android builder packs into an app; the four that
-  open sockets (TorrentXT, enetxt, DataChannelXT and curlxt) add the
-  INTERNET permission to an app that includes them. Each one's smoke test
-  runs in an Android app on the Android builder workflow's x86_64
-  emulators (Android 13, and Android 16 with 16 KB pages); the ARM
-  libraries have not run on a device yet. box3dxt has Android libraries
-  too, tested where the xTalk Suite builds them and not yet in an app. The standalone builder
-  never adds the script libraries by itself: tick them in *Standalone
-  Settings*, with the LCB libraries they need (for example `coinxt` with
-  `org.openxtalk.library.coin`).
+  x86-64, x86 and arm64, and macOS. The ten LCB libraries (SodiumXT,
+  TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT, curlxt, box3dxt,
+  webpxt and barcodext) also have them for Android's four architectures
+  (arm64-v8a, armeabi-v7a, x86_64 and x86), which the Android builder
+  packs into an app; the four that open sockets (TorrentXT, enetxt,
+  DataChannelXT and curlxt) add the INTERNET permission to an app that
+  includes them. Each one's smoke test runs in an Android app on the
+  Android builder workflow's x86_64 emulators (Android 13, and Android
+  16 with 16 KB pages); the ARM libraries have not run on a device yet.
+  The standalone builder never adds the script libraries by itself: tick
+  them in *Standalone Settings*, with the LCB libraries they need (for
+  example `coinxt` with `org.openxtalk.library.coin`).
 - Both dictionaries have them: every public handler of their libraries
   has an entry in LiveCode's Dictionary, which reads it from the
   extension's source when the IDE loads the extension, and in the text
