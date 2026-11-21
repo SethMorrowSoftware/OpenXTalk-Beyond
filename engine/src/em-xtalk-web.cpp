@@ -56,6 +56,8 @@ extern "C"
 	__attribute__((weak)) const MCSLibraryStaticExport *coinxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *datachannelxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *box3dxt_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *webpxt_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *barcodext_web_exports(void);
 }
 
 /* The names are those the extensions load: their libraries' files without
@@ -67,6 +69,8 @@ static MCSLibraryStaticInfo s_mc_xtalk_web_libraries[] =
 	{ nullptr, "coinxt", nullptr },
 	{ nullptr, "datachannelxt", nullptr },
 	{ nullptr, "box3dxt", nullptr },
+	{ nullptr, "webpxt", nullptr },
+	{ nullptr, "barcodext", nullptr },
 };
 
 /* Registered before main(), as em-externals.cpp's are early in startup:
@@ -81,6 +85,8 @@ MCEmscriptenRegisterXTalkWebLibraries(void)
 		coinxt_web_exports,
 		datachannelxt_web_exports,
 		box3dxt_web_exports,
+		webpxt_web_exports,
+		barcodext_web_exports,
 	};
 
 	for (size_t i = 0; i < sizeof(t_exports) / sizeof(t_exports[0]); i++)

@@ -111,6 +111,14 @@
         "reason": "curlxt's 32-bit library is built on a newer system than the IDE and uses the system's OpenSSL 3 (README.md, Linux)"
       },
       {
+        "files": "Extensions/*/code/x86-linux/barcodext.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (barcodext)",
+        "reason": "barcodext's 32-bit library is built on a newer system than the IDE: zxing-cpp is C++, and glibc 2.38's headers send its strtol calls to __isoc23_strtol (README.md, Linux)"
+      },
+      {
         "files": "Extensions/*/code/x86-linux/torrentxt.so",
         "elf": {
           "GLIBC": "2.38"

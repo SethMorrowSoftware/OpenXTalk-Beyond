@@ -14,12 +14,12 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT and
--- DataChannelXT (a shim over the browser's WebRTC) into itself
--- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
--- them unchanged. Each step calls one of them, or an app built on them,
--- as a user's script does, and checks what comes back against a value
--- known from elsewhere (a published test vector, or what the desktop
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT,
+-- DataChannelXT (a shim over the browser's WebRTC), webpxt and barcodext
+-- into itself (engine/src/em-xtalk-web.cpp), and the extensions the IDE
+-- ships call them unchanged. Each step calls one of them, or an app built
+-- on them, as a user's script does, and checks what comes back against a
+-- value known from elsewhere (a published test vector, or what the desktop
 -- gives):
 --    sodium      SodiumXT: its version, BLAKE2b-256 of "abc", secretbox,
 --                signatures, and its Boolean results (the CBool fix)
@@ -34,6 +34,14 @@ script "oxtwebxtalk"
 --                imageData
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
+--    webp        webpxt: a picture written as a lossless and as a lossy
+--                WebP file and read back, with its transparency; an
+--                animation of three frames written and read; a refusal;
+--                the picture set as an image's imageData
+--    barcode     barcodext: a QR code, an EAN-13 and binary content made
+--                and read back out of their own pictures, the squares
+--                and the SVG of one, a refusal, and a barcode read from
+--                an image's imageData
 --    nostr       NostrXT's relay library over the browser's WebSocket:
 --                connect to the local relay, subscribe, publish a signed
 --                event, have it accepted and delivered back
@@ -66,7 +74,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,webp,barcode,nostr,chat,holdem,platformer,datachannel,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -274,6 +282,130 @@ on xt_box3d
    delete stack "oxtWebBox3d"
    b3WorldDestroy tWorld
 end xt_box3d
+
+on xt_webp
+   local tPixels, tAlpha, tRow, tFile, tInfo, tBack, tWriter, tAnim, tFrame, tWas, tN
+   tourRecord "INFO wpLibraryVersion()" && wpLibraryVersion()
+   xtExpect "the library's ABI", word 1 to 3 of wpLibraryVersion(), "webpxt ABI 1;"
+   -- A picture of 32 x 24 pixels, as an image's imageData: red at the
+   -- left, blue at the right, the top half see-through
+   repeat 16 times
+      put numToByte(255) & numToByte(200) & numToByte(40) & numToByte(30) after tRow
+   end repeat
+   repeat 16 times
+      put numToByte(255) & numToByte(20) & numToByte(60) & numToByte(220) after tRow
+   end repeat
+   repeat 24 times
+      put tRow after tPixels
+   end repeat
+   repeat 32 * 12 times
+      put numToByte(0) after tAlpha
+   end repeat
+   repeat 32 * 12 times
+      put numToByte(255) after tAlpha
+   end repeat
+   -- Lossless: the file says what it is, and every pixel that shows
+   -- comes back as it went in
+   put wpEncodeLossless(tPixels, tAlpha, 32, 24) into tFile
+   xtExpect "a lossless file starts as WebP does", byte 1 to 4 of tFile & byte 9 to 12 of tFile, "RIFFWEBP"
+   put wpInfo(tFile) into tInfo
+   xtExpect "what the file says", tInfo["width"] && tInfo["height"] && tInfo["alpha"] && tInfo["animated"] && tInfo["frames"] && tInfo["compression"], "32 24 true false 1 lossless"
+   put wpDecode(tFile) into tBack
+   xtExpect "its size decoded", tBack["width"] && tBack["height"] && the number of bytes in tBack["imageData"] && the number of bytes in tBack["alphaData"], "32 24 3072 768"
+   xtExpect "the pixels that show come back", byte (12 * 32 * 4 + 1) to -1 of tBack["imageData"] is byte (12 * 32 * 4 + 1) to -1 of tPixels, "true"
+   xtExpect "the transparency comes back", tBack["alphaData"] is tAlpha, "true"
+   xtExpect "translucent", tBack["translucent"], "true"
+   put wpDecodeScaled(tFile, 16, 0) into tBack
+   xtExpect "decoded to half its size", tBack["width"] && tBack["height"], "16 12"
+   -- Lossy: a smaller file whose colours are near, not equal
+   put wpEncode(tPixels, empty, 32, 24, 80) into tFile
+   put wpInfo(tFile) into tInfo
+   xtExpect "a lossy file", tInfo["width"] && tInfo["alpha"] && tInfo["compression"], "32 false lossy"
+   put wpDecode(tFile) into tBack
+   xtExpect "its left is still red", byteToNum(byte 2 of tBack["imageData"]) > 150 and byteToNum(byte 4 of tBack["imageData"]) < 90, "true"
+   put wpEncodeAdvanced(tPixels, empty, 32, 24, 100, true, 6) into tFile
+   put wpInfo(tFile) into tInfo
+   xtExpect "every setting given", tInfo["compression"], "lossless"
+   -- A refused call returns empty and says why; nothing throws
+   xtExpect "a file that is not WebP", wpDecode("not a picture") is empty and wpLastError() is not empty, "true"
+   -- An animation of three frames, written and read back. Each frame is
+   -- the picture moved along (equal frames would be written as one)
+   put wpAnimEncoderCreate(32, 24, 2, 100, true) into tWriter
+   repeat with tN = 1 to 3
+      xtExpect "frame" && tN && "added", wpAnimEncoderAddFrame(tWriter, tPixels, empty, 40 * tN), "true"
+      put byte 33 to -1 of tPixels & byte 1 to 32 of tPixels into tPixels
+   end repeat
+   xtExpect "frames held", wpAnimEncoderFrameCount(tWriter), 3
+   put wpAnimEncoderFinish(tWriter) into tFile
+   xtExpect "the writer is closed", wpAnimEncoderIsValid(tWriter) && wpAnimEncoderOpenCount(), "false 0"
+   put wpAnimOpen(tFile) into tAnim
+   xtExpect "the animation", wpAnimIsValid(tAnim) && wpAnimWidth(tAnim) && wpAnimHeight(tAnim) && wpAnimFrameCount(tAnim) && wpAnimLoopCount(tAnim), "true 32 24 3 2"
+   put wpAnimNextFrame(tAnim) into tFrame
+   put wpAnimNextFrame(tAnim) into tFrame
+   xtExpect "its second frame", tFrame["index"] && tFrame["duration"] && byteToNum(byte (8 * 4 + 2) of tFrame["imageData"]) && byteToNum(byte (7 * 4 + 2) of tFrame["imageData"]), "2 80 20 200"
+   wpAnimRewind tAnim
+   put wpAnimNextFrame(tAnim) into tFrame
+   xtExpect "rewound", tFrame["index"], 1
+   wpAnimClose tAnim
+   xtExpect "nothing left open", wpAnimOpenCount() && wpAnimEncoderOpenCount(), "0 0"
+   -- An image takes a decoded picture and gives it back
+   put wpDecode(wpEncodeLossless(tPixels, tAlpha, 32, 24)) into tBack
+   xtExpect "decoded for an image", tBack["width"], 32
+   put the defaultStack into tWas
+   create invisible stack "oxtWebWebp"
+   set the defaultStack to "oxtWebWebp"
+   create image "picture"
+   set the defaultStack to tWas
+   set the width of image "picture" of stack "oxtWebWebp" to 32
+   set the height of image "picture" of stack "oxtWebWebp" to 24
+   set the imageData of image "picture" of stack "oxtWebWebp" to tBack["imageData"]
+   set the alphaData of image "picture" of stack "oxtWebWebp" to tBack["alphaData"]
+   xtExpect "an image takes the picture", the number of bytes in the imageData of image "picture" of stack "oxtWebWebp" && (the alphaData of image "picture" of stack "oxtWebWebp" is tAlpha), "3072 true"
+   delete stack "oxtWebWebp"
+end xt_webp
+
+on xt_barcode
+   local tPicture, tFound, tRows, tSheet, tWas
+   tourRecord "INFO bcLibraryVersion()" && bcLibraryVersion()
+   xtExpect "the library's ABI", word 1 to 3 of bcLibraryVersion(), "barcodext ABI 1;"
+   xtExpect "kinds it reads and makes", ("QR Code" is among the items of bcFormats()) && ("EAN-13" is among the items of bcWritableFormats()), "true true"
+   -- A QR code made, and read back out of its own picture
+   put bcCreate("https://openxtalk.org/", "QR Code", 4) into tPicture
+   xtExpect "a QR code's picture", tPicture["width"] && tPicture["height"] && the number of bytes in tPicture["imageData"], "132 132 69696"
+   put bcRead(tPicture["imageData"], tPicture["width"], tPicture["height"]) into tFound
+   xtExpect "one barcode found", the number of elements in tFound, 1
+   xtExpect "what it says", tFound[1]["format"] && tFound[1]["text"] && tFound[1]["valid"] && tFound[1]["contentType"], "QR Code https://openxtalk.org/ true Text"
+   xtExpect "where it is", tFound[1]["position"], "16,16,116,16,116,116,16,116"
+   xtExpect "the shortest read", bcReadText(tPicture["imageData"], tPicture["width"], tPicture["height"]), "https://openxtalk.org/"
+   put bcCreateMatrix("https://openxtalk.org/", "QR Code", "") into tRows
+   xtExpect "its squares", the number of lines in tRows && the number of chars in line 1 of tRows && char 1 to 7 of line 1 of tRows, "25 25 1111111"
+   -- A product barcode: the check digit is worked out, the digits printed
+   put bcCreateAdvanced("590123412345", "EAN-13", "", 2, true, true) into tPicture
+   put bcReadFormats(tPicture["imageData"], tPicture["width"], tPicture["height"], "EAN-13") into tFound
+   xtExpect "an EAN-13 with its check digit", tFound[1]["format"] && tFound[1]["text"], "EAN-13 5901234123457"
+   xtExpect "asked for another kind, it is not found", the number of elements in bcReadFormats(tPicture["imageData"], tPicture["width"], tPicture["height"], "QR Code"), 0
+   -- Bytes, a zero among them, kept whole
+   put bcCreateFromData(numToByte(0) & numToByte(255) & numToByte(16) & "x", "QR Code", "ecLevel=H", 3) into tPicture
+   put bcReadAdvanced(tPicture["imageData"], tPicture["width"], tPicture["height"], "QR Code", "pure") into tFound
+   xtExpect "binary content", xtHex(tFound[1]["bytes"]) && tFound[1]["ecLevel"], "00ff1078 H"
+   xtExpect "a drawing", bcCreateSVG("XTALK-39", "Code 39", "", true) begins with "<?xml" or bcCreateSVG("XTALK-39", "Code 39", "", true) begins with "<svg", "true"
+   -- A refused call returns empty and says why; nothing throws
+   put bcCreate("not digits", "EAN-13", 3) into tPicture
+   xtExpect "content a kind cannot hold", (tPicture["width"] is empty) && (bcLastError() is not empty), "true true"
+   -- An image takes a barcode's picture, and what the image gives back
+   -- is read
+   put bcCreate("Hello, xTalk", "Data Matrix", 5) into tPicture
+   put the defaultStack into tWas
+   create invisible stack "oxtWebBarcode"
+   set the defaultStack to "oxtWebBarcode"
+   create image "picture"
+   set the defaultStack to tWas
+   set the width of image "picture" of stack "oxtWebBarcode" to tPicture["width"]
+   set the height of image "picture" of stack "oxtWebBarcode" to tPicture["height"]
+   set the imageData of image "picture" of stack "oxtWebBarcode" to tPicture["imageData"]
+   xtExpect "read from an image", bcReadText(the imageData of image "picture" of stack "oxtWebBarcode", tPicture["width"], tPicture["height"]), "Hello, xTalk"
+   delete stack "oxtWebBarcode"
+end xt_barcode
 
 on xt_coinxt
    local tSec, tSig
