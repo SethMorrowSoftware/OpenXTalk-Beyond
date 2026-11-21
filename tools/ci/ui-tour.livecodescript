@@ -10998,15 +10998,23 @@ on tourCommunityAgree
    end try
 end tourCommunityAgree
 
--- The copy is there: the dialog that says where, and Open It to Look
+-- The copy is there: the dialog that says where, and Open It to Look,
+-- its last button; Open and Run is the one before it (openxtalk.org
+-- p=26654), and it is the engine tests' (tests/lcs/communitystacks)
 on tourShotCommunityReady
    local tError
    try
       if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
          throw "nothing said that the copy was ready"
       end if
+      if there is not a field "button3_label" of stack "revKitDialog" or field "button3_label" of stack "revKitDialog" is not "Open and Run" then
+         throw "the dialog's third button is not Open and Run"
+      end if
+      if there is not a field "button4_label" of stack "revKitDialog" or field "button4_label" of stack "revKitDialog" is not "Open It to Look" then
+         throw "the dialog's last button is not Open It to Look"
+      end if
       tourShotStack "revKitDialog", "24c9-community-stacks-copy"
-      send "lkAction b:3" to stack "revKitDialog"
+      send "lkAction b:4" to stack "revKitDialog"
    catch tError
       put tourJoin(tError) into sCommunityNotes
       if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then

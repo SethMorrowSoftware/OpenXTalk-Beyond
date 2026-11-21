@@ -199,16 +199,36 @@ class Window(unittest.TestCase):
         self.assertIn('if there is a folder pFolder or there is a file pFolder then', code(handler(self.text, 'csWrite')))
 
     def test_a_copy_opens_without_running(self):
-        opened = code(handler(self.text, 'revCommunityStacksOpenToRead'))
+        self.assertIn('return csOpenCopy(pFile, false)', code(handler(self.text, 'revCommunityStacksOpenToRead')))
+        opened = code(handler(self.text, 'csOpenCopy'))
         lock = opened.index('lock messages')
+        names = opened.index('csIsIDEName(tName)')
         go = opened.index('go stack pFile')
         unlock = opened.index('unlock messages')
-        self.assertLess(lock, go)
+        self.assertLess(lock, names)
+        self.assertLess(names, go)
         self.assertLess(go, unlock)
         self.assertIn('revIDESetTool "pointer"', opened)
-        self.assertIn('csIsIDEName(tName)', opened)
-        # the only place a stack of the gallery is opened
-        self.assertEqual(self.code.count('go stack'), 1)
+        # the only places a stack of the gallery is opened: this one, and
+        # Open and Run's below
+        self.assertEqual(self.code.count('go stack'), 2)
+
+    def test_a_copy_opened_to_run_is_checked_first(self):
+        # Open and Run (openxtalk.org p=26654): the same checks, with
+        # messages locked, and the stack opened only after they pass, with
+        # messages, as File > Open opens one, and with the browse tool
+        self.assertIn('return csOpenCopy(pFile, true)', code(handler(self.text, 'revCommunityStacksOpenToRun')))
+        opened = code(handler(self.text, 'csOpenCopy'))
+        unlock = opened.index('unlock messages')
+        self.assertIn('else if pRun then\n         put true into tGo\n      else\n         go stack pFile', opened)
+        run = opened.index('if tGo then\n      go stack pFile')
+        self.assertLess(unlock, run)
+        self.assertIn('revIDESetTool "browse"', opened)
+        # a refusal sets no tGo: tGo is set only in the branch after the
+        # three refusals (a name taken, the IDE's name, a substack of one)
+        self.assertLess(opened.index('else if tKept is tName then'), opened.index('else if pRun then'))
+        self.assertLess(opened.index('else if tKept is not empty then'), opened.index('else if pRun then'))
+        self.assertEqual(opened.count('put true into tGo'), 1)
 
     def test_the_limits_are_the_gallerys(self):
         for name, value in GALLERY_LIMITS.items():
@@ -460,6 +480,22 @@ class Actions(unittest.TestCase):
         # opening is the user's choice, and what follows is said
         self.assertIn('case "Open It to Look"', copy)
         self.assertIn('its scripts run when you choose the browse tool', copy)
+        # and so is opening it to run (openxtalk.org p=26654: a stack that
+        # draws its screen as it opens shows its cards bare when it is
+        # opened to look at): the dialog says both, Open It to Look stays
+        # the last button (Return's), and Open and Run is the one before
+        self.assertIn('case "Open and Run"', copy)
+        # sent, so that no try waits under the copy's opening scripts: the
+        # window's Get a Copy calls this inside one, and while a try waits
+        # the engine shows no error (Codex review of #617)
+        self.assertIn('send "revIDECommunityStacksRunCopy tResult, tFileName" to me in 0 milliseconds', copy)
+        self.assertNotIn('revCommunityStacksOpenToRun', copy)
+        run = code(handler(self.text, 'revIDECommunityStacksRunCopy'))
+        self.assertIn('dispatch "revCommunityStacksOpenToRun" to stack __communityStacksFile() with pFile', run)
+        self.assertNotIn('try', run)
+        self.assertIn('shows its cards bare', copy)
+        self.assertIn('"Show the Folder" & return & "Done" & return & "Open and Run" & return & "Open It to Look" into tSpec["buttons"]', copy)
+        self.assertIn('with "Show the Folder" or "Done" or "Open and Run" or "Open It to Look"', copy)
         # nothing here opens the browser or any address
         self.assertNotIn('launch url', copy)
         self.assertNotIn('://', copy)
@@ -498,7 +534,8 @@ class Tests(unittest.TestCase):
         for name in ('TestSiteAndKey', 'TestVerify', 'TestParse', 'TestParseLeavesOutWhatBreaksTheRules',
                      'TestParseCleansWhatItKeeps', 'TestLoad', 'TestLoadOnlyFromHttps', 'TestGet',
                      'TestGetKeepsOnlyWhatTheListNames', 'TestOpenToRead', 'TestOpenToReadRefusesTheIDEsNames',
-                     'TestOpenToReadLeavesAnOpenStackAlone'):
+                     'TestOpenToReadLeavesAnOpenStackAlone', 'TestOpenToRun',
+                     'TestOpenToRunLetsTheStacksErrorsThrough', 'TestOpenToRunRefusesWhatOpenToReadRefuses'):
             self.assertIn('on %s\n' % name, tests)
 
 
