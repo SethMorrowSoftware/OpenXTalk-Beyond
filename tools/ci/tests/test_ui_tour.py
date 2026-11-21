@@ -1158,9 +1158,15 @@ class MenuCheckWaitsForTheMenuBarsOwnBuild(unittest.TestCase):
             self.menubar = f.read()
 
     def test_the_menu_bar_still_skips_a_build_while_one_waits(self):
-        # what the wait is for: if this guard goes, so can the wait
-        self.assertIn('if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus',
+        # what the wait is for: if this guard goes, so can the wait. (A
+        # build asked for with pNow true, by the menu bar group's own
+        # mouseDown before an accelerator or a macOS menu, is not skipped;
+        # the check's dispatch passes nothing, so a build waiting still
+        # skips it)
+        self.assertIn('if pNow is not true and the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus',
                       self.menubar)
+        check = handler(self.tour, 'function', 'tourSvgMenuCheck')
+        self.assertIn('dispatch "revMenubarBuildMenus" to stack "revMenuBar"\n', check)
 
     def test_the_check_waits_before_it_asks_for_the_build(self):
         check = handler(self.tour, 'function', 'tourSvgMenuCheck')
