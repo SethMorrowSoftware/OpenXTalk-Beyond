@@ -307,7 +307,9 @@ class TheSite(unittest.TestCase):
         git = shutil.which('git')
         if not git or not os.path.exists(os.path.join(REPO, '.git')):
             self.skipTest('not a git checkout')
-        run = subprocess.run([git, 'ls-files', '--others', '--ignored', '--exclude-standard', '--', WELCOME],
+        # (the folder as git names it, which reads the same on Windows)
+        run = subprocess.run([git, 'ls-files', '--others', '--ignored', '--exclude-standard', '--',
+                              'tools/pages/welcome/'],
                              cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         self.assertEqual(run.returncode, 0, run.stdout)
         ignored = [p for p in run.stdout.splitlines() if '__pycache__/' not in p and not p.endswith('.DS_Store')]
