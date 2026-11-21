@@ -958,6 +958,19 @@ jobs:
       - name: Fetch the suite's apps and relay library
         run: python3 tools/web-ide/xtalk_web_libraries.py test-files --out "$RUNNER_TEMP/xtalk-files"
 
+      # The suite's extensions as this checkout pins them
+      # (tools/oxt/xtalk-extensions.json), built with the release's
+      # lc-compile into the install's Extensions in place of the release's
+      # own, as android.yml's xTalk probe does: the engine built here links
+      # the libraries of this checkout's pins, and a member the release
+      # does not have yet (box3dxt, first) would otherwise have its table in
+      # the engine and no extension to call it. The web takes no native
+      # library from them, so one platform's are enough
+      - name: Build the suite's extensions as pinned
+        run: |
+          python3 tools/oxt/xtalk_extensions.py build --bin "$OXT_ROOT/Toolchain" --out "$OXT_ROOT/Extensions" \
+            --platforms x86_64-linux
+
       - name: Build the site
         run: |
           python3 tools/web-ide/build_site.py --install "$OXT_ROOT" \

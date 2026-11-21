@@ -31,10 +31,13 @@ them. No network.
   python3 -m unittest discover -s tools/ci/tests
 """
 
+import ast
 import os
 import re
 import sys
 import unittest
+
+import yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
@@ -46,6 +49,8 @@ import xtalk_web_libraries  # noqa: E402
 
 ENGINE = os.path.join(REPO, 'engine', 'src', 'em-xtalk-web.cpp')
 BUILDER = os.path.join(REPO, 'ide-support', 'revsaveasemscriptenstandalone.livecodescript')
+JAVASCRIPTIFY = os.path.join(REPO, 'util', 'emscripten-javascriptify.py')
+WEB_IDE = os.path.join(REPO, '.github', 'workflows', 'web-ide.yml')
 MODULE = 'org.openxtalk.library.boxthreed'
 
 
@@ -147,6 +152,29 @@ class Box3dxtMemberTest(unittest.TestCase):
         builder = read(BUILDER)
         self.assertIn(MODULE, builder_constant('kXTalkWebExtensions', builder))
         self.assertIn('box3dxt', builder_constant('kXTalkWebLibraries', builder))
+
+    def test_asyncify_leaves_the_physics_step_alone(self):
+        # As Box2Dxt's 'b2*': Box3D and the shim never yield, and without
+        # the pattern Asyncify instruments b3World_Step and everything it
+        # reaches through a pointer (a slower, larger engine)
+        tree = ast.parse(read(JAVASCRIPTIFY))
+        lists = [ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                 and any(getattr(t, 'id', None) == 'asyncify_remove_xtalk' for t in n.targets)]
+        self.assertEqual(len(lists), 1)
+        self.assertIn('b3*', lists[0])
+
+    def test_the_web_ide_check_builds_it_from_its_pin(self):
+        # The web IDE's xTalk check runs on the newest release's package,
+        # which may not bundle box3dxt yet: the extensions this checkout
+        # pins are built into it before its site is made, or the engine
+        # links Box3D with no extension to call it
+        steps = yaml.safe_load(read(WEB_IDE))['jobs']['xtalk']['steps']
+        names = [s.get('name') for s in steps]
+        build = names.index("Build the suite's extensions as pinned")
+        self.assertLess(build, names.index('Build the site'))
+        run = steps[build]['run']
+        self.assertIn('tools/oxt/xtalk_extensions.py build', run)
+        self.assertIn('--out "$OXT_ROOT/Extensions"', run)
 
 
 if __name__ == '__main__':
