@@ -68,6 +68,21 @@ struct GError
 	gchar *message;
 };
 
+// A GValue, as gobject/gvalue.h has it (a type and two 64-bit unions), and
+// G_TYPE_INT (G_TYPE_MAKE_FUNDAMENTAL(6))
+struct MCGValue
+{
+	unsigned long g_type;
+	union
+	{
+		int v_int;
+		long long v_int64;
+		double v_double;
+		gpointer v_pointer;
+	} data[2];
+};
+#define MC_G_TYPE_INT (6UL << 2)
+
 typedef void (*GCallback)(void);
 typedef void (*GAsyncReadyCallback)(void *p_source, void *p_result, gpointer p_data);
 typedef gboolean (*GIOFunc)(void *p_channel, int p_condition, gpointer p_data);
@@ -120,9 +135,16 @@ enum
 	/* GObject */ \
 	F(gulong, g_signal_connect_data, (gpointer instance, const gchar *signal, GCallback handler, gpointer data, void *destroy, int flags)) \
 	F(void, g_object_unref, (gpointer object)) \
+	F(void, g_object_set, (gpointer object, const gchar *first_property_name, ...)) \
+	F(MCGValue *, g_value_init, (MCGValue *value, unsigned long type)) \
+	F(int, g_value_get_int, (const MCGValue *value)) \
+	F(void, g_value_unset, (MCGValue *value)) \
 	/* GTK 3 */ \
 	F(unsigned int, gtk_get_major_version, (void)) \
 	F(gboolean, gtk_init_check, (int *argc, char ***argv)) \
+	F(void *, gdk_screen_get_default, (void)) \
+	F(gboolean, gdk_screen_get_setting, (void *screen, const gchar *name, MCGValue *value)) \
+	F(void *, gtk_settings_get_default, (void)) \
 	F(void *, gtk_plug_new, (XID socket_id)) \
 	F(XID, gtk_plug_get_id, (void *plug)) \
 	F(void, gtk_container_add, (void *container, void *widget)) \
@@ -684,6 +706,39 @@ static gboolean MCOnInput(void *p_channel, int p_condition, gpointer p_data)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: [[ HiDPI ]] With the scale given to GDK (--scale, GDK_SCALE),
+// GTK 3 takes the desktop's Xft/DPI for its text, and a desktop that
+// scales its windows (GNOME's settings and those made like them) has the
+// scale in that number already: 192 at 200%. Its own number for a scaled
+// window is Gdk/UnscaledDPI, which GTK uses only while the scale is the
+// desktop's (gdk/x11/xsettings-client.c, fixed_window_scale). WebKitGTK
+// zooms its pages by the text's DPI, so at 200% a page was drawn at four
+// times its size in a view of twice the size: everything in it double,
+// the Dictionary's page too (reported for 0.2.8-dp.2 on Ubuntu 26.04, with
+// CEF taken away; there window.devicePixelRatio was 4 and innerWidth half
+// the widget's). The text is given the desktop's unscaled DPI, as it has
+// in any GTK 3 program there. Where the desktop publishes none (the scale
+// is from Xft.dpi alone, or GDK_SCALE), nothing is changed, as before.
+static void MCUseUnscaledFontDpi(void)
+{
+	void *t_screen = p_gdk_screen_get_default();
+	void *t_settings = p_gtk_settings_get_default();
+	if (t_screen == nullptr || t_settings == nullptr)
+		return;
+
+	MCGValue t_value;
+	memset(&t_value, 0, sizeof(t_value));
+	p_g_value_init(&t_value, MC_G_TYPE_INT);
+	if (p_gdk_screen_get_setting(t_screen, "gdk-unscaled-dpi", &t_value))
+	{
+		// (in 1024ths of a dot per inch, as gtk-xft-dpi is)
+		int t_dpi = p_g_value_get_int(&t_value);
+		if (t_dpi > 0)
+			p_g_object_set(t_settings, "gtk-xft-dpi", t_dpi, (void *)nullptr);
+	}
+	p_g_value_unset(&t_value);
+}
+
 int main(int argc, char *argv[])
 {
 	bool t_probe = false;
@@ -742,6 +797,9 @@ int main(int argc, char *argv[])
 		MCSend("fail", "GTK 3 cannot open the display", std::string(), std::string(), 2);
 		return 1;
 	}
+
+	if (t_scale > 1)
+		MCUseUnscaledFontDpi();
 
 	s_content_manager = p_webkit_user_content_manager_new();
 	MCSignalConnect(s_content_manager, "script-message-received::livecode", (GCallback)MCOnScriptMessage);

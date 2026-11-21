@@ -76,10 +76,13 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --                          "busy" for the busy probe (see kBusyTick),
 --                          "edge" for the edge probe (see kEdgeWait),
 --                          "tests" for the script tests (see kTestsScript)
+--                          or "xtalk" for the xTalk Suite's probe (see
+--                          kXtalkSays)
 --    OXT_ANDROID_ENGINE    the probe's "android,engine" setting ("beyond"
 --                          for OXT-Beyond's own engine; none when empty)
 --    OXT_ANDROID_AAR       an Android library (.aar) to build the probe
 --                          with (its "aarFiles"; none when empty)
+--    OXT_ANDROID_XTALK     the xTalk Suite's probe's list (see kXtalkSays)
 --
 -- The Java layer's probe, AndroidJavaProbe, is the probe with more to do
 -- before it turns green: it asks the Java layer of the runtime for what
@@ -181,6 +184,30 @@ constant kTestsIdentifier = "org.openxtalk.check.androidtests"
 -- The Java layer's probe's picture: one pixel, a PNG, as base64
 constant kProbePicture = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 -- The Java layer's probe's copy file, oxt-probe.txt, and what it holds
+-- kXtalkSays: the xTalk Suite's probe (OXT_ANDROID_PROBE "xtalk") is
+-- built with the IDE's xTalk Suite extensions that have native code for
+-- Android (the standalone settings' "extensions", chosen, not searched
+-- for), and its openStack calls each one's smoke test, as the desktop
+-- check does (tools/ci/run_livecode_check.py): the extension's own
+-- function, which loads its library from the package. OXT_ANDROID_XTALK
+-- is the file android_check.py ide --probe xtalk writes from
+-- tools/oxt/xtalk-extensions.json and the installed extensions, a line a
+-- tab-separated record:
+--    extension <id> <probe expression> <expected value, a regex>
+--    permission <name>    a permission an extension declares
+--                         (metadata android.permissions), which the
+--                         builder must have put in the manifest
+-- It says each extension's answer in the device's log (kXtalkSays, then
+-- the id, then "ok:", "unexpected:" or "threw:" and what it got;
+-- android_check.py device --xtalk reads them) and turns kFailColor when
+-- any is not ok, green otherwise. A permission is not the probe's to
+-- ask: with LiveCode's Java layer, and OXT-Beyond's until 0.2.8-dp.3,
+-- androidHasPermission returns empty, neither true nor false, for one
+-- Android lists in no permission group, as INTERNET is on Android 10 and
+-- newer (Engine.java, checkPermissionExists; the engine's "bad
+-- permission name" error stops no script on Android), so device --xtalk
+-- asks the package manager (dumpsys package) that the app holds it.
+constant kXtalkSays = "OXT-Beyond probe: xtalk"
 constant kProbeCopyName = "oxt-probe.txt"
 constant kProbeCopy = "OXT-Beyond probe copy file"
 
@@ -293,6 +320,7 @@ private command androidUnits
    unitRelaunch tWork
    unitEdgeToEdge tWork
    unitAdaptiveIcon tWork
+   unitDocumentTypes
    unitEngine
    unitFirstTargetEngine
    unitAppBundle tWork
@@ -483,6 +511,50 @@ private command unitRelaunch pWork
    androidUnit "relaunch-declared", tAnswer is tWanted, tAnswer
    removeTree tRuntime
 end unitRelaunch
+
+-- An app that opens documents (its "android,documentTypes" setting): the
+-- manifest's activity gets one filter that offers it for content and file
+-- addresses of each kind listed, once each, by lines or commas; a stack
+-- without the setting, or with an empty one, gets nothing (its manifest
+-- is as it was); and what is no MIME type stops the build, and never
+-- reaches the manifest
+private command unitDocumentTypes
+   local tSettings, tAnswer, tError, tWanted, tBad
+   androidUnit "documents-not-asked", builderCall("androidDocumentFilter", tSettings) is empty, \
+         builderCall("androidDocumentFilter", tSettings)
+   put return & "  ," & return into tSettings["android,documentTypes"]
+   androidUnit "documents-empty", builderCall("androidDocumentFilter", tSettings) is empty, \
+         builderCall("androidDocumentFilter", tSettings)
+   put "application/octet-stream" & return & " application/zip , image/*" & return & "application/zip" \
+         into tSettings["android,documentTypes"]
+   put builderCall("androidDocumentFilter", tSettings) into tAnswer
+   put "<intent-filter>" & \
+         "<action android:name=" & quote & "android.intent.action.VIEW" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.DEFAULT" & quote & " />" & \
+         "<category android:name=" & quote & "android.intent.category.BROWSABLE" & quote & " />" & \
+         "<data android:scheme=" & quote & "content" & quote & " />" & \
+         "<data android:scheme=" & quote & "file" & quote & " />" & \
+         "<data android:mimeType=" & quote & "application/octet-stream" & quote & " />" & \
+         "<data android:mimeType=" & quote & "application/zip" & quote & " />" & \
+         "<data android:mimeType=" & quote & "image/*" & quote & " />" & \
+         "</intent-filter>" into tWanted
+   androidUnit "documents-asked", tAnswer is tWanted, tAnswer
+   put "*/*" into tSettings["android,documentTypes"]
+   androidUnit "documents-any", builderCall("androidDocumentFilter", tSettings) contains \
+         ("<data android:mimeType=" & quote & "*/*" & quote & " />"), builderCall("androidDocumentFilter", tSettings)
+   repeat for each line tBad in "zip" & return & "application/zip" & quote & " /><evil" & return & \
+         "text/plain; charset=utf-8" & return & "/zip" & return & "a/b/c"
+      put tBad into tSettings["android,documentTypes"]
+      put empty into tError
+      put empty into tAnswer
+      try
+         put builderCall("androidDocumentFilter", tSettings) into tAnswer
+      catch tError
+      end try
+      androidUnit "documents-refused-" & the number of chars in tBad, tAnswer is empty and \
+            tError contains "is no kind of document", "answered" && tAnswer & ", threw" && tError
+   end repeat
+end unitDocumentTypes
 
 -- A stack drawn edge to edge (its "android,edge to edge" setting): the
 -- manifest asks the Java layer for it with one meta-data of the
@@ -1063,6 +1135,9 @@ private function probeName
    if $OXT_ANDROID_PROBE is "tests" then
       return "StandaloneTestRunnerMainstack"
    end if
+   if $OXT_ANDROID_PROBE is "xtalk" then
+      return "AndroidXtalkProbe"
+   end if
    return "AndroidProbe"
 end probeName
 
@@ -1125,6 +1200,10 @@ private function probeScript
             "      exit openStack" & return & \
             "   end if" & return after tScript
    end if
+   if probeName() is "AndroidXtalkProbe" then
+      -- each extension's smoke test (see kXtalkSays)
+      put xtalkCalls() after tScript
+   end if
    put "   set the backgroundColor of me to" && quote & kRunColor & quote & return after tScript
    if probeName() is "AndroidBusyProbe" then
       -- it draws without a pause from the start (see kBusyTick)
@@ -1156,6 +1235,9 @@ private function probeScript
             "   send" && quote & "probeBusy" & quote && "to me in" && kBusyTick && "milliseconds" & return & \
             "end probeBusy" after tScript
    end if
+   if probeName() is "AndroidXtalkProbe" then
+      put return & xtalkHandlers() after tScript
+   end if
    -- a tap: a script waiting (kWaitColor), then green again
    put return & "on mouseUp" & return & \
          "   set the backgroundColor of me to" && quote & kWaitColor & quote & return & \
@@ -1170,6 +1252,78 @@ private function probeScript
    end if
    return tScript
 end probeScript
+
+-- The xTalk Suite's probe's list (see kXtalkSays): its records, each a
+-- line of tab-separated items, from the file OXT_ANDROID_XTALK names. No
+-- extension is an error: the probe would pass with nothing tried
+private function xtalkRecords
+   local tText, tRecords, tLine
+   put textDecode(url ("binfile:" & $OXT_ANDROID_XTALK), "UTF-8") into tText
+   replace numToChar(13) with empty in tText
+   set the itemDelimiter to tab
+   repeat for each line tLine in tText
+      if item 1 of tLine is "extension" and the number of items of tLine is 4 then
+         put tLine & return after tRecords
+      else if item 1 of tLine is "permission" and the number of items of tLine is 2 then
+         put tLine & return after tRecords
+      else if tLine is not empty then
+         throw "OXT_ANDROID_XTALK: not a record:" && tLine
+      end if
+   end repeat
+   if not (tRecords begins with "extension" or return & "extension" is in tRecords) then
+      throw "OXT_ANDROID_XTALK names no extension:" && $OXT_ANDROID_XTALK
+   end if
+   return tRecords
+end xtalkRecords
+
+-- A string as a script literal: in quotes, each quote in it "& quote &"
+private function scriptLiteral pText
+   replace quote with quote & " & quote & " & quote in pText
+   return quote & pText & quote
+end scriptLiteral
+
+-- The xTalk Suite's probe's openStack lines: a call of xtalkProbe for
+-- each extension record (a permission record is device --xtalk's: see
+-- kXtalkSays), and kFailColor when any answered something
+private function xtalkCalls
+   local tScript, tLine
+   put "   local tFailed" & return & "   put false into tFailed" & return into tScript
+   set the itemDelimiter to tab
+   repeat for each line tLine in xtalkRecords()
+      if item 1 of tLine is not "extension" then next repeat
+      put "   xtalkProbe" && scriptLiteral(item 2 of tLine) & comma && scriptLiteral(item 3 of tLine) & \
+            comma && scriptLiteral(item 4 of tLine) & return after tScript
+      put "   if the result is not empty then put true into tFailed" & return after tScript
+   end repeat
+   put "   if tFailed then" & return & \
+         "      set the backgroundColor of me to" && quote & kFailColor & quote & return & \
+         "      exit openStack" & return & \
+         "   end if" & return after tScript
+   return tScript
+end xtalkCalls
+
+-- The xTalk Suite's probe's own handlers: xtalkProbe evaluates a smoke
+-- test (a library that does not load throws) and matches its value. It
+-- says what it got (see kXtalkSays) and returns empty when it is ok
+private function xtalkHandlers
+   return "command xtalkProbe pId, pProbe, pExpect" & return & \
+         "   local tValue, tError" & return & \
+         "   try" & return & \
+         "      do" && quote & "put" & quote && "&& pProbe &&" && quote & "into tValue" & quote & return & \
+         "   catch tError" & return & \
+         "      put" && quote & kXtalkSays & quote && "&& pId &&" && quote & "threw:" & quote && \
+         "&& line 1 of tError" & return & \
+         "      return" && quote & "threw" & quote & return & \
+         "   end try" & return & \
+         "   if matchText(tValue, pExpect) then" & return & \
+         "      put" && quote & kXtalkSays & quote && "&& pId &&" && quote & "ok:" & quote && "&& tValue" & return & \
+         "      return empty" & return & \
+         "   end if" & return & \
+         "   put" && quote & kXtalkSays & quote && "&& pId &&" && quote & "unexpected:" & quote && \
+         "&& tValue" & return & \
+         "   return" && quote & "unexpected" & quote & return & \
+         "end xtalkProbe"
+end xtalkHandlers
 
 private command makeProbeStack
    local tProbe
@@ -1217,7 +1371,7 @@ end makeProbeStack
 
 -- The settings of one build (see the header)
 private function buildSettings pName
-   local tSettings, tArch
+   local tSettings, tArch, tLine
    put revSBGetSettings(probeName(), true) into tSettings
    put true into tSettings["android"]
    put probeName() into tSettings["name"]
@@ -1253,6 +1407,20 @@ private function buildSettings pName
             put return & "SSL & Encryption" after tSettings["scriptLibraries"]
          end if
       end if
+   end if
+   -- the xTalk Suite's probe: its extensions, chosen (see kXtalkSays),
+   -- with whatever they depend on, which the builder adds
+   if probeName() is "AndroidXtalkProbe" then
+      put "select" into tSettings["inclusions"]
+      put empty into tSettings["extensions"]
+      set the itemDelimiter to tab
+      repeat for each line tLine in xtalkRecords()
+         if item 1 of tLine is "extension" then
+            put item 2 of tLine & return after tSettings["extensions"]
+         end if
+      end repeat
+      set the itemDelimiter to comma
+      delete the last char of tSettings["extensions"]
    end if
    -- the engine the probe is built with: OXT-Beyond's own (android_check.py
    -- ide --android-engine beyond), or 9.6.3's as a stack that names none

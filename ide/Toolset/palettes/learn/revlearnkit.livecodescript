@@ -30,6 +30,8 @@ script "revLearnKit"
 --  - lists: lkListLines gives a field the lines of a list, of one height,
 --    whose last line scrolls wholly into view, and lkListCentre sets their
 --    text in the middle of them, and so of the hilite;
+--  - pages: lkPageEnd lets the last line of a page of text that scrolls
+--    come wholly into view;
 --  - keeps time: lkStartTicking sends lkTick about sixty times a second
 --    (none while another window is in front, or the browser's window is
 --    not in use: lkTick), which animates the lit
@@ -804,6 +806,21 @@ command lkListLines pObj, pHeight, pLeft
    set the textHeight of pObj to pHeight
    set the margins of pObj to pLeft & ",4,2,10"
 end lkListLines
+
+-- A page of text that scrolls (a label of lkLabel's, under lkScroller):
+-- its last line comes wholly into view at the end of the scroll. The
+-- engine stops a field's scroll 12 points short of the text's height and
+-- its two margins (MCField::vscroll, TEXT_Y_OFFSET, as lkListLines says),
+-- and a label has a top margin of kTextInset and none below: the end of
+-- the scroll left the lower 8 points of the last line below the field,
+-- the bottom of its letters cut off (Community Stacks' page of a long
+-- library, the Easing library's, reported for 0.2.8-dp.2 on Linux and
+-- macOS by bwmilby). A bottom margin of 10 leaves 2 points under it, as
+-- lkListLines does. Nothing else moves: a field's text is set from its
+-- top, and only the end of its scroll changes.
+command lkPageEnd pObj
+   set the bottomMargin of pObj to max(the bottomMargin of pObj, 14 - the topMargin of pObj)
+end lkPageEnd
 
 -- Sets the text of the list pObj (lkListLines) in the middle of its
 -- lines. The shift is a style of the text: call it each time the list's

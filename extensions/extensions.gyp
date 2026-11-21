@@ -89,6 +89,9 @@
 				'script-libraries/httpd/httpd.livecodescript',
 				'script-libraries/qr/qr.livecodescript',
 				'script-libraries/mobileweb/mobileweb.livecodescript',
+				# OXT-Beyond: jsonDecode and jsonEncode, with JSON arrays and
+				# objects kept apart through a shape.
+				'script-libraries/jsoncodec/jsoncodec.livecodescript',
 			],
 			
 			'dependencies':
@@ -159,6 +162,7 @@
 				'libraries/timezone/timezone.lcb',
 				'libraries/macstatusmenu/macstatusmenu.lcb',
 				'libraries/hxtcompat/hxtcompat.lcb',
+				'libraries/androiddocuments/androiddocuments.lcb',
 
 				'widgets/androidbutton/androidbutton.lcb',
 				'widgets/androidfield/androidfield.lcb',

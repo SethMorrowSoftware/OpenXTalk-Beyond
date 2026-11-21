@@ -85,7 +85,7 @@
 --    DONE
 -- The script leaves the IDE running; tools/ci/ui_tour.py ends it.
 
-constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,share-stack,community-stacks,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
+constant kSteps = "appearance,screen,tools,tooltip-tools,hover-tools,tools-vector,tools-modern,tools-modern-wide,tools-modern-names,tools-modern-large,tools-modern-check,tools-modern-sizes,tools-modern-use,tools-modern-drawn,tools-modern-switch,tools-modern-default,tools-widget-install,tools-widget-builder,menubar,menubar-modern,menubar-mac,menu-marks,menu-words,menu-armed-words,menu-submenu-marks,new-stack-sizes,sample,appearance-switch,controls,title-bar,card-border,field-scroll,image-frames,widget-appearance,icon-picker,svg-paths,svg-curves,svg-menu,svg-import,scrollbar-orientation,inspector,inspector-tabs,inspector-text,inspector-scrollbar,inspector-image-id,inspector-gravity,inspector-hypercard,hypercard-disk-image,edit-image-numbers,inspector-graphic,inspector-gradient,inspector-clear-colour,inspector-reset-colour,inspector-clear-button,inspector-clear-pattern,inspector-button-menu,inspector-navbar,inspector-multiple,tooltip-inspector,player,script-editor,script-editor-search,script-editor-handlers,message-box,project-browser,app-browser,dictionary,guides,text-dictionary,preferences,standalone-settings,ext-mergjson,menu-builder,extension-manager,extensions-theme-pass,extension-builder,extension-builder-errors,message-watcher,error-display,search,replicate,object-library,navigator,about,dictionary-online,release-notes,home,kit-dialog,share-stack,community-stacks,community-libraries,learn,example,academy,home-ways-in,home-places,xtalk-assistant,xtalk-chat,answer,ask,icon-chooser,appearance-message,system-switch,code-font,ide-stacks,screen-end,background-default"
 constant kSample = "OXT Tour Sample"
 constant kControls = "OXT Tour Controls"
 -- the card's own colour in the step controls (tourNearCardColour)
@@ -6032,6 +6032,202 @@ function tourBmStyleRow pInfo
    return empty
 end tourBmStyleRow
 
+-- A navigation bar's items in the Inspector: the editor
+-- com.livecode.pi.navbar, a navigation bar in its edit mode, which draws a
+-- sheet with a row for each item: its label, its icon and its highlighted
+-- icon. The icon was drawn in the Inspector's text colour, which is light
+-- in the dark appearance: on a Mac only the highlighted icons could be
+-- seen, and on Linux the others faintly (bwmilby, issue 568). The editor
+-- now gives its widget the labels' black as its own colour. The sheet was
+-- white with black labels in either appearance, a white slab in a dark
+-- Inspector (0.2.8-dp.2's shots on a Mac and on Windows); in the dark
+-- appearance (the systemAppearance dark, and the Inspector dark behind
+-- it) it is now dark, its labels and icons light (sheetPaint in
+-- extensions/widgets/navbar/navbar.lcb). A navigation bar is made as the
+-- Tools palette makes one and inspected, the screen is read between the
+-- first row's two icons, where it is the sheet, and over the icon of every
+-- row that is on it: the sheet must be white, and some of each icon ink,
+-- in the light appearance; in the dark one the sheet must be dark, and
+-- some of each icon light (Linux's systemAppearance is light, a dark GTK
+-- theme or not, and so is its sheet). Then the widget's colour is taken
+-- off for a moment, as it was, and what the screen shows of the first
+-- row's icon is logged
+on tour_inspector_navbar
+   local tCard, tNav, tPI, tEditor, tWidget, tItems, tRows, tRow, tShown, tRead, tFails, tError, tDark, tSheet
+   get tourSampleStack()
+   put the long id of card 1 of stack kSample into tCard
+   try
+      put tourNbMake(tCard) into tNav
+      put tourInspect(tNav) into tPI
+      get tourInspectorSection(tPI, "Basic")
+      put tourInspectorEditor(tPI, "itemArray") into tEditor
+      if tEditor is empty then throw "the Inspector of a navigation bar has no Navigation data row"
+      if there is not a widget 1 of tEditor then throw "the Navigation data row has no widget"
+      put the long id of widget 1 of tEditor into tWidget
+      tourOnScreen tPI
+      tourInFront tPI
+      tourUnlockScreen "inspector-navbar"
+      tourWait 500
+      put the itemArray of tWidget into tItems
+      put the number of elements of tItems into tRows
+      tourRecord "INFO inspector-navbar: the systemAppearance" && the systemAppearance & ", the IDE's dark" && \
+            revIDEAppearanceIsDark() & ", rows" && tRows & ", the widget's foregroundColor" && \
+            quote & the foregroundColor of tWidget & quote
+      if the foregroundColor of tWidget is not "0,0,0" then
+         put "the editor's widget has the foregroundColor" && quote & the foregroundColor of tWidget & quote & \
+               ", not the labels' black" & return after tFails
+      end if
+      -- (the sheet, between the first row's icon and its highlighted icon)
+      put the systemAppearance is "dark" and revIDEAppearanceIsDark() into tDark
+      put tourNbSheet(tPI, tWidget) into tSheet
+      tourRecord "INFO inspector-navbar: the sheet on the screen" && tSheet & ", dark expected" && tDark
+      if tSheet is not "hidden" then
+         if tDark and max(item 1 to 3 of tSheet) > 80 then
+            put "the sheet is" && tSheet && "in the dark appearance, not dark (each of red, green and blue 80 or less)" & \
+                  return after tFails
+         else if not tDark and min(item 1 to 3 of tSheet) < 240 then
+            put "the sheet is" && tSheet && "in the light appearance, not white" & return after tFails
+         end if
+      end if
+      put 0 into tRead
+      repeat with tRow = 1 to tRows
+         put tourNbIcon(tPI, tWidget, tRow) into tShown
+         tourRecord "INFO inspector-navbar: row" && tRow & ": ink, paper and other pixels of its icon on the screen" && tShown
+         if tShown is "hidden" then next repeat
+         add 1 to tRead
+         if tDark then
+            -- (light on the dark sheet)
+            if item 2 of tShown < 40 then
+               put "the icon of row" && tRow && "cannot be seen on the dark sheet:" && item 2 of tShown && \
+                     "light pixels, not 40 or more (ink" && item 1 of tShown & ", other" && item 3 of tShown & ")" & \
+                     return after tFails
+            end if
+         else if item 1 of tShown < 40 then
+            put "the icon of row" && tRow && "cannot be seen on the sheet:" && item 1 of tShown && \
+                  "ink pixels, not 40 or more (paper" && item 2 of tShown & ", other" && item 3 of tShown & ")" & \
+                  return after tFails
+         end if
+      end repeat
+      if tRead is 0 then put "no row of the editor is on the screen" & return after tFails
+      tourShotStack tPI, "08-inspector-navbar-items"
+      set the foregroundColor of tWidget to empty
+      tourWait 500
+      tourRecord "INFO inspector-navbar: with no colour of the widget's own, as it was (the Inspector's" && \
+            quote & the effective foregroundColor of tWidget & quote & "): row 1" && tourNbIcon(tPI, tWidget, 1)
+      set the foregroundColor of tWidget to "0,0,0"
+      tourWait 300
+   catch tError
+      put tourJoin(tError) & return after tFails
+   end try
+   tourCloseInspectors
+   if tNav is not empty and exists(tNav) then delete tNav
+   if tFails is not empty then throw "failed:" && tourJoin(line 1 to -1 of tFails)
+end tour_inspector_navbar
+
+-- A navigation bar made on the card pCard as the Tools palette makes one
+-- (revIDECreateObject, which gives it its metadata's defaults); its long
+-- id
+function tourNbMake pCard
+   local tResult, tError
+   try
+      revIDECreateObject "com.livecode.widget.navbar", pCard, "240,350"
+      put the result into tResult
+   catch tError
+      put tourJoin(tError) into tResult
+   end try
+   -- (revIDECreateObject leaves messages and the screen locked when it
+   -- fails)
+   unlock messages
+   tourUnlockScreen "inspector-navbar"
+   if word 1 of tResult is not "widget" or not exists(tResult) then
+      throw "the IDE made no navigation bar (" & tResult & ")"
+   end if
+   tourCloseInspectors
+   return tResult
+end tourNbMake
+
+-- The screen over the icon of the row pRow of the Inspector's navigation
+-- bar editor, the widget pWidget of the stack pStack: how many of its
+-- pixels are ink (red, green and blue each 100 or less), how many paper
+-- (each 240 or more) and how many neither, "ink,paper,other"; "hidden"
+-- when the icon is not all inside the stack's window and on the screen.
+-- The icon's rect is 30 points square, 145 points in from the widget's
+-- right and 10 down its row of 50 (calculateEditModeIconRects in
+-- extensions/widgets/navbar/navbar.lcb)
+function tourNbIcon pStack, pWidget, pRow
+   local tStack, tScreen, tRect, tLeft, tTop, tData, tInk, tPaper, tOther, tR, tG, tB, i
+   put the rect of stack pStack into tStack
+   put the screenRect into tScreen
+   put the rect of pWidget into tRect
+   put item 1 of tStack + item 3 of tRect - 145 into tLeft
+   put item 2 of tStack + item 2 of tRect + (pRow - 1) * 50 + 10 into tTop
+   if tLeft < max(item 1 of tStack, item 1 of tScreen) or tTop < max(item 2 of tStack, item 2 of tScreen) or \
+         tLeft + 30 > min(item 3 of tStack, item 3 of tScreen) or tTop + 30 > min(item 4 of tStack, item 4 of tScreen) then
+      return "hidden"
+   end if
+   export snapshot from rect (tLeft, tTop, tLeft + 30, tTop + 30) to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put 0 into tInk
+   put 0 into tPaper
+   put 0 into tOther
+   repeat with i = 0 to (the number of bytes of tData) div 4 - 1
+      put byteToNum(byte i * 4 + 2 of tData) into tR
+      put byteToNum(byte i * 4 + 3 of tData) into tG
+      put byteToNum(byte i * 4 + 4 of tData) into tB
+      if tR <= 100 and tG <= 100 and tB <= 100 then
+         add 1 to tInk
+      else if tR >= 240 and tG >= 240 and tB >= 240 then
+         add 1 to tPaper
+      else
+         add 1 to tOther
+      end if
+   end repeat
+   return tInk & comma & tPaper & comma & tOther
+end tourNbIcon
+
+-- The screen between the icon of the first row of the Inspector's
+-- navigation bar editor (the widget pWidget of the stack pStack) and its
+-- highlighted icon, where it is the sheet: 20 points from the widget's
+-- right - 115 to its right - 95, of which the middle 6 points square, 22
+-- down the row, are read; their red, green and blue, each the mean of the
+-- pixels, "r,g,b", or "hidden" when that is not on the screen and in the
+-- stack's window (tourNbIcon says where the icons are)
+function tourNbSheet pStack, pWidget
+   local tStack, tScreen, tRect, tLeft, tTop, tData, tCount, tR, tG, tB, i
+   put the rect of stack pStack into tStack
+   put the screenRect into tScreen
+   put the rect of pWidget into tRect
+   put item 1 of tStack + item 3 of tRect - 108 into tLeft
+   put item 2 of tStack + item 2 of tRect + 22 into tTop
+   if tLeft < max(item 1 of tStack, item 1 of tScreen) or tTop < max(item 2 of tStack, item 2 of tScreen) or \
+         tLeft + 6 > min(item 3 of tStack, item 3 of tScreen) or tTop + 6 > min(item 4 of tStack, item 4 of tScreen) then
+      return "hidden"
+   end if
+   export snapshot from rect (tLeft, tTop, tLeft + 6, tTop + 6) to tData as PNG
+   lock messages
+   create invisible image "oxt_tour_probe" in card 1 of stack "oxt_ui_tour"
+   set the text of image "oxt_tour_probe" of stack "oxt_ui_tour" to tData
+   put the imageData of image "oxt_tour_probe" of stack "oxt_ui_tour" into tData
+   delete image "oxt_tour_probe" of stack "oxt_ui_tour"
+   unlock messages
+   put (the number of bytes of tData) div 4 into tCount
+   if tCount is 0 then return "hidden"
+   put 0 into tR
+   put 0 into tG
+   put 0 into tB
+   repeat with i = 0 to tCount - 1
+      add byteToNum(byte i * 4 + 2 of tData) to tR
+      add byteToNum(byte i * 4 + 3 of tData) to tG
+      add byteToNum(byte i * 4 + 4 of tData) to tB
+   end repeat
+   return round(tR / tCount) & comma & round(tG / tCount) & comma & round(tB / tCount)
+end tourNbSheet
+
 -- The Clear beside a colour takes away the pattern its row holds beside
 -- it too (LittleNemo, openxtalk.org p=26076: in rc.6.15 Clear stayed
 -- disabled while the Background fill was a pattern, so a pattern fill
@@ -6712,6 +6908,11 @@ on tour_message_box
    revIDEOpenPalette "message box"
    tourWait 800
    put revIDEPaletteToStackName("message box") into tMB
+   -- opened again, it keeps the window it opened with. A moment after
+   -- each openStack its tWDTroubleshooting set the systemWindow, to the
+   -- value it had, and the engine made the window again: the Message Box
+   -- was drawn twice (bwmilby on the forum, 0.2.8-dp.2 on Linux)
+   tourMessageBoxOneWindow tMB
    tourShotStack tMB, "11-message-box"
    -- However often its card is laid out, one positionOpenStacksButton
    -- waits for it, and that one is delivered. Each layout sent one more,
@@ -6737,6 +6938,23 @@ on tour_message_box
    -- a palette, in front of the windows of the later steps
    close stack tMB
 end tour_message_box
+
+-- The Message Box, closed and opened again, has the window it opened
+-- with once the messages its openStack sent have been delivered. (The
+-- second open is the one checked: by then the stack has the systemWindow
+-- of its platform and the preferences, which the first may have to set.)
+private command tourMessageBoxOneWindow pMB
+   local tOpened, tSettled
+   close stack pMB
+   revIDEOpenPalette "message box"
+   put the windowId of stack pMB into tOpened
+   tourWait 500
+   put the windowId of stack pMB into tSettled
+   tourRecord "INFO message-box opened with window" && tOpened && "and has" && tSettled && "half a second later"
+   if tSettled is not tOpened then
+      throw "the Message Box's window was made again after it opened (" & tOpened && "then" && tSettled & "): it is drawn twice"
+   end if
+end tourMessageBoxOneWindow
 
 -- how many positionOpenStacksButton messages wait
 function tourMessageBoxWaiting
@@ -10328,6 +10546,12 @@ on tour_community_stacks
          tourCsLastLine tWin, "with the last stack in front"
          get tourSelectedLineMiddle(tWin, "Community Stacks")
          if it is not empty then throw it
+         -- A page longer than the window (a long library's, the Easing
+         -- library's): its last line comes wholly into view at the end of
+         -- the scroll. The page had no bottom margin, and the end of the
+         -- scroll left the lower 8 points of its last line below it
+         -- (bwmilby on the forum, 0.2.8-dp.2 on Linux and macOS)
+         tourCsPageEnd tWin
          tourShotStack tWin, "24c10-community-stacks-long"
          -- (the list of three and its signature again, for what follows)
          put tIndex into url ("binfile:" & tSite & "/index.json")
@@ -10379,6 +10603,260 @@ on tour_community_stacks
    if tError is not empty then throw tError
 end tour_community_stacks
 
+-- The same window with Libraries in front: a gallery of the tour's own,
+-- in a folder, with one script library, Tour Tween. Its list is shown
+-- only once it is signed; its page says what the library gives a stack
+-- and what installing means; Install asks first, and closed it installs
+-- nothing; agreed to, the package is fetched, checked and given to the
+-- Extension Manager, after which the library's function answers, and the
+-- Extension Manager uninstalls it. A package that is not the one listed
+-- is never installed.
+on tour_community_libraries
+   local tFolder, tSite, tPublic, tSecret, tKey, tHave, tWin, tScript, tManifest, tPackage, tList, tSig, tEntry
+   local tResult, tError, tOut, tLine, tInstalled, tToolset, tWait, tPing
+   put "revCommunityStacks" into tWin
+   put "tour.tween" into tPing
+   put empty into sCommunityNotes
+   put specialFolderPath("temporary") & "/oxt_tour_libraries_" & the milliseconds into tFolder
+   put tFolder & "/site" into tSite
+   create folder tFolder
+   create folder tSite
+   create folder (tSite & "/l")
+   create folder (tSite & "/l/tour-tween")
+   create folder (tSite & "/l/tour-tween/1.0")
+   if there is no folder (tSite & "/l/tour-tween/1.0") then throw "no folder" && tSite
+   try
+      put false into tHave
+      try
+         sxSignKeypair tPublic, tSecret
+         put the number of bytes of tPublic is 32 into tHave
+      catch tWait
+         put false into tHave
+      end try
+      put revIDESpecialFolderPath("Toolset") into tToolset
+      set the itemDelimiter to slash
+      put there is a folder (item 1 to -2 of tToolset & "/Extensions/org.openxtalk.library.sodium") into tInstalled
+      set the itemDelimiter to comma
+      if tInstalled and not tHave then
+         throw "SodiumXT is installed in this IDE and is not loaded: the gallery's list could never be checked"
+      end if
+      if tHave then
+         put base64Encode(tPublic) into tKey
+      else
+         put base64Encode("0123456789abcdef0123456789abcdef") into tKey
+      end if
+      if revIDEExtensionProperty(tPing, "status") is not empty then
+         revIDEExtensionUninstall tPing
+      end if
+
+      -- The tour's library, packaged as the gallery packages one: its
+      -- manifest first, then the script with the pair of handlers that
+      -- put it in use when the IDE loads it
+      put "script " & quote & tPing & quote & return & \
+            "function tourTweenPing" & return & "   return " & quote & "pong" & quote & return & "end tourTweenPing" & return & \
+            "on extensionInitialize" & return & "   if the target is not me then pass extensionInitialize" & return & \
+            "   insert the script of me into back" & return & "end extensionInitialize" & return & \
+            "on extensionFinalize" & return & "   if the target is not me then pass extensionFinalize" & return & \
+            "   remove the script of me from back" & return & "end extensionFinalize" & return into tScript
+      put textEncode(tScript, "utf-8") into tScript
+      put textEncode("<package version=" & quote & "0.0" & quote & ">" & return & "  <name>" & tPing & "</name>" & return & \
+            "  <title>Tour Tween</title>" & return & "  <author>A. Tourist</author>" & return & "  <version>1.0</version>" & return & \
+            "  <type>library</type>" & return & "  <license>community</license>" & return & "</package>" & return, "utf-8") into tManifest
+      put tSite & "/l/tour-tween/1.0/tour-tween-1.0.lce" into tPackage
+      revZipOpenArchive tPackage, "write"
+      revZipAddItemWithData tPackage, "manifest.xml", "tManifest"
+      revZipAddItemWithData tPackage, "tour-tween.livecodescript", "tScript"
+      revZipCloseArchive tPackage
+      put url ("binfile:" & tPackage) into tPackage
+      if tPackage is empty then throw "the tour's library could not be packaged"
+      put "{" & tourCsPair("slug", "tour-tween") & "," & tourCsPair("version", "1.0") & "," & tourCsPair("title", "Tour Tween") & "," & \
+            tourCsPair("author", "A. Tourist") & "," & \
+            tourCsPair("description", "Smooth steps between two numbers. Give it a start, an end and a moment, and it answers.") & "," & \
+            tourCsPair("licence", "MIT") & "," & tourCsPair("name", tPing) & "," & tourCsPair("main", "tour-tween.livecodescript") & "," & \
+            quote & "handlers" & quote & ":[{" & tourCsPair("kind", "function") & "," & tourCsPair("name", "tourTweenPing") & "," & \
+            tourCsPair("text", "function tourTweenPing") & "}]," & quote & "messages" & quote & ":[]," & \
+            quote & "notes" & quote & ":[]," & tourCsPair("demo", "tour-beat-box") & "," & \
+            tourCsPair("download", "l/tour-tween/1.0/tour-tween-1.0.lce") & "," & tourCsPair("page", "l/tour-tween/index.html") & "," & \
+            tourCsPair("source", "l/tour-tween/1.0/source.html") & "," & quote & "script_lines" & quote & ":12," & \
+            tourCsPair("sha256", tourCsSha(tPackage)) & "," & quote & "size" & quote & ":" & the number of bytes of tPackage & "," & \
+            quote & "tags" & quote & ":[" & quote & "tour" & quote & "]," & quote & "uses" & quote & ":[]," & \
+            quote & "versions" & quote & ":[{" & tourCsPair("version", "1.0") & "," & tourCsPair("name", tPing) & "," & \
+            tourCsPair("download", "l/tour-tween/1.0/tour-tween-1.0.lce") & "," & tourCsPair("sha256", tourCsSha(tPackage)) & "," & \
+            quote & "size" & quote & ":" & the number of bytes of tPackage & "," & quote & "files" & quote & ":[{" & \
+            tourCsPair("path", "manifest.xml") & "," & tourCsPair("sha256", tourCsSha(tManifest)) & "," & \
+            quote & "size" & quote & ":" & the number of bytes of tManifest & "},{" & \
+            tourCsPair("path", "tour-tween.livecodescript") & "," & tourCsPair("sha256", tourCsSha(tScript)) & "," & \
+            quote & "size" & quote & ":" & the number of bytes of tScript & "}]}]}" into tEntry
+      put textEncode("{" & quote & "format" & quote & ":1," & tourCsPair("name", "Tour Libraries") & "," & \
+            quote & "libraries" & quote & ":[" & tEntry & "]}" & return, "utf-8") into tList
+      put tList into url ("binfile:" & tSite & "/libraries.json")
+      put tPackage into url ("binfile:" & tSite & "/l/tour-tween/1.0/tour-tween-1.0.lce")
+
+      -- With no signature: not shown
+      revIDEActionCommunityStacks tSite, tKey, "libraries"
+      if the result is not empty then throw the result
+      tourCsWait tWin
+      dispatch function "revCommunityStacksMode" to stack tWin
+      if the result is not "libraries" then throw "the window did not open on its libraries:" && the result
+      dispatch function "revCommunityStacksState" to stack tWin
+      if the result is not "problem" or field "idx" of stack tWin is not empty then
+         throw "a list of libraries with no signature was shown"
+      end if
+      if the visible of group "install" of stack tWin or not the visible of group "again" of stack tWin then
+         throw "with no list of libraries, the buttons are not Try Again alone"
+      end if
+      tourRecord "INFO community-libraries: unsigned:" && tourJoin(the text of field "page" of stack tWin)
+      tourCsWhole tWin, "modeStacks_label"
+      tourCsWhole tWin, "modeLibraries_label"
+
+      if tHave then
+         put base64Encode(sxSignDetached(tList, tSecret)) into tSig
+         replace return with empty in tSig
+         put tSig & return into url ("binfile:" & tSite & "/libraries.sig")
+         send "lkAction again" to stack tWin
+         tourCsWait tWin
+         dispatch function "revCommunityStacksState" to stack tWin
+         if the result is not "list" then
+            throw "the signed list of libraries was not shown:" && tourJoin(the text of field "page" of stack tWin)
+         end if
+         if field "idx" of stack tWin is not "Tour Tween" or field "navCount" of stack tWin is not "1 library" \
+               or field "hdrTitle" of stack tWin is not "Tour Tween" then
+            throw "the window shows" && tourJoin(field "idx" of stack tWin) & "," && field "navCount" of stack tWin
+         end if
+         if not the visible of group "install" of stack tWin or not the visible of group "demo" of stack tWin \
+               or not the visible of group "script" of stack tWin or the visible of group "copy" of stack tWin \
+               or the visible of group "play" of stack tWin then
+            throw "with a library in front, the buttons are not Try the Demo, Read Its Script and Install"
+         end if
+         if not (the text of field "page" of stack tWin contains "function tourTweenPing") \
+               or not (the text of field "page" of stack tWin contains "no box around it") then
+            throw "the library's page does not say what it gives and what installing means:" && tourJoin(the text of field "page" of stack tWin)
+         end if
+         tourWait 400
+         get tourSelectedLineMiddle(tWin, "Community Stacks")
+         if it is not empty then throw it
+         tourShotStack tWin, "24c11-community-libraries"
+
+         -- Install asks first; closed, it installs nothing
+         dispatch function "revCommunityStacksShown" to stack tWin
+         put the result into tEntry
+         if tEntry["name"] is not tPing then throw "the library in front is" && tEntry["name"]
+         send "tourShotLibraryAsk" to me in 1500 milliseconds
+         revIDECommunityLibraryInstall tEntry, tSite, tFolder & "/fetched"
+         put the result into tResult
+         if sCommunityNotes is not empty then throw sCommunityNotes
+         if tResult is not empty or revIDEExtensionProperty(tPing, "status") is not empty then
+            throw "Install, not agreed to, installed:" && tResult
+         end if
+
+         -- Agreed to: installed, and its function answers
+         send "tourLibraryAgree" to me in 1500 milliseconds
+         revIDECommunityLibraryInstall tEntry, tSite, tFolder & "/fetched"
+         put the result into tResult
+         if sCommunityNotes is not empty then throw sCommunityNotes
+         if tResult is not "installed" or revIDEExtensionProperty(tPing, "status") is not "installed" then
+            throw "the library was not installed:" && tResult && revIDEExtensionProperty(tPing, "status")
+         end if
+         if there is a file (tFolder & "/fetched/tour-tween-1.0.lce") then
+            throw "the package was left behind once it was installed"
+         end if
+         put value("tourTweenPing()") into tOut
+         if tOut is not "pong" then throw "the installed library's function answers" && tOut
+         tourRecord "INFO community-libraries: installed, tourTweenPing() is" && tOut
+
+         -- Back to the stacks and to the libraries again: each list is kept
+         send "lkAction mode-stacks" to stack tWin
+         tourCsWait tWin
+         dispatch function "revCommunityStacksMode" to stack tWin
+         if the result is not "stacks" then throw "the switch did not show the stacks"
+         send "lkAction mode-libraries" to stack tWin
+         tourWait 300
+         if field "idx" of stack tWin is not "Tour Tween" then throw "the libraries were not kept:" && tourJoin(field "idx" of stack tWin)
+         -- (and the library's page now says that it is installed)
+         if not (the text of field "page" of stack tWin contains "Installed.") then
+            throw "the page of an installed library does not say so:" && tourJoin(the text of field "page" of stack tWin)
+         end if
+
+         revIDEExtensionUninstall tPing
+         if revIDEExtensionProperty(tPing, "status") is not empty then throw "the Extension Manager did not uninstall the library"
+
+         -- A package changed on the site is never installed
+         put "x" after url ("binfile:" & tSite & "/l/tour-tween/1.0/tour-tween-1.0.lce")
+         dispatch "revCommunityLibrariesGet" to stack tWin with tEntry, tFolder & "/fetched", tSite
+         if not (the result begins with "error:") or there is a file (tFolder & "/fetched/tour-tween-1.0.lce") then
+            throw "a package that was changed was kept:" && the result
+         end if
+         if revIDEExtensionProperty(tPing, "status") is not empty then throw "a changed package was installed"
+      end if
+   catch tError
+   end try
+   if sCommunityNotes is not empty and tError is empty then put sCommunityNotes into tError
+   repeat for each item tLine in "revCommunityStacks,revKitDialog"
+      if there is a stack tLine and the mode of stack tLine is not 0 then
+         close stack tLine
+      end if
+   end repeat
+   try
+      if revIDEExtensionProperty(tPing, "status") is not empty then
+         revIDEExtensionUninstall tPing
+      end if
+   catch tWait
+   end try
+   tourCsRemove tFolder
+   if tError is not empty then throw tError
+end tour_community_libraries
+
+-- Install has asked: the dialog that says what installing a library
+-- means, closed without agreeing
+on tourShotLibraryAsk
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "Install did not ask first"
+      end if
+      tourShotStack "revKitDialog", "24c12-community-libraries-ask"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+   end try
+   if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+      close stack "revKitDialog"
+   end if
+end tourShotLibraryAsk
+
+-- Install has asked again: this time Install is pressed, and the dialog
+-- that says it is installed is snapshot and closed
+on tourLibraryAgree
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "Install did not ask first"
+      end if
+      send "tourShotLibraryInstalled" to me in 2500 milliseconds
+      send "lkAction b:2" to stack "revKitDialog"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+      if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+         close stack "revKitDialog"
+      end if
+   end try
+end tourLibraryAgree
+
+on tourShotLibraryInstalled
+   local tError
+   try
+      if there is not a stack "revKitDialog" or the mode of stack "revKitDialog" is 0 then
+         throw "nothing said that the library was installed"
+      end if
+      tourShotStack "revKitDialog", "24c13-community-libraries-installed"
+      send "lkAction b:1" to stack "revKitDialog"
+   catch tError
+      put tourJoin(tError) into sCommunityNotes
+      if there is a stack "revKitDialog" and the mode of stack "revKitDialog" is not 0 then
+         close stack "revKitDialog"
+      end if
+   end try
+end tourShotLibraryInstalled
+
 -- "name":"value" for the tour's list (its values need no escaping)
 private function tourCsPair pName, pValue
    return quote & pName & quote & ":" & quote & pValue & quote
@@ -10425,6 +10903,37 @@ private command tourCsLastLine pWin, pWhen
             "and the index shows" && tTop && "to" && tBottom && "(scroll" && the vScroll of field "idx" of stack pWin & ")"
    end if
 end tourCsLastLine
+
+-- The last line of the window's page, made longer than the page shows,
+-- is wholly in view at the end of the scroll: none of it below the page's
+-- bottom. The page's own text is put back after.
+private command tourCsPageEnd pWin
+   local tSaved, tHtml, tRect, tTop, tBottom, tCount
+   put the htmlText of field "page" of stack pWin into tSaved
+   put tSaved into tHtml
+   repeat with tCount = 1 to 60
+      put "<p>Line" && tCount && "of a long page, with gypsy letters that reach below the line</p>" after tHtml
+   end repeat
+   set the htmlText of field "page" of stack pWin to tHtml
+   if the formattedHeight of field "page" of stack pWin <= the height of field "page" of stack pWin then
+      throw "the tour's long page fits the page (" & the formattedHeight of field "page" of stack pWin && "of" && \
+            the height of field "page" of stack pWin & "): it is too short to scroll"
+   end if
+   set the vScroll of field "page" of stack pWin to 30000
+   put the formattedRect of line -1 of field "page" of stack pWin into tRect
+   put the top of field "page" of stack pWin into tTop
+   put the bottom of field "page" of stack pWin into tBottom
+   tourRecord "INFO community-stacks: the last line of a long page at the end of the scroll:" && item 2 of tRect && "to" && \
+         item 4 of tRect && "in the page's" && tTop && "to" && tBottom & ", scroll" && the vScroll of field "page" of stack pWin & \
+         ", margins" && the topMargin of field "page" of stack pWin & "," && the bottomMargin of field "page" of stack pWin
+   if item 4 of tRect > tBottom then
+      throw "the last line of a long page is cut at the end of the scroll: its line is" && item 2 of tRect && "to" && \
+            item 4 of tRect && "and the page shows" && tTop && "to" && tBottom && "(scroll" && \
+            the vScroll of field "page" of stack pWin & ")"
+   end if
+   set the htmlText of field "page" of stack pWin to tSaved
+   set the vScroll of field "page" of stack pWin to 0
+end tourCsPageEnd
 
 -- Waits for the window to have asked its site, at most ten seconds
 private command tourCsWait pWin

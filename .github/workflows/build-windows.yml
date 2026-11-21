@@ -107,11 +107,14 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
+      - '.github/workflows/web-prerelease.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-java.yml'
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
+      - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/web-host/**'
@@ -120,10 +123,13 @@ on:
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
       - 'tools/ci/release_notes.py'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
@@ -134,6 +140,8 @@ on:
       - 'tools/ci/backdrop_focus_check.py'
       - 'tools/ci/browser-wm-check.livecodescript'
       - 'tools/ci/browser_wm_check.py'
+      - 'tools/ci/grab-menu-check.livecodescript'
+      - 'tools/ci/grab_menu_check.py'
       - 'tools/ci/check_elf_floor.py'
       - 'tools/ci/check_linux_libraries.py'
       - 'tools/ci/check_macho_floor.py'
@@ -146,6 +154,8 @@ on:
       - 'tools/ci/mac_ide_start.sh'
       - 'tools/ci/mac-menu-backdrop.livecodescript'
       - 'tools/ci/mac_menu_backdrop.py'
+      - 'tools/ci/visual-effect-check.livecodescript'
+      - 'tools/ci/visual_effect_check.py'
       - 'tools/ci/merge_universal.py'
       - 'tools/ci/sign_mac_app.py'
       - 'tools/ci/test_linux_package.py'
@@ -985,6 +995,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # What the runtimes asset (oxt-runtimes-<label>, made by runtimes.yml
+      # with make_runtimes_asset.py --builds) takes from this build, checked
+      # as --builds checks it, from the binaries zip that runtimes.yml takes:
+      # a file it wants that this build no longer makes, a binary of another
+      # architecture, or a Standalone without this tree's engine version
+      # fails here, the day it happens, not in the runtimes run before a
+      # release. After the uploads, so that a failure leaves the build to
+      # look at.
+      - name: Check what the runtimes asset takes from this build
+        id: runtimes_check
+        env:
+          VERSION: ${{ steps.product.outputs.version }}
+        run: |
+          $zip = "dist/OXT-Beyond-$env:VERSION-win-x86_64-binaries.zip"
+          if (-not (Test-Path -LiteralPath $zip -PathType Leaf)) { throw "$zip was not written" }
+          python tools/oxt/make_runtimes_asset.py --check-bin "win-x86_64=$zip"
+          if ($LASTEXITCODE -ne 0) { throw "make_runtimes_asset.py --check-bin failed with exit code $LASTEXITCODE" }
+
       # The IDE's own windows, as a user sees them with Windows light and
       # dark: tools/ci/ui_tour.py starts the staged IDE with
       # tools/ci/ui-tour.livecodescript, which opens the palettes, the
@@ -1187,6 +1215,7 @@ jobs:
           COMPILE_CHECK_OUTCOME: ${{ steps.compile_check.outcome }}
           INSTALLER_OUTCOME: ${{ steps.installer.outcome }}
           TEST_INSTALLER_OUTCOME: ${{ steps.test_installer.outcome }}
+          RUNTIMES_CHECK_OUTCOME: ${{ steps.runtimes_check.outcome }}
         run: |
           $outcomes = [ordered]@{
             'Lint IDE sources' = $env:IDE_LINT_OUTCOME
@@ -1208,6 +1237,7 @@ jobs:
             'IDE compile check' = $env:COMPILE_CHECK_OUTCOME
             'Build installer' = $env:INSTALLER_OUTCOME
             'Test installer' = $env:TEST_INSTALLER_OUTCOME
+            'Runtimes asset check' = $env:RUNTIMES_CHECK_OUTCOME
           }
           Write-Host 'Step outcomes:'
           $summary = @('### Failure diagnostics', '', '| Step | Outcome |', '| --- | --- |')
@@ -1331,15 +1361,20 @@ jobs:
   # The dark switch check (tools/ci/dark_switch_check.py) on the portable
   # zip of the job above, from its artifact, on Windows Server 2022 (Windows
   # 10's code base) and 2025 (Windows 11's) with visual styles on: a
-  # standard button, an option menu and a combo box are drawn for the
-  # appearance Windows has, when the engine starts in it and when Windows is
-  # switched to it while the engine runs. The build's own job has no visual
-  # styles (its tour's screenshots are of the controls the engine draws
-  # itself), so the Windows theme's buttons, which people have, are only
-  # drawn here. Up to 0.2.7 they were light grey with white words after a
-  # switch to dark while the engine ran (openxtalk.org p=26224). The check
-  # reads them from the engine's snapshots and from the screen, and a screen
-  # it cannot read is a failure (--need-screen).
+  # standard button, an option menu, a combo box and a field are drawn for
+  # the appearance Windows has, when the engine starts in it and when
+  # Windows is switched to it while the engine runs; and the fields and
+  # buttons of a stack made before the dark appearance (a light background
+  # of their own, no text colour) keep the dark words LiveCode Community
+  # gave them, in both appearances (MCObject::getlegacywords). The build's
+  # own job has no visual styles (its tour's screenshots are of the controls
+  # the engine draws itself), so the Windows theme's buttons, which people
+  # have, are only drawn here. Up to 0.2.7 they were light grey with white
+  # words after a switch to dark while the engine ran (openxtalk.org
+  # p=26224); up to 0.2.8-dp.2 an older stack's white field had white words
+  # in the dark appearance. The check reads them from the engine's snapshots
+  # and from the screen, and a screen it cannot read is a failure
+  # (--need-screen).
   dark-switch:
     name: Dark switch check (${{ matrix.runner }})
     if: ${{ needs.gate.outputs.build != 'false' }}
@@ -1622,6 +1657,15 @@ jobs:
       - name: Standalone check (build output)
         timeout-minutes: 15
         run: python tools/ci/standalone_check.py --engine win-x86-bin/LiveCode-Community.exe --runtime win-x86-bin/standalone-community.exe --platform win-x86 --log "$env:RUNNER_TEMP\build-logs\standalone-check.log"
+
+      # What the runtimes asset takes from this build (make_runtimes_asset.py
+      # --check-bin; see the win-x86_64 job's step of that name), from the
+      # archive runtimes.yml takes; after the tests, so that a failure here
+      # leaves their results
+      - name: Check what the runtimes asset takes from this build
+        run: |
+          python tools/oxt/make_runtimes_asset.py --check-bin "win-x86=OXT-Beyond-win-x86-bin.zip"
+          if ($LASTEXITCODE -ne 0) { throw "make_runtimes_asset.py --check-bin failed with exit code $LASTEXITCODE" }
 
       - name: Collect logs
         if: always()

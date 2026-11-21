@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- The forum's "Try it in the browser" page (seth, 2026-11-19): a stack
+     attached to a post on openxtalk.org/forum plays here, in OXT-Beyond's
+     bare player, inside a frame that the browser boxes in (its sandbox has
+     no allow-same-origin). The stack's script, and any JavaScript it runs,
+     is then a stranger to this site and to the forum: it cannot read the
+     web IDE's saved stacks here, the forum's login, or anything of the
+     reader's. build_pages.py fills in the sandbox and the forum's address and puts the
+     boxed player at box/ (forum_player). The page takes ?id= (the
+     attachment's number), ?name= (its file name) and ?t= (the topic, for
+     the way back); nothing else of the address is read, and nothing of it
+     is written into the page as HTML. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Try a forum stack - OXT-Beyond</title>
+<style>
+  :root { --bg: #f4f1ea; --fg: #1d1b16; --muted: #5f5a4e; --bar: #fffdf8; --line: #d9d2c3; --accent: #c2410c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161b; --fg: #ece8df; --muted: #a39d90; --bar: #1d2027; --line: #343844; --accent: #fb923c; }
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; min-height: 100dvh; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px;
+    padding-top: max(8px, env(safe-area-inset-top)); background: var(--bar); border-bottom: 1px solid var(--line); }
+  .bar a, .bar button { color: var(--accent); font: inherit; text-decoration: none; background: none;
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .bar a:hover, .bar button:hover { border-color: var(--accent); }
+  .now { flex: 1 1 200px; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note { margin: 0; padding: 6px 16px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  iframe { flex: 1 1 auto; width: 100%; min-height: 360px; border: 0; background: #000; }
+  .refused { margin: 48px 16px; text-align: center; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a id="back" href="https://openxtalk.org/forum/">&larr; Back to the forum</a>
+  <p class="now"><b id="name">A forum stack</b></p>
+  <button id="full" type="button">Full screen</button>
+</header>
+<p class="note" id="note">This stack comes from a forum post and nobody has checked it. It plays in a box:
+  it cannot see your forum login, this site's saved stacks or the files on your computer.</p>
+<iframe id="stack" title="A forum stack" sandbox="@SANDBOX@" allow="fullscreen; autoplay; gamepad" allowfullscreen hidden></iframe>
+<p class="refused" id="refused" hidden>This link does not name a stack attached to a forum post.</p>
+<script>
+(function () {
+  var FILES = '@FORUM_FILES@';
+  // the files a forum stack can be (the forum's Try button offers these)
+  var NAME = /^[^\/\\\u0000-\u001f\u007f]{1,120}\.(livecode|oxtstack|rev|mc|livecodescript|zip)$/i;
+  var params = new URLSearchParams(location.search);
+  var id = params.get('id') || '', name = params.get('name') || '', topic = params.get('t') || '';
+  var $ = function (x) { return document.getElementById(x); };
+  if (/^[0-9]{1,9}$/.test(topic)) $('back').href = 'https://openxtalk.org/forum/viewtopic.php?t=' + topic;
+  if (!/^[0-9]{1,9}$/.test(id) || !NAME.test(name)) {
+    $('refused').hidden = false;
+    $('note').hidden = true;
+    $('full').hidden = true;
+    return;
+  }
+  $('name').textContent = name;
+  document.title = name + ' - Try a forum stack';
+  var frame = $('stack');
+  frame.title = name;
+  frame.src = 'box/index.html?stack=' + encodeURIComponent(FILES + id + '/' + encodeURIComponent(name));
+  frame.hidden = false;
+  if (!frame.requestFullscreen) $('full').hidden = true;
+  else $('full').addEventListener('click', function () { frame.requestFullscreen(); });
+})();
+</script>
+</body>
+</html>

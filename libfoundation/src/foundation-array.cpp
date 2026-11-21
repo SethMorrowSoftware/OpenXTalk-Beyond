@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include <foundation.h>
 #include <foundation-auto.h>
 #include <foundation-stdlib.h>
@@ -45,6 +49,9 @@ static bool __MCArrayRehash(__MCArray *self, index_t by);
 
 // Returns the number of entries in the key-value table for the array.
 static uindex_t __MCArrayGetTableSize(__MCArray *self);
+
+// Sets the index of the table's size in the array's flags.
+static void __MCArraySetTableSizeIndex(__MCArray *self, uindex_t p_new_index);
 
 // Returns the maximum number of entries for a given array size that minimises rehashing.
 static uindex_t __MCArrayGetTableCapacity(__MCArray *self);
@@ -623,6 +630,103 @@ bool MCArrayIsEmpty(MCArrayRef self)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: the kind mark (kMCArrayFlagIsMarkedSequence and
+// kMCArrayFlagIsMarkedDictionary). An indirect array and its contents carry
+// the same mark: __MCArrayCreateIndirect gives the new array its contents'
+// mark, __MCArrayMakeIndirect gives the new contents the array's, and
+// MCArraySetKindMark makes an indirect array direct before it changes the
+// mark. So MCArrayCopy, which returns the contents of an indirect array,
+// returns an array with the mark of the one it copies.
+
+static MCArrayKindMark __MCArrayKindMarkFromFlags(uint32_t p_flags)
+{
+	if ((p_flags & kMCArrayFlagIsMarkedSequence) != 0)
+		return kMCArrayKindMarkSequence;
+	if ((p_flags & kMCArrayFlagIsMarkedDictionary) != 0)
+		return kMCArrayKindMarkDictionary;
+	return kMCArrayKindMarkNone;
+}
+
+static uint32_t __MCArrayFlagsFromKindMark(MCArrayKindMark p_mark)
+{
+	switch (p_mark)
+	{
+		case kMCArrayKindMarkSequence:
+			return kMCArrayFlagIsMarkedSequence;
+		case kMCArrayKindMarkDictionary:
+			return kMCArrayFlagIsMarkedDictionary;
+		case kMCArrayKindMarkNone:
+			break;
+	}
+	return 0;
+}
+
+MC_DLLEXPORT_DEF
+MCArrayKindMark MCArrayGetKindMark(MCArrayRef self)
+{
+	__MCAssertIsArray(self);
+	return __MCArrayKindMarkFromFlags(self -> flags);
+}
+
+MC_DLLEXPORT_DEF
+bool MCArraySetKindMark(MCArrayRef self, MCArrayKindMark p_mark)
+{
+	__MCAssertIsArray(self);
+	MCAssert(MCArrayIsMutable(self));
+
+	if (__MCArrayKindMarkFromFlags(self -> flags) == p_mark)
+		return true;
+
+	// The contents of an indirect array are shared, and carry the mark the
+	// array has: it takes its own copy of them first. Empty contents have no
+	// table to copy (and may be kMCEmptyArray, which is never changed).
+	if (__MCArrayIsIndirect(self))
+	{
+		if (self -> contents -> key_value_count == 0)
+		{
+			MCValueRelease(self -> contents);
+			self -> key_values = nil;
+			self -> key_value_count = 0;
+			__MCArraySetTableSizeIndex(self, 0);
+			self -> flags &= ~kMCArrayFlagIsIndirect;
+		}
+		else if (!__MCArrayResolveIndirect(self))
+			return false;
+	}
+
+	self -> flags = (self -> flags & ~kMCArrayFlagKindMarkMask) |
+					__MCArrayFlagsFromKindMark(p_mark);
+	return true;
+}
+
+MC_DLLEXPORT_DEF
+bool MCArrayCopyWithKindMark(MCArrayRef self, MCArrayKindMark p_mark, MCArrayRef& r_new_array)
+{
+	__MCAssertIsArray(self);
+
+	if (!MCArrayIsMutable(self) &&
+		__MCArrayKindMarkFromFlags(self -> flags) == p_mark)
+	{
+		r_new_array = MCValueRetain(self);
+		return true;
+	}
+
+	MCArrayRef t_array;
+	if (!MCArrayMutableCopy(self, t_array))
+		return false;
+
+	if (!MCArraySetKindMark(t_array, p_mark) ||
+		!MCArrayCopyAndRelease(t_array, r_new_array))
+	{
+		MCValueRelease(t_array);
+		return false;
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 MC_DLLEXPORT_DEF
 bool MCArrayConvertToProperList(MCArrayRef p_array, MCProperListRef& r_list)
 {
@@ -787,6 +891,8 @@ static bool __MCArrayCreateIndirect(__MCArray *p_contents, __MCArray*& r_array)
 		return false;
 
 	self -> flags |= kMCArrayFlagIsMutable | kMCArrayFlagIsIndirect;
+	// OXT-Beyond: with the mark of its contents (MCArraySetKindMark)
+	self -> flags |= p_contents -> flags & kMCArrayFlagKindMarkMask;
 	self -> contents = MCValueRetain(p_contents);
 
 	r_array = self;
@@ -852,6 +958,8 @@ static bool __MCArrayMakeIndirect(__MCArray *self)
 
 	// Fill in our new array.
 	t_array -> flags |= self -> flags & kMCArrayFlagCapacityIndexMask;
+	// OXT-Beyond: and with our mark (MCArraySetKindMark)
+	t_array -> flags |= self -> flags & kMCArrayFlagKindMarkMask;
 	t_array -> key_value_count = self -> key_value_count;
 	t_array -> key_values = self -> key_values;
 

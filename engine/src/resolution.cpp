@@ -14,6 +14,10 @@
  You should have received a copy of the GNU General Public License
  along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "filedefs.h"
@@ -116,7 +120,16 @@ void MCResListScreenPixelScales(bool p_plural, uindex_t& r_count, double *&r_lis
     MCAutoArray<double> t_list;
     if (t_list.New(t_limit))
         for (uint32_t i = 0; i < t_limit; i++)
-            t_list[i] = t_displays[i].pixel_scale;
+        {
+            // OXT-Beyond: with no display (the engine run with -ui where no
+            // window system is running) there is no first display to read,
+            // and "the screenPixelScale" crashed the engine there (LiveCode
+            // Community 9.6.3 too). A scale of 1, as for an unscaled screen.
+            if (i < t_display_count && t_displays != nil)
+                t_list[i] = t_displays[i].pixel_scale;
+            else
+                t_list[i] = 1.0;
+        }
 
     t_list . Take(r_list, r_count);
 }

@@ -110,10 +110,15 @@ asyncify_remove = [
     'inflate*', 'deflate*', 'crc32*', 'adler32*', '_tr_*',
     # SQLite, whose sync no longer waits for the browser's storage
     # (thirdparty/libsqlite/libsqlite.gyp), and whose callbacks (revDB's
-    # row counts, its lpad() function) run no script; its largest static
-    # functions by name
+    # row counts, its lpad() function, the math and REGEXP functions the
+    # driver adds, thirdparty/libsqlite/src/sqlitefunctions.c) run no
+    # script; its largest static functions by name, and the functions of
+    # the driver's that call through a pointer: the math functions call
+    # libm's, and REGEXP's compiler its next-character function (its
+    # matcher, which does too, is named sqlite3re_match)
     'sqlite3*', 'fts3*', 'fts5*', 'yy_reduce', 'balance', 'resolveExprStep', 'exprAnalyze',
-    'multiSelect',
+    'multiSelect', 'oxt_sql*', 'ceilingFunc', 'logFunc', 'math1Func', 'math2Func',
+    're_subcompile_re', 're_subcompile_string',
     # operator new calls a new handler through a pointer, and the engine
     # sets none; leaving it out leaves out much of the engine that only
     # allocates
@@ -135,6 +140,10 @@ asyncify_remove_xtalk = [
     'blake2b*', 'fe25519_*', 'ge25519_*', 'sc25519_*', 'ristretto255_*',
     # Box2Dxt: the shim and Box2D
     'b2*',
+    # box3dxt: the shim and Box3D. Their calls through a pointer reach
+    # only their own allocator, task and tree-query callbacks, none of
+    # which yields; without this the physics step is instrumented
+    'b3*',
     # CoinXT: the shim, trezor-crypto and libsecp256k1
     # (a pattern no function matches is a warning of the link: the families
     # the shims never reach are left out)

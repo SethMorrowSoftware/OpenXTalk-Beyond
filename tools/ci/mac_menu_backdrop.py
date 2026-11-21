@@ -268,19 +268,27 @@ class Run:
             log('%.3f screen: %s' % (time.time(), os.path.basename(path)))
 
     def look(self, step, seconds=LOOK):
-        """Whether the beat went on in the seconds after a step: the last
-        beat no more than STOPPED_AFTER old at the end of them."""
+        """Whether the beat went on in the seconds after a step: the newest
+        beat read in them no more than STOPPED_AFTER old at the end of them.
+        The newest of every read, not the last read alone: the engine's put
+        into URL "binfile:" empties beat.txt before it writes the new beat,
+        so a read between the two finds nothing, or the first digits of the
+        new beat, though the beat goes on. (A last read alone took that for
+        a stop on an Intel Mac on 20 Nov 2026, in #585's run; the engine,
+        sampled, was in that very put, and answered again at once.)"""
         end = time.time() + seconds
-        last = None
-        while time.time() < end:
+        newest, newest_line = None, ''
+        while True:
             when, line = read_beat(self.out)
-            if line != last:
-                last = line
+            if when is not None and (newest is None or when > newest):
+                newest, newest_line = when, line
+            if time.time() >= end:
+                break
             time.sleep(0.5)
-        when, line = read_beat(self.out)
-        age = time.time() - when if when else None
-        log('%.3f %s: the last beat %s: %s' % (time.time(), step, 'none' if age is None else '%.1f s ago' % age,
-                                                line))
+        age = time.time() - newest if newest else None
+        log('%.3f %s: the last beat %s: %s%s' % (time.time(), step, 'none' if age is None else '%.1f s ago' % age,
+                                                  newest_line,
+                                                  '' if when == newest else ' (the last read: %r)' % line))
         return age is not None and age <= STOPPED_AFTER
 
     def stop_report(self, step, menu, title):

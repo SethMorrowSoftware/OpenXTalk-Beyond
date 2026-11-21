@@ -4,7 +4,7 @@ Synonyms: is not an
 
 Type: operator
 
-Syntax: <value> is not a[n] {boolean | integer | number | point | rect| date | color | ASCII string}
+Syntax: <value> is not a[n] {boolean | integer | number | point | rect| date | color | ASCII string | sequence | dictionary | numeric sequence}
 
 Summary:
 <evaluate|Evaluates> to true if a <value> is not of the specified type,

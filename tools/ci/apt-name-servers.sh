@@ -5,7 +5,9 @@
 #   bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
 #
 # before a step's first apt-get (by that path, not a relative one: a step
-# may have changed folder by then, as web.yml's font check has).
+# may have changed folder by then, as web.yml's font check has). The steps
+# on a runner install through tools/ci/apt-install.sh, which calls this
+# first.
 #
 # On 11 November 2026, from about 14:00 UTC, no apt-get of any Linux job
 # could find its server ("Could not resolve 'archive.ubuntu.com'" in the
@@ -37,7 +39,8 @@
 # (web.yml, web-ide.yml, build-linux.yml, android-engine.yml: "Install
 # build tools"), so their retry loop carries these lines itself.
 # tools/ci/tests/test_apt_retry.py runs both, and holds every step that
-# installs packages to one of them.
+# installs packages to one of them (a step on a runner, to
+# tools/ci/apt-install.sh).
 #
 # APT_ETC and RESOLV_CONF are for that test: the folder of the apt sources
 # and the file that names the name servers.

@@ -2148,7 +2148,10 @@ void MCObject::SetFocusPixel(MCExecContext& ctxt, uinteger_t* pixel)
 
 void MCObject::GetPenBackColor(MCExecContext& ctxt, MCValueRef& r_value)
 {
-	 // NO OP
+	// OXT-Beyond: the property does nothing, but a read of it must still
+	// give a value: left unset, "the penBack of button 1" crashed the engine
+	// (LiveCode Community 9.6.3 too). Empty, as the global penBack gives.
+	r_value = MCValueRetain(kMCEmptyString);
 }
 
 void MCObject::SetPenBackColor(MCExecContext& ctxt, MCValueRef r_value)
@@ -2158,7 +2161,8 @@ void MCObject::SetPenBackColor(MCExecContext& ctxt, MCValueRef r_value)
 
 void MCObject::GetBrushBackColor(MCExecContext& ctxt, MCValueRef& r_value)
 {
-	// NO OP
+	// OXT-Beyond: as GetPenBackColor.
+	r_value = MCValueRetain(kMCEmptyString);
 }
 
 void MCObject::SetBrushBackColor(MCExecContext& ctxt, MCValueRef r_value)
@@ -2223,6 +2227,11 @@ bool MCObject::GetColor(MCExecContext& ctxt, Properties which, bool effective, M
                 MCColor t_color;
                 if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_control_prop, t_color))
                 {
+                    // OXT-Beyond: the colour the words are drawn in, black
+                    // where an old stack's field or button has a light
+                    // colour in the dark appearance (getlegacywords)
+                    if (which == P_FORE_COLOR)
+                        getlegacywords(DI_FORE, CONTEXT_TYPE_SCREEN, t_color);
                     t_found = true;
                     r_color.color = t_color;
                     r_color.name = nil;

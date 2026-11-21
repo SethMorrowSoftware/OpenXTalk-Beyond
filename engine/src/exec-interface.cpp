@@ -2786,10 +2786,34 @@ void MCInterfaceExecPopupWidget(MCExecContext &ctxt, MCNameRef p_kind, MCPoint *
 
 void MCInterfaceExecPopupButton(MCExecContext& ctxt, MCButton *p_target, MCPoint *p_at)
 {
+	// OXT-Beyond: with the mouse over none of the program's stacks (a dialog
+	// has just closed under it, the script runs from a timer, the mouse is
+	// over another program) there is no mouse stack, and "popup button"
+	// ended in the error "subwindow: no such stack" (583), in LiveCode
+	// Community too (openxtalk.org, "popup after answer"). The menu now
+	// opens from the button's own stack: at the mouse, or at the point
+	// given, which is then in that stack. With a mouse stack nothing
+	// changes.
 	if (!MCmousestackptr)
 	{
-		ctxt . LegacyThrow(EE_SUBWINDOW_NOSTACK);
-		return;
+		MCStack *t_stack;
+		t_stack = p_target -> getstack();
+		if (t_stack == nil || t_stack -> getw() == nil)
+		{
+			ctxt . LegacyThrow(EE_SUBWINDOW_NOSTACK);
+			return;
+		}
+		
+		if (p_at == nil)
+		{
+			int16_t t_x, t_y;
+			MCscreen -> querymouse(t_x, t_y);
+			MCPoint t_loc;
+			t_loc = t_stack -> globaltostackloc(MCPointMake(t_x, t_y));
+			MCmousex = t_loc . x;
+			MCmousey = t_loc . y;
+		}
+		MCmousestackptr = t_stack;
 	}
     
 	if (p_at != nil)
@@ -3821,7 +3845,28 @@ void MCInterfaceExecImportObjectFromArray(MCExecContext& ctxt, MCArrayRef p_arra
         ctxt . LegacyThrow(EE_IMPORT_NOTANOBJECTARRAY);
         return;
     }
-    
+
+    // OXT-Beyond: with the handler-local sequencesAsLists, the state goes
+    // to the widget's OnLoad as it goes to any LCB handler that takes an
+    // Array: each array in it marked as a sequence (as "export widget"
+    // gives each List the widget saved) a List again, so that a widget
+    // copied through script loads as one read from a stack file does.
+    // Without it the state goes as it always did
+    if (ctxt . GetSequencesAsLists())
+    {
+        MCValueRef t_converted_state = MCValueRetain(*t_state);
+        if (!MCExtensionConvertFromScriptType(ctxt, kMCArrayTypeInfo, t_converted_state))
+        {
+            MCValueRelease(t_converted_state);
+            MCAutoErrorRef t_error;
+            MCErrorCatch(&t_error);
+            ctxt . LegacyThrow(EE_IMPORT_NOTANOBJECTARRAY);
+            return;
+        }
+        t_state . Reset((MCArrayRef)t_converted_state);
+        MCValueRelease(t_converted_state);
+    }
+
     MCWidget *t_widget;
     t_widget = new (nothrow) MCWidget;
     if (t_widget == NULL)

@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -103,6 +107,12 @@ MCStringRef MCsessionid = NULL;
 
 // The lifetime of session data in seconds.  default = 24mins
 uint32_t MCsessionlifetime = 60 * 24;
+
+// OXT-Beyond: whether the session cookie is sent with the Secure attribute,
+// and its SameSite attribute. Both are off unless a script sets them, so the
+// cookie is LiveCode's until then.
+bool MCsessioncookiesecure = false;
+intenum_t MCsessioncookiesamesite = 0; // kMCServerCookieSameSiteNone (srvmain.h)
 
 ////////////////////////////////////////////////////////////////////////////////
 

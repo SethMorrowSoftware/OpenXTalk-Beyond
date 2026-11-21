@@ -2207,8 +2207,30 @@ private function __ModalPresented
    return false
 end __ModalPresented
 
-private command __ShowModalWarning
-   
+-- OXT-Beyond: an error under a modal stack. The debugger cannot open
+-- while a modal stack is showing (the script editor could not be reached
+-- behind it), so traceError passes; the engine then takes the error as
+-- dealt with and the errorDialog that follows is empty, which the IDE
+-- drops. This handler was empty, in LiveCode Community too, so with Script
+-- Debug Mode on (as it is from the start) an error in a modal stack, or in
+-- any stack while a modal one was showing, said nothing at all and the
+-- script just stopped (openxtalk.org, "script error in a modal stack").
+-- The error now goes to the Errors window, as it does with Script Debug
+-- Mode off. Not for a breakpoint (no pError), not for an error in one of
+-- the IDE's own stacks, and not when errors are suppressed: as before.
+private command __ShowModalWarning pError, pTarget
+   if pError is empty or __ErrorsSuppressed() then
+      exit __ShowModalWarning
+   end if
+   try
+      if revIDEObjectIsOnIDEStack(pTarget) then
+         exit __ShowModalWarning
+      end if
+      revIDEErrorDialog pError
+   catch tError
+      -- the error window is a help; the script that failed has stopped
+      -- either way
+   end try
 end __ShowModalWarning
 
 ################################################################################
@@ -2382,7 +2404,7 @@ on traceError pHandler, pLine, pPosition, pError
    end if
    
    if "development" is in the environment and __ModalPresented() then
-      __ShowModalWarning
+      __ShowModalWarning pError, tTarget
       pass traceError
    end if
    

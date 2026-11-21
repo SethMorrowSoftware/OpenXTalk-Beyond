@@ -999,6 +999,11 @@ public:
 	// OXT-Beyond: the background and words of the list an option menu or a
 	// combo box shows, where the usual colours could not be read (object.cpp)
 	bool getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor &r_fore);
+	// OXT-Beyond: the words of a field or button with no colour from its
+	// own up to its stack, drawn black on a light background in the dark
+	// appearance, as LiveCode Community drew them (object.cpp)
+	void getlegacywords(uint2 p_di, MCContextType p_type, MCColor &x_words);
+	bool getwordsbackcolor(MCContextType p_type, MCColor &r_back);
 	void setforeground(MCDC *dc, uint2 di, Boolean rev, Boolean hilite = False, bool selected = false);
 	Boolean setcolor(uint2 index, const MCString &eptr);
 	Boolean setcolors(const MCString &data);

@@ -102,7 +102,7 @@ licence text are in `thirdparty/`.
 | Skia | revision `20471894`, with one change (see [`thirdparty/libskia/ORIGIN`](thirdparty/libskia/ORIGIN)) | engine, libgraphics | BSD 3-clause | [upstream](https://github.com/google/skia/blob/main/LICENSE); file headers in `thirdparty/libskia/` |
 | libxml2 | 2.15.4, with local changes and the HTTP and FTP clients of 2.14.6 and 2.13.9 (see [`thirdparty/libxml/ORIGIN`](thirdparty/libxml/ORIGIN)) | revXML, web engine | MIT | [`thirdparty/libxml/docs/COPYING`](thirdparty/libxml/docs/COPYING) |
 | libxslt | 1.1.45, with local changes (see [`thirdparty/libxslt/ORIGIN`](thirdparty/libxslt/ORIGIN)) | revXML, web engine | MIT-style | [`thirdparty/libxslt/docs/COPYING`](thirdparty/libxslt/docs/COPYING) |
-| SQLite | 3.54.1 (with the change described in `thirdparty/libsqlite/ORIGIN`) | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
+| SQLite | 3.54.1 (with the change described in `thirdparty/libsqlite/ORIGIN`), and its regexp extension (`ext/misc/regexp.c`) | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
 | sqlitedataset | 0.1.0 | `dbsqlite.dll`, web engine | MIT | [`thirdparty/libsqlite/docs/LICENSE`](thirdparty/libsqlite/docs/LICENSE) |
 | MariaDB Connector/C | 3.4.11, with local changes (see [`thirdparty/libmysql/ORIGIN`](thirdparty/libmysql/ORIGIN)) | `dbmysql.dll` | GNU LGPL version 2.1 or later | [`thirdparty/libmysql/COPYING.LIB`](thirdparty/libmysql/COPYING.LIB) |
 | libpq (from PostgreSQL) | 17.11, with local changes (see [`thirdparty/libpq/ORIGIN`](thirdparty/libpq/ORIGIN)) | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/COPYRIGHT`](thirdparty/libpq/COPYRIGHT) |
@@ -505,6 +505,7 @@ below.
 | `onionxt`, `onion-httpd` | `OnionXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
+| `org.openxtalk.library.boxthreed` | `xtalk-suite` (`box3dxt/`) | MIT, © 2026 Seth Morrow | Box3D (a pinned commit, before its first release): MIT, © 2026 Erin Catto. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with Box3D's notice) |
 
 Notes:
 
@@ -582,8 +583,8 @@ notices.
 Every package carries standalone runtimes for the other platforms that
 the IDE's standalone builder targets, so that it can build standalones
 for them and not only for its own platform. They come from one release
-asset of this repository, `oxt-runtimes-0.2.8-dp.1.zip` (release tag
-`runtimes-0.2.8-dp.1`), listed with its SHA-256 in
+asset of this repository, `oxt-runtimes-0.2.8-dp.2.zip` (release tag
+`runtimes-0.2.8-dp.2`), listed with its SHA-256 in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
 "Runtimes asset" workflow made it with
 [`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
@@ -593,7 +594,7 @@ also carries OXT-Beyond's own Android engine, built here as a whole runtime
 of its own (`Runtime/Android/Beyond`); the rest of the Android runtime, the
 engines the builder uses for a stack that does not ask for that one, is not
 built here. Its `PROVENANCE.md`,
-installed as `PROVENANCE-oxt-runtimes-0.2.8-dp.1.md` at the root of the
+installed as `PROVENANCE-oxt-runtimes-0.2.8-dp.2.md` at the root of the
 program folder, names that commit and the CI runs and lists every file
 with its size, SHA-256 and the build it comes from. Each package leaves
 out what its own build makes: the Windows and Linux packages their own
@@ -617,7 +618,7 @@ Licences and corresponding source:
   [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for OXT-Beyond's code, and
   the third-party components of the sections above (OpenSSL, curl, ICU,
   the libraries of `thirdparty/`, CEF). Source: this repository at the
-  commit that `PROVENANCE-oxt-runtimes-0.2.8-dp.1.md` names.
+  commit that `PROVENANCE-oxt-runtimes-0.2.8-dp.2.md` names.
 - **Android files identical to LiveCode Community 9.6.3**: GPLv3.
   Source: [livecode/livecode](https://github.com/livecode/livecode), tag
   [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3). This

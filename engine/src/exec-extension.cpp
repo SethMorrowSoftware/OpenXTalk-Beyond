@@ -607,7 +607,10 @@ Exec_stat MCExtensionCatchError(MCExecContext& ctxt)
     return ES_ERROR;
 }
 
-static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_output);
+// OXT-Beyond: p_lists is the handler-local sequencesAsLists, under which an
+// array marked as a sequence becomes a List, at any depth below p_input,
+// and p_input itself unless p_keep_array (MCExecContext)
+static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_output, bool p_lists = false, bool p_keep_array = false);
 static bool __script_try_to_convert_to_boolean(MCExecContext& ctxt, bool p_optional, MCValueRef& x_value, bool& r_converted);
 static bool __script_try_to_convert_to_number(MCExecContext& ctxt, bool p_optional, MCValueRef& x_value, bool& r_converted);
 static bool __script_try_to_convert_to_string(MCExecContext& ctxt, MCValueRef& x_value, bool& r_converted);
@@ -637,7 +640,10 @@ static bool MCExtensionThrowTypeConversionError(MCTypeInfoRef p_type, MCValueRef
 //   String -> String
 //   Name -> Name
 //   Data -> Data
-//   ProperList -> Array with numeric keys starting at 1
+//   ProperList -> Array with numeric keys starting at 1, marked as a
+//                 sequence (OXT-Beyond: MCArrayKindMark, which "is strictly
+//                 a sequence" sees, and which the handler-local
+//                 sequencesAsLists turns back into a List on the way in)
 //   Record -> Array with keys the same as the record's fields
 //   ForeignValue -> error
 //   Handler -> error
@@ -718,6 +724,16 @@ bool MCExtensionConvertToScriptType(MCExecContext& ctxt, MCValueRef& x_value)
             MCArrayRef t_array;
             if (!MCArrayCreateMutable(t_array))
                 return false;
+            // OXT-Beyond: it was a List, so it is marked as a sequence
+            // (an empty List too, which a key-count cannot tell from any
+            // other empty array). The mark is invisible to the script
+            // that was written before it: "is" ignores it, and nothing
+            // that compiled before reads it
+            if (!MCArraySetKindMark(t_array, kMCArrayKindMarkSequence))
+            {
+                MCValueRelease(t_array);
+                return false;
+            }
             for(uindex_t i = 0; i < MCProperListGetLength((MCProperListRef)x_value); i++)
             {
                 // 'Copy' the value (as we don't own it).
@@ -834,7 +850,7 @@ bool MCExtensionTryToConvertFromScriptType(MCExecContext& ctxt, MCTypeInfoRef p_
     if (t_resolved_type . named_type == kMCAnyTypeInfo)
     {
         MCValueRef t_revised_element;
-        if (!__script_ensure_names_are_strings(x_value, t_revised_element))
+        if (!__script_ensure_names_are_strings(x_value, t_revised_element, ctxt . GetSequencesAsLists()))
             return false;
         
         if (t_revised_element != nil)
@@ -907,7 +923,14 @@ bool MCExtensionConvertFromScriptType(MCExecContext& ctxt, MCTypeInfoRef p_as_ty
 // Ensure that if the input value is an array, all elements that are names (recursed)
 // come out as strings.
 // If r_output is nil, then no mutation occurred; otherwise it is the mutated value.
-static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_output)
+//
+// OXT-Beyond: with p_lists (the handler-local sequencesAsLists), an array
+// marked as a sequence whose keys are still 1 to N, or which is empty,
+// becomes a List of its elements, each made ready the same way; unless it
+// is p_input and p_keep_array, where an Array is what LCB asked for. An
+// array with no mark, or marked as a dictionary, stays an array, as every
+// array did before; so does one whose keys an edit took out of 1 to N.
+static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_output, bool p_lists, bool p_keep_array)
 {
     if (MCValueGetTypeCode(p_input) == kMCValueTypeCodeName)
     {
@@ -915,6 +938,36 @@ static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_
         return true;
     }
     
+    if (p_lists && !p_keep_array &&
+        MCValueGetTypeCode(p_input) == kMCValueTypeCodeArray &&
+        MCArrayGetKindMark((MCArrayRef)p_input) == kMCArrayKindMarkSequence &&
+        (MCArrayIsEmpty((MCArrayRef)p_input) || MCArrayIsSequence((MCArrayRef)p_input)))
+    {
+        MCAutoProperListRef t_list;
+        if (!MCProperListCreateMutable(Out(t_list)))
+            return false;
+
+        for(uindex_t i = 1; i <= MCArrayGetCount((MCArrayRef)p_input); i++)
+        {
+            MCValueRef t_element;
+            if (!MCArrayFetchValueAtIndex((MCArrayRef)p_input, i, t_element))
+                return MCExtensionThrowTypeConversionError(kMCProperListTypeInfo, p_input);
+
+            MCAutoValueRef t_revised_element;
+            if (!__script_ensure_names_are_strings(t_element, &t_revised_element, true))
+                return false;
+
+            if (!MCProperListPushElementOntoBack(In(t_list), *t_revised_element == nil ? t_element : In(t_revised_element)))
+                return false;
+        }
+
+        if (!t_list . MakeImmutable())
+            return false;
+
+        r_output = (MCValueRef)t_list . Take();
+        return true;
+    }
+
     if (MCValueGetTypeCode(p_input) == kMCValueTypeCodeArray)
     {
         MCAutoArrayRef t_mutated_input;
@@ -927,7 +980,7 @@ static bool __script_ensure_names_are_strings(MCValueRef p_input, MCValueRef& r_
         {
             // Ensure the element's names are all strings.
             MCAutoValueRef t_mutated_element;
-            if (!__script_ensure_names_are_strings(t_element, Out(t_mutated_element)))
+            if (!__script_ensure_names_are_strings(t_element, Out(t_mutated_element), p_lists))
                 return false;
             
             // If something changed then we must replace the existing value.
@@ -1211,7 +1264,7 @@ static bool __script_try_to_convert_to_array(MCExecContext& ctxt, MCValueRef& x_
     if (MCValueGetTypeCode(x_value) == kMCValueTypeCodeArray)
     {
         MCValueRef t_mutated_value;
-        if (!__script_ensure_names_are_strings(x_value, t_mutated_value))
+        if (!__script_ensure_names_are_strings(x_value, t_mutated_value, ctxt . GetSequencesAsLists(), true))
             return false;
         
         if (t_mutated_value != nil)
@@ -1292,7 +1345,7 @@ static bool __script_try_to_convert_to_list(MCExecContext& ctxt, MCValueRef& x_v
             
             // Deal with the name/string issue.
             MCAutoValueRef t_revised_element;
-            if (!__script_ensure_names_are_strings(t_element, &t_revised_element))
+            if (!__script_ensure_names_are_strings(t_element, &t_revised_element, ctxt . GetSequencesAsLists()))
                 return false;
                 
             if (!MCProperListPushElementOntoBack(In(t_proper_list), *t_revised_element == nil ? t_element : In(t_revised_element)))

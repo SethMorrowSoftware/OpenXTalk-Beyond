@@ -52,7 +52,7 @@ end TestTeardown
 -- tools/oxt/xtalk_extensions.py builds it), or one with the extension's
 -- folder in it, or an installed IDE's (its Extensions folder)
 private command loadBox2D
-   local tRoot, tFolder, tTry, tLib, tPick, tError
+   local tRoot, tFolder, tTry, tLib, tPick, tError, tPlatform
    try
       get b2Version()
       exit loadBox2D
@@ -87,7 +87,22 @@ private command loadBox2D
       -- code/<processor>-<platform>/ (x86_64-linux), or the one there is
       -- (universal-mac)
       -- (the mapping is only set: an engine without one throws on reading it)
+      -- Only this platform's folders, as the IDE maps them
+      -- (revideextensionlibrary's __MapCodeLibraryForIDE): Box2Dxt also
+      -- carries x86_64-android/box2dxt.so, which a Linux engine cannot load,
+      -- and which of the two was picked hung on the order of folders()
+      switch the platform
+         case "MacOS"
+            put "-mac" into tPlatform
+            break
+         case "Win32"
+            put "-win32" into tPlatform
+            break
+         default
+            put "-" & toLower(the platform) into tPlatform
+      end switch
       repeat for each line tTry in folders(tFolder & "/code")
+         if tPlatform is not in tTry then next repeat
          if there is a file (tFolder & "/code/" & tTry & "/" & tLib) then
             if tPick is empty or (tTry begins with (the processor & "-")) then
                put tFolder & "/code/" & tTry & "/" & tLib into tPick
@@ -703,3 +718,17 @@ on TestNumbersWithCommas
       TestAssert "commas:" && word 1 of tCase && "is" && word 2 of tCase, tOut is word 2 of tCase
    end repeat
 end TestNumbersWithCommas
+
+-- The Mobile Web library's word of the whole screen, gained or lost
+-- whoever did it (the button, the phone's back gesture, the browser
+-- itself): the button's icon follows then. It followed only the next
+-- tap of a sound button or layout, and none comes where the page keeps
+-- its size while the screen is whole (after 0.2.8-dp.2)
+on TestTheFullScreenIconFollowsTheBrowser
+   dispatch "fullScreenChanged" to card "Fort" of stack kStack with true
+   TestAssert "the whole screen given: the icon is to make it smaller", \
+         the cPicture of image "Title Full Icon" of card "Fort" of stack kStack is "icon-smaller"
+   dispatch "fullScreenChanged" to card "Fort" of stack kStack with false
+   TestAssert "and taken back: to make it larger", \
+         the cPicture of image "Title Full Icon" of card "Fort" of stack kStack is "icon-larger"
+end TestTheFullScreenIconFollowsTheBrowser

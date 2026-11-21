@@ -596,10 +596,22 @@ class Workflow(unittest.TestCase):
         # the asset waits for the four builds and the emulator's run of the
         # engine, not for the script tests' job (android_tests.py), whose
         # results are judged against their baselines as evidence for the
-        # engine, not a gate on its asset
-        self.assertEqual(len(self.engine_jobs()), 6)
-        self.assertIn('Script tests on the emulator', self.engine_jobs())
-        self.assertNotIn('Script tests on the emulator', self.steps['Check the label and the runs']['run'])
+        # engine, not a gate on its asset, nor for the job that says which
+        # of the others a change needs (android_runs.py): a run whose builds
+        # it skipped built no engine, and the builds' own jobs say so
+        self.assertEqual(len(self.engine_jobs()), 7)
+        for name in ('Script tests on the emulator', 'What the change needs'):
+            self.assertIn(name, self.engine_jobs())
+            self.assertNotIn(name, self.steps['Check the label and the runs']['run'])
+        # (a run of a change that needed no engine skipped its builds)
+        skipped = self.runs()
+        for name in skipped['3'][2]:
+            if name.startswith('Android engine'):
+                skipped['3'][2][name] = 'skipped'
+        code, out, written = self.check_step(skipped, '3')
+        self.assertNotEqual(code, 0)
+        self.assertIn('::error::job "Android engine (arm64)" of run 3: skipped', out)
+        self.assertEqual(written, '')
         code, out, written = self.check_step(self.runs())
         self.assertEqual((code, written), (0, 'commit=%s\n' % COMMIT), out)
         self.assertNotIn('run 3', out)

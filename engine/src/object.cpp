@@ -1620,6 +1620,202 @@ bool MCObject::getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor
 	return true;
 }
 
+/* OXT-Beyond: whether black words read better on a colour than white ones
+ * (the WCAG's contrast, MCObjectColorContrast): its luminance is above
+ * 0.179, about the grey 118,118,118 */
+static bool MCObjectColorIsLight(const MCColor &p_color)
+{
+	return MCObjectColorLuminance(p_color) > 0.179129;
+}
+
+/* OXT-Beyond: the colour that the words of this field or button are drawn
+ * on, as the engine fills what is under them: its own inside when it fills
+ * that (as MCField::drawrect and MCButton::draw do, with the colour they
+ * ask for), else the inside of the first group above it that fills its
+ * own (MCGroup::draw), else its card (MCCard::drawbackground). False when
+ * that cannot be told: a pattern, the face the theme draws for a push
+ * button with no colour of its own, the web theme's face aside
+ * (getwebthemeface), a button's fill reversed to its hilite colour, a
+ * group frame the theme draws, a menu bar, and anything that is not on a
+ * card. Another control under it (a graphic, an image) is not seen. */
+bool MCObject::getwordsbackcolor(MCContextType p_type, MCColor &r_back)
+{
+	MCPatternRef t_pattern = nil;
+	int2 t_x, t_y;
+	uint2 i;
+
+	if (flags & F_OPAQUE)
+	{
+		if (gettype() == CT_FIELD)
+		{
+			Boolean t_hilite = (flags & F_SHOW_BORDER) && (!(flags & F_F_AUTO_ARM) || MClook == LF_WIN95);
+			return getforecolor(DI_BACK, False, t_hilite, r_back, t_pattern, t_x, t_y, p_type, this) && t_pattern == nil;
+		}
+		if (gettype() == CT_BUTTON)
+		{
+			// As MCButton::draw fills it (buttondraw.cpp, t_fill_rev and
+			// t_fill_hilite there). A push button with no colour of its
+			// own is the theme's face. A fill reversed to the hilite colour
+			// (a button hilited or armed, a check box with an icon) keeps
+			// the words it has: in Windows' dark mode the theme's hilite is
+			// its accent, which is light by MCObjectColorIsLight, and a
+			// stack with no colours at all must not change. A check box or
+			// a radio button without an icon is not reversed when hilited,
+			// so it keeps its words checked or not
+			if (standardbtn() && !getcindex(DI_BACK, i) && !getpindex(DI_BACK, i))
+				return false;
+			uint2 t_style = getstyleint(flags);
+			bool t_indicator = t_style == F_CHECK || t_style == F_RADIO;
+			bool t_loff = (flags & F_3D) && MClook == LF_WIN95 && (state & CS_HILITED) &&
+			              (t_style == F_STANDARD || (t_indicator && (flags & F_SHOW_ICON)));
+			bool t_white = MClook != LF_MOTIF && (flags & F_AUTO_ARM) && (state & CS_ARMED) && !(flags & F_SHOW_BORDER);
+			bool t_fill_rev = ((((state & CS_HILITED) && (flags & F_HILITE_FILL)) ||
+			                    ((state & CS_ARMED) && (flags & F_ARM_FILL)) ||
+			                    ((state & CS_ARMED) && !(flags & F_SHOW_BORDER) && MClook != LF_MOTIF)) &&
+			                   !t_loff && ((flags & F_SHOW_ICON) || !t_indicator)) ||
+			                  (t_white && (state & CS_KFOCUSED) && !(state & CS_SUBMENU));
+			if (t_fill_rev)
+				return false;
+			bool t_fill_hilite = t_white || ((state & CS_ARMED) && !(flags & F_SHOW_BORDER));
+			if (!t_fill_hilite && static_cast<MCButton *>(this) -> getwebthemeface(p_type, r_back))
+				return true;
+			return getforecolor(DI_BACK, False, t_fill_hilite, r_back, t_pattern, t_x, t_y, p_type, this) && t_pattern == nil;
+		}
+		return false;
+	}
+
+	for (MCObject *t_object = parent; t_object != nil; t_object = t_object -> getparent())
+	{
+		if (t_object -> gettype() == CT_GROUP)
+		{
+			if (MCcurtheme != NULL && t_object -> getstack() -> hasmenubar() &&
+			    t_object -> hasname(t_object -> getstack() -> getmenubar()))
+				return false;
+			uint4 t_flags = t_object -> getflags();
+			if (!(t_flags & F_OPAQUE))
+				continue;
+			if (MCcurtheme != NULL && t_object -> getborderwidth() == DEFAULT_BORDER &&
+			    !t_object -> getcindex(DI_BACK, i) && !t_object -> getpindex(DI_BACK, i) &&
+			    (t_flags & F_SHOW_BORDER) && (t_flags & F_3D) &&
+			    MCcurtheme -> iswidgetsupported(WTHEME_TYPE_GROUP_FRAME))
+				continue;
+			return t_object -> getforecolor(DI_BACK, False, False, r_back, t_pattern, t_x, t_y, p_type, t_object) && t_pattern == nil;
+		}
+		if (t_object -> gettype() == CT_CARD)
+		{
+			Window_mode t_mode = t_object -> getstack() -> getmode();
+			Boolean t_hilite = MClook == LF_WIN95 && (t_mode == WM_COMBO || t_mode == WM_OPTION);
+			return t_object -> getforecolor(DI_BACK, False, t_hilite, r_back, t_pattern, t_x, t_y, p_type, t_object) && t_pattern == nil;
+		}
+		return false;
+	}
+	return false;
+}
+
+/* OXT-Beyond: in the dark appearance (Windows' "app mode", the Mac's, a
+ * Linux desktop's while the useDesktopAppearance is true, a dark browser
+ * on the web), the words of a control with no colour of their own are the
+ * appearance's: white. A stack made before there was one sets the
+ * backgroundColor of a field, a button, a group or a card to a light colour
+ * and leaves its words to the engine, which drew them black in LiveCode
+ * Community: in the dark appearance they were white on that colour, and
+ * could not be read (a field with a white background of its own showed
+ * white words on white: seth's Windows PC in dark mode, 2026-11-21, the
+ * xTalk Suite's xlsxt and pdfxt demos, whose UI kit gave its fields a
+ * white background and no text colour; measured there with 0.2.8-dp.1, and
+ * the effective foregroundColor of such a field was 255,255,255).
+ *
+ * So the words of a field or a button that take the theme's colour
+ * (nothing from the control up to its stack has a foregroundColor or a
+ * foregroundPattern) are drawn black, as LiveCode Community drew them,
+ * when in the dark appearance that colour is light and the colour they are
+ * drawn on is light too (light: black reads on it better than white,
+ * MCObjectColorIsLight). What they are drawn on is a paragraph's or a text
+ * run's own backgroundColor while those words are drawn or read
+ * (MCField::getwordsback: a field with a white background of its own
+ * keeps white words on a dark line or run of its text), else what the
+ * control, the group under it or its card fills (getwordsbackcolor).
+ *
+ * x_words is the colour the theme gave; it is left as it is everywhere
+ * else: in the light appearance, on a dark colour (one of the stack's own,
+ * or the appearance's), on a colour that cannot be told, for words with a
+ * colour of their own or one inherited, for selected or disabled words
+ * (their colours are found before the theme's), and for a menu (an option
+ * menu, a pulldown, a combo box, a tab panel, a menu's item and the list a
+ * menu shows: getmenulistcolors), which the theme draws in colours of its
+ * own. A control with no background colour or pattern from itself up to
+ * its stack, and none under its words, keeps them before any theme is
+ * asked, so a stack that sets no colour at all is drawn in the dark
+ * appearance's colours, as before, whatever the theme's own backgrounds
+ * are. Called by getforecolor where the theme or the engine gives a
+ * control's words their colour, and by GetColor for the effective
+ * foregroundColor, which then reads the colour the words are drawn in (for
+ * a chunk of a field's text, MCBlock::GetEffectiveForeColor). */
+void MCObject::getlegacywords(uint2 p_di, MCContextType p_type, MCColor &x_words)
+{
+	if (p_di != DI_FORE && p_di != DI_PSEUDO_TEXT_COLOR && p_di != DI_PSEUDO_BUTTON_TEXT)
+		return;
+
+	if (gettype() == CT_FIELD)
+	{
+		if (getstate(CS_MENUFIELD) || !parent.IsValid() || parent -> gettype() == CT_BUTTON)
+			return;
+	}
+	else if (gettype() == CT_BUTTON)
+	{
+		if (getstyleint(flags) == F_MENU || static_cast<MCButton *>(this) -> getmenucontrol() != MENUCONTROL_NONE)
+			return;
+	}
+	else
+		return;
+
+	// Dark words: the light appearance's, or a theme's that reads on a
+	// light colour already
+	if (!MCObjectColorIsLight(x_words))
+		return;
+
+	// What the words are on: a paragraph's or a text run's own colour while
+	// those words are drawn or read (MCField::getwordsback), else what the
+	// control, the group under it or its card fills (getwordsbackcolor)
+	MCColor t_back;
+	const MCColor *t_words_back = nil;
+	if (gettype() == CT_FIELD)
+		t_words_back = static_cast<MCField *>(this) -> getwordsback();
+	if (t_words_back != nil)
+		t_back = *t_words_back;
+	else
+	{
+		// A stack that sets no background colour or pattern from the
+		// control up keeps the appearance's colours, whatever its theme's
+		// backgrounds are, and no theme is asked for them (the chain
+		// getforecolor inherits along, or more of it)
+		bool t_own_back = false;
+		for (MCObject *t_object = this; t_object != nil && t_object != MCdispatcher; t_object = t_object -> getparent())
+		{
+			uint2 t_index;
+			if (t_object -> getcindex(DI_BACK, t_index) || t_object -> getpindex(DI_BACK, t_index))
+			{
+				t_own_back = true;
+				break;
+			}
+		}
+		if (!t_own_back)
+			return;
+
+		if (!getwordsbackcolor(p_type, t_back))
+			return;
+	}
+	if (!MCObjectColorIsLight(t_back))
+		return;
+
+	MCSystemAppearance t_appearance;
+	MCscreen -> getsystemappearance(t_appearance);
+	if (t_appearance != kMCSystemAppearanceDark)
+		return;
+
+	x_words = MCscreen -> getblack();
+}
+
 Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
                                MCColor &c, MCPatternRef &r_pattern,
                                int2 &x, int2 &y, MCContextType dc_type,
@@ -1871,7 +2067,13 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
 #endif
 
         if (MCPlatformGetControlThemePropColor(t_control_type, t_control_part, t_control_state, t_theme_prop, c))
+        {
+            // OXT-Beyond: the words of an old stack's field or button, on a
+            // light colour in the dark appearance (getlegacywords)
+            if (which == P_FORE_COLOR && !selected && !rev)
+                o -> getlegacywords(p_di, dc_type, c);
             return True;
+        }
 #if defined(_MACOSX) /* OXT-TOM: macOS */
     }
 
@@ -1992,6 +2194,10 @@ Boolean MCObject::getforecolor(uint2 p_di, Boolean rev, Boolean hilite,
 		c = MCscreen->getblack();
 		break;
 	}
+	// OXT-Beyond: as above, where no theme gave the words their colour (the
+	// Mac's dark appearance gives white here)
+	if (di == DI_FORE && !rev && !selected)
+		o -> getlegacywords(p_di, dc_type, c);
 	return True;
 }
 

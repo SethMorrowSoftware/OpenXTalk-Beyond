@@ -8584,6 +8584,9 @@ empty, which is what the menu gives.
 pPublicKey (optional): The key the gallery's list is checked with. The
 OXT Community Stacks' own when empty.
 
+pMode (optional): "libraries" to show the gallery's script libraries;
+its stacks otherwise.
+
 Example:
 revIDEActionCommunityStacks
 
@@ -8595,17 +8598,22 @@ browser, on the gallery's site, where it runs in a box that keeps it away
 from the computer; its scripts can be read there; and a copy of it can be
 brought to this computer (<revIDECommunityStacksGetCopy>).
 
+The gallery's script libraries are listed in the same window, under
+Libraries: each can be read there and installed
+(<revIDECommunityLibraryInstall>). pMode "libraries" opens the window
+on them.
+
 It opens nothing of a stack by itself and sends nothing but requests for
 the gallery's files. Not in the web IDE, where the gallery is a page
 away.
 
 The result is empty, or "error: " and why the window did not open.
 
-References: revIDECommunityStacksGetCopy (command), revIDEActionShareStack (command)
+References: revIDECommunityStacksGetCopy (command), revIDECommunityLibraryInstall (command), revIDEActionShareStack (command)
 
 Tags: ide
 */
-command revIDEActionCommunityStacks pSite, pPublicKey
+command revIDEActionCommunityStacks pSite, pPublicKey, pMode
    local tFile, tError
    if revEnvironmentIsWeb() then
       return empty
@@ -8615,7 +8623,7 @@ command revIDEActionCommunityStacks pSite, pPublicKey
       if there is no file tFile then
          throw "missing"
       end if
-      dispatch "revCommunityStacksShow" to stack tFile with pSite, pPublicKey
+      dispatch "revCommunityStacksShow" to stack tFile with pSite, pPublicKey, pMode
       if it is not "handled" then
          throw "unhandled"
       end if
@@ -8768,6 +8776,122 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
    end repeat
    return tResult
 end revIDECommunityStacksGetCopy
+
+/*
+Installs a script library of the Community Stacks' gallery, after asking
+(the Community Stacks window's Install, with Libraries in front).
+
+pEntry (array): The library, as the gallery's list gives it
+(revCommunityLibrariesParse).
+
+pSite (optional): The gallery's site; the OXT Community Stacks' own when
+empty.
+
+pFolder (optional): The folder the package is fetched into before it is
+installed; a folder of the temporary folder when empty. The package is
+deleted from it once it is installed.
+
+Description:
+A library has no box around it: once installed it runs as the user's own
+scripts do, for every stack. The first dialog says so, and nothing is
+fetched unless Install is pressed there.
+
+The package is then fetched and checked: it must be the bytes that the
+gallery's signed list names, with every file the list names in it, and
+a manifest that names the library the list does. Only then is it given
+to the Extension Manager (revIDEExtensionInstall), which installs it
+as it installs any extension, in place of an older version of it, and
+which lists it and uninstalls it afterwards.
+
+The result is "installed", empty when the user chose not to, or
+"error: " and why it was not installed.
+
+References: revIDEActionCommunityStacks (command)
+
+Tags: ide
+*/
+command revIDECommunityLibraryInstall pEntry, pSite, pFolder
+   local tFile, tSpec, tChoice, tResult, tError, tStatus, tVersion
+   if revEnvironmentIsWeb() or pEntry is not an array then
+      return empty
+   end if
+   put __communityStacksFile() into tFile
+
+   -- Ask first: what installing a library means
+   put "Community Stacks" into tSpec["title"]
+   put "Install this library?" into tSpec["heading"]
+   put pEntry["title"] && "by" && pEntry["author"] & ", version" && pEntry["version"] into tSpec["subheading"]
+   put "package" into tSpec["icon"]
+   put "violet" into tSpec["tone"]
+   put "It is added to OXT-Beyond as the Extension Manager adds any extension, and it loads each time " & \
+         "OXT-Beyond starts. Its commands and functions are then there for every stack you open. " & \
+         "The Extension Manager lists it, and uninstalls it." & return & return & \
+         "Its package is checked first: it must be exactly the one that the gallery lists." into tSpec["text"]
+   put "A library runs on this computer as your own scripts do: there is no box around it. " & \
+         "The gallery's checker and a person read every line of it before it was listed, " & \
+         "but nobody can promise what a program does. Install libraries only from people you trust." into tSpec["callout"]
+   put "caution" into tSpec["calloutKind"]
+   put "Cancel" & return & "Install" into tSpec["buttons"]
+   put "Cancel" into tSpec["cancel"]
+   if not revIDEKitDialog(tSpec, tChoice) then
+      answer warning "Install" && pEntry["title"] & "?" & return & return & \
+            "A library runs on this computer as your own scripts do: there is no box around it. " & \
+            "Install libraries only from people you trust." with "Cancel" or "Install"
+      put it into tChoice
+   end if
+   if tChoice is not "Install" then
+      return empty
+   end if
+
+   -- Fetch it and check it
+   lock cursor
+   set the cursor to watch
+   try
+      dispatch "revCommunityLibrariesGet" to stack tFile with pEntry, pFolder, pSite
+      put the result into tResult
+      if it is not "handled" then
+         put "error: The library could not be fetched." into tResult
+      end if
+   catch tError
+      put "error: The library could not be fetched." into tResult
+   end try
+   unlock cursor
+   if tResult begins with "error:" then
+      __communityStacksSay "The library was not installed", pEntry["title"], word 2 to -1 of tResult
+      return tResult
+   end if
+
+   -- The Extension Manager installs it (and says itself what went wrong)
+   try
+      revIDEExtensionInstall tResult
+   catch tError
+   end try
+   if there is a file tResult then
+      delete file tResult
+   end if
+   put revIDEExtensionProperty(pEntry["name"], "status") into tStatus
+   put revIDEExtensionProperty(pEntry["name"], "version") into tVersion
+   if tStatus is not "installed" or tVersion is not pEntry["version"] then
+      __communityStacksSay "The library was not installed", pEntry["title"], \
+            "The Extension Manager could not install its package."
+      return "error: The Extension Manager could not install its package."
+   end if
+
+   put empty into tSpec
+   put "Community Stacks" into tSpec["title"]
+   put "The library is installed" into tSpec["heading"]
+   put pEntry["title"] && "by" && pEntry["author"] & ", version" && pEntry["version"] into tSpec["subheading"]
+   put "check" into tSpec["icon"]
+   put "emerald" into tSpec["tone"]
+   put "Its commands and functions are ready for your stacks now, and each time OXT-Beyond starts." & return & return & \
+         "The Extension Manager (Tools > Extension Manager) lists it as" && pEntry["name"] & ", and uninstalls it." into tSpec["text"]
+   put "OK" into tSpec["buttons"]
+   put "OK" into tSpec["cancel"]
+   if not revIDEKitDialog(tSpec, tChoice) then
+      answer information "The library" && pEntry["title"] && "is installed." with "OK"
+   end if
+   return "installed"
+end revIDECommunityLibraryInstall
 
 -- Tells the user something of the Community Stacks that went wrong
 private command __communityStacksSay pHeading, pSubheading, pText
@@ -11122,7 +11246,16 @@ on ideStyleText pSelectedChunk, pSelectedObject, pIsField, pWhich, pValue
          
          if pWhich is "superscript" then put -4 into tTextShiftAmount
          else put 4 into tTextShiftAmount
-         if the textShift of tTarget is a number AND the textShift of tTarget is not 0 then 
+         -- OXT-Beyond: the item is a toggle of its own direction only.
+         -- Before, any shift at all made either item take the shift off,
+         -- so Subscript on superscript text (or the other way round) did
+         -- nothing that could be seen until it was chosen a second time,
+         -- in LiveCode Community too. Text shifted the item's way loses
+         -- its shift, as before; anything else gets the item's shift.
+         local tTextShiftNow
+         put the textShift of tTarget into tTextShiftNow
+         if tTextShiftNow is a number and \
+               ((tTextShiftNow < 0 and tTextShiftAmount < 0) or (tTextShiftNow > 0 and tTextShiftAmount > 0)) then
             put 0 into tTextShiftAmount
          end if
          

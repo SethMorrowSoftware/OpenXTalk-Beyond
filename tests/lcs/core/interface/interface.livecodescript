@@ -828,3 +828,48 @@ set the script of field kCreatedField to "on keyDown;select text of me;delete;un
    
    TestAssert "text deletion is undone", the text of field kCreatedField is "bar"
 end TestUndo
+
+-- OXT-Beyond: penBack and fillBack (penBackColor, brushBackColor) do
+-- nothing, but reading one from an object crashed the engine (LiveCode
+-- Community 9.6.3 too), which a script that walks the propertyNames of an
+-- object met.
+on TestPenBackAndFillBackOfAnObject
+   create stack "PenBackTest"
+   set the defaultStack to "PenBackTest"
+   create button "b"
+   create field "f"
+   create graphic "g"
+
+   local tObject, tProp, tValue, tOK
+   put true into tOK
+   repeat for each item tObject in "button 1,field 1,graphic 1,this card,this stack"
+      repeat for each item tProp in "penBack,fillBack"
+         put "sentinel" into tValue
+         do "put the" && tProp && "of" && tObject && "into tValue"
+         if tValue is not empty then put false into tOK
+      end repeat
+   end repeat
+   TestAssert "the penBack and fillBack of an object are empty", tOK
+
+   set the penBack of button 1 to "red"
+   TestAssert "setting the penBack of an object still does nothing", the penBack of button 1 is empty
+   TestAssert "the global penBack is empty, as before", the penBack is empty
+   TestAssert "the global fillBack is empty, as before", the fillBack is empty
+
+   delete stack "PenBackTest"
+end TestPenBackAndFillBackOfAnObject
+
+-- OXT-Beyond: with no display, the screenPixelScale crashed the engine
+-- (LiveCode Community 9.6.3 too); with one it is that display's scale.
+on TestScreenPixelScaleIsANumber
+   local tScale
+   put the screenPixelScale into tScale
+   TestAssert "the screenPixelScale is a number", tScale is a number and tScale > 0
+end TestScreenPixelScaleIsANumber
+
+on TestTopStackOfANumber
+   local tTop
+   put topStack(1) into tTop
+   TestAssert "topStack(1) names a stack or is empty", tTop is empty or word 1 of tTop is "stack"
+   TestAssert "topStack past the last stack is empty", topStack(60000) is empty
+end TestTopStackOfANumber

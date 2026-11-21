@@ -1336,8 +1336,28 @@ private command paSettingsLook
          put mwIsFullScreen() into tFull
       end try
    end if
-   set the label of button "Set Full" to "Full screen:" && paOnOff(tFull is true)
+   paFullLook tFull is true
 end paSettingsLook
+
+-- The full screen switch, on (pFull) or off
+private command paFullLook pFull
+   set the label of button "Set Full" of card "Almanac" of me to "Full screen:" && paOnOff(pFull)
+end paFullLook
+
+-- The Mobile Web library's word that the browser gave the almanac the
+-- whole screen or took it back, whoever did it (the switch, the phone's
+-- back gesture, the browser itself): the switch says so now, where the
+-- page keeps its size and no resizeStack comes
+on fullScreenChanged pFull
+   paFullLook pFull is true
+end fullScreenChanged
+
+-- A request for the whole screen that the browser refused after the call
+on fullScreenError pError
+   if sPanel is "settings" then
+      set the text of field "Settings Note" of card "Almanac" of me to "The browser kept its bars this time."
+   end if
+end fullScreenError
 
 private function paOnOff pOn
    if pOn is true then

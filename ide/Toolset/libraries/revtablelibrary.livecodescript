@@ -1,4 +1,7 @@
 ﻿script "revtablelibrary"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026); its Git history and CHANGELOG.md say what changed.
 
 on extensionInitialize
 	if the target is not me then
@@ -504,6 +507,17 @@ on revWriteCellField pObject
   then set the htmltext of field tFieldName to tCurrentView
   else set the text of field tFieldName to tCurrentView
   set the itemDelimiter to tab
+  -- OXT-Beyond: a cell that is not in the text yet (a row below the last
+  -- one, a column past the end of a shorter row) is made first, with the
+  -- returns and tabs up to it. "set the htmlText of item x of line y" of
+  -- a cell that is not there does not make it: what was typed went into
+  -- another cell (the start of the next row, or the end of the table) or
+  -- nowhere, in LiveCode Community too (LiveCode bug 20494). A cell that
+  -- is there is not touched by this.
+  if the number of lines of field tFieldName < tycell \
+        or the number of items of line tycell of field tFieldName < txcell then
+    put empty into item txcell of line tycell of field tFieldName
+  end if
   put the htmltext of item txcell of line tycell of field tFieldName into tCurrentHtmlText
   if tCurrentHtmltext contains "#9;" then
     put "<p></p>" into tCurrentHtmlText

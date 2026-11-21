@@ -993,7 +993,7 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.8-dp.1`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.8-dp.2`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
@@ -1002,11 +1002,11 @@ built from the same commit, and OXT-Beyond's own Android engine
 the rest of the Android runtime and its
 time zone library code carried over unchanged from the earlier asset
 `oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.8-dp.1.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.8-dp.2.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.8-dp.1.zip` of this repository's release
-`runtimes-0.2.8-dp.1`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.8-dp.2.zip` of this repository's release
+`runtimes-0.2.8-dp.2`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1125,7 +1125,7 @@ package always has the pinned versions, compiled by its own
 | --- | --- |
 | `name`, `repository`, `commit` | The member, its `owner/repository` on GitHub and the full commit SHA-1. |
 | `version`, `version_from` | The member's version, and where `pin` reads it: a file and a regular expression (the `.lcb` metadata, or a version constant of a script library). |
-| `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, all five platform ids; `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`, the trezor-crypto notices in CoinXT's `address.c` and `hasher.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
+| `files` | Every file taken: its `path` in the repository, its `role` (`source`; `library` for the native libraries in `src/code/<platform-id>/`, every platform id the member builds for (the four Android ones among them); `code-manifest` for the member's `MANIFEST.sha256`; `licence`), the `sha256` and `size` of its Git blob and, for Windows libraries, `imports`, the DLLs it imports. A licence file may have a `name` to use in `licenses/`, `"extract": "leading-comment"` (only the comment at the top of the file is shipped: the RHash notice in SodiumXT's `sha3.c`, the trezor-crypto notices in CoinXT's `address.c` and `hasher.c`), or a `repository` and `commit` of its own (OpenSSL's licence text, for the two members that link OpenSSL). |
 | `extensions` | What is made from the files: `kind` (`lcb` or `lcs`), `id`, `folder` in `Extensions\`, the `main` file, `probe` and `expect` (an expression and a regular expression its value must match, for the smoke test) and, for script libraries, `stack`, `title`, `author` and `requires`. |
 | `vc_runtime` (top level) | The Visual C++ runtime DLLs bundled with the libraries that need them (see below): `redist`, the redistributable folder they were pinned from, `file_version`, the DLLs' file version, and `files`, the `sha256` and `size` of each DLL per Windows platform id. |
 
@@ -1135,10 +1135,17 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
-`code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64
-and x86 and macOS (the IDE maps the one for its platform into
-`revLibraryMapping`, and the standalone builder copies the one for the
-target into a standalone), and `licenses\`. `lc-compile` runs in that
+`code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
+x86 and arm64, macOS, and, for the seven native members, Android's
+`arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
+(the IDE maps the one for its platform into `revLibraryMapping`, the
+standalone builder copies the one for the target into a standalone, and
+the Android builder packs each Android one into an app as
+`lib/<abi>/lib<library>`), and `licenses\`. Every package carries the
+Android libraries, since each desktop IDE builds Android apps; the
+Android builder workflow builds an app with them for all four ABIs and
+runs each extension's smoke test in it on its emulators
+(`android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
 folder with relative paths, because `module.lcm` embeds the source path
 as given; writes the module interface into a temporary folder
 (`--interface`), never into `modules\lci` (which the build checks is
@@ -2030,6 +2037,23 @@ check (`deployCheckSDK`) does not ask for it, so an SDK without it still
 builds packages, and only a bundle build stops with an error that says
 so.
 
+### Android Stack Player
+
+[`tools/android-player`](tools/android-player/README.md) is an Android
+app that opens any stack the user gives it, built by the IDE's own
+Android builder with OXT-Beyond's Android engine, and
+[`build_android_player.py`](tools/android-player/build_android_player.py) builds it,
+checks its package (its name, the Internet permission and no other, the
+filter that offers it for documents) and plays a sample stack in it on a
+device by each way a stack comes in. Its README says how to run each
+step. The "Android Stack Player" workflow
+(`.github/workflows/android-player.yml`) runs them on an Android 13
+emulator, in the IDE of the latest release with this checkout's builder
+and Android Documents library put into it. The player's script has its
+desktop tests in `tests/lcs/androidplayer`, and `build_android_player.py`'s
+reading of the IDE, aapt2 and the device's log in
+`tools/ci/tests/test_android_player.py`.
+
 ### Browser and player check
 
 [`tools/ci/media_check.py`](tools/ci/media_check.py) checks the browser
@@ -2713,8 +2737,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.8-dp.1.zip`). The download comes from this
-repository's `runtimes-0.2.8-dp.1` release (also in a fork, which needs
+(`oxt-runtimes-0.2.8-dp.2.zip`). The download comes from this
+repository's `runtimes-0.2.8-dp.2` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -2772,7 +2796,7 @@ A push or pull request that changes nothing a platform's build uses
 starts no build of that platform: documentation (the Markdown files at
 the top of the repository, the issue forms and the pull request
 template), the workflows and scripts that build nothing (`release.yml`,
-`runtimes.yml`, `tag-release.yml`, the screenshot and check-by-hand
+`runtimes.yml`, `tag-release.yml`, `web-prerelease.yml`, the screenshot and check-by-hand
 workflows, `ci-checks.yml` and `tools/ci/tests`), and what only the
 other platforms use (their build workflows, the `.ps1` scripts for
 Windows, and so on). Each build workflow lists these in its
@@ -3048,7 +3072,7 @@ it.
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
    "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7
-   and kept for 0.2.8-dp.1),
+   and kept for 0.2.8-dp.1 and 0.2.8-dp.2),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).
@@ -3231,6 +3255,31 @@ A release that is published is final: `release.yml` never changes or
 replaces it (prepare and publish both stop with an error for a tag that
 has one), and its tag must never be moved or deleted. Fix a problem in a
 published release with a new version.
+
+### A web pre-release for the community gallery
+
+The community gallery
+([oxt-stacks/oxt-community-stacks](https://github.com/oxt-stacks/oxt-community-stacks))
+plays its stacks in a Stack Player that its `tools/pins.json` pins to
+the files of one release, by SHA-256. When the web engine gains
+something a shared stack needs (an xTalk Suite library linked in, for
+example) and the next release is some way off,
+[`web-prerelease.yml`](.github/workflows/web-prerelease.yml) gives the
+gallery a player without a release of the desktop programs: Actions >
+*Web pre-release* > Run workflow, on `main`, with a label such as
+`2026.11.21`.
+
+It builds nothing. It takes the Stack Player zip and the Linux x86-64
+binaries from the packages that `build-linux.yml` made and tested for
+the commit `main` points at, checks them against that build's
+`SHA256SUMS`, and publishes them with a `SHA256SUMS` of their own under
+the tag `web-<label>`, as a pre-release that is never the latest. The
+tag does not begin with `v`, so `release.yml` does not start and
+nothing that looks for the newest release (the website, the workflows
+that fetch a release's files, the IDE) sees it. A label that exists is
+refused: a tag is never moved and a published file never replaced. The
+gallery then moves its pins to the new tag in a pull request of its
+own, where its tests play every stack in the new player.
 
 ## 11. Working on the IDE
 
@@ -3609,7 +3658,7 @@ site is static files: serve the folder with any web server (for example
 #### The xTalk Suite's libraries in the web IDE (experimental)
 
 A browser opens no native library, so the web IDE's engine links the
-xTalk Suite's SodiumXT, Box2Dxt, CoinXT and DataChannelXT into itself,
+xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT and box3dxt into itself,
 and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
 they are registered). The web standalone engine, which every HTML5

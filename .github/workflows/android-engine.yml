@@ -43,6 +43,16 @@
 # and the two engines' results compared: what a stack would see
 # differently built with the other engine.
 #
+# What a change needs is the first job's to say (the gate,
+# tools/ci/android_runs.py, which says how): the engine is built, and run
+# on the emulator, when the change touches what it is built from; the
+# script tests run then, and also when the change touches only what they
+# read (tests/, the files of the checkout and the IDE's folders that they
+# read, the Android builder, their scripts), with the engine of an earlier
+# run on main built from the same engine sources. Until 0.2.8-dp.2 the
+# workflow did not start for a change to the tests alone, and a test that
+# failed on Android was first seen on main (#556, #567).
+#
 # The folders are artifacts: nothing here goes into a package or a release
 # by itself. A runtimes asset can take one run's (runtimes.yml, its input
 # android-engine-run, as Runtime/Android/Beyond), and a package that pins
@@ -65,36 +75,27 @@ name: Android engine
 on:
   pull_request:
     branches: [ main ]
-    # What the engine and its externals are built from, and this
-    # workflow's own files: not the IDE, the documentation, the tests, the
-    # installers or the other workflows and CI scripts
-    paths: &engine-paths
+    # Any change that may touch the engine's sources or what the script
+    # tests read, which the gate then looks at file by file: not the
+    # documentation, the installers, the changelog, the Markdown files at
+    # the top or the other workflows
+    paths: &android-paths
       - '**'
-      - '!ide/**'
-      - '!ide-support/**'
       - '!docs/**'
-      - '!tests/**'
       - '!Installer/**'
       - '!changelog/**'
-      - '!**.md'
+      - '!*.md'
       - '!.github/**'
-      - '!tools/**'
       - .github/workflows/android-engine.yml
-      - tools/ci/build-android.sh
-      - tools/ci/android_engine.py
-      - tools/ci/android_java.py
-      - tools/ci/android_tests.py
-      - tools/ci/android-tests.livecodescript
-      - tools/ci/android-tests-baseline-*.txt
-      - tools/javac_wrapper.sh
-      - tools/pathify.sh
   push:
     branches: [ main ]
-    paths: *engine-paths
+    paths: *android-paths
   workflow_dispatch:
 
+# (actions: to take an earlier run's engine, when this run builds none)
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: android-engine-${{ github.ref }}
@@ -105,8 +106,41 @@ defaults:
     shell: bash
 
 jobs:
+  # What this change needs: engine (the build and device jobs), tests (the
+  # tests job), and engine_run, the earlier run on main whose engine the
+  # tests take when engine is false (tools/ci/android_runs.py). A
+  # workflow_dispatch builds and runs everything
+  gate:
+    name: What the change needs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      engine: ${{ steps.decide.outputs.engine }}
+      tests: ${{ steps.decide.outputs.tests }}
+      engine_run: ${{ steps.decide.outputs.engine_run }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          python3 tools/ci/android_runs.py gate --event "$EVENT" --repo "$REPO" --sha "$SHA" \
+            --pr "$PR" --before "$BEFORE" --output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+
   build:
     name: Android engine (${{ matrix.arch }})
+    needs: gate
+    if: needs.gate.outputs.engine == 'true'
     runs-on: ubuntu-24.04
     # Ubuntu 22.04 through Google's mirror of Docker Hub, as web.yml takes
     # it, with the runner's Android SDK
@@ -404,9 +438,10 @@ jobs:
       # The IDE's runtime libraries and Xvfb, as android.yml installs them
       - name: Install Xvfb and the runtime libraries
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -415,7 +450,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # As android.yml's: the JDK, the platform the builder targets with
       # this Java layer (API 36), build-tools, platform-tools, the
@@ -599,9 +634,17 @@ jobs:
   # baseline, and compare then says which tests one engine passes and the
   # other fails. A failure not in its engine's baseline fails the job, once
   # both runs and the comparison are done
+  #
+  # With the engine built in this run, or, when the change needs none
+  # built (the gate's engine false), with the engine of the earlier run on
+  # main that the gate names (engine_run)
   tests:
     name: Script tests on the emulator
-    needs: build
+    needs: [gate, build]
+    if: >-
+      !cancelled() && needs.gate.outputs.tests == 'true' &&
+      (needs.build.result == 'success' ||
+       (needs.build.result == 'skipped' && needs.gate.outputs.engine_run != ''))
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
@@ -613,10 +656,20 @@ jobs:
           persist-credentials: false
 
       - name: Download the runtime
+        if: needs.build.result == 'success'
         uses: actions/download-artifact@v8
         with:
           pattern: android-engine-*
           path: ${{ runner.temp }}/android/parts
+
+      - name: Download an earlier run's runtime
+        if: needs.build.result != 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: android-engine-*
+          path: ${{ runner.temp }}/android/parts
+          run-id: ${{ needs.gate.outputs.engine_run }}
+          github-token: ${{ github.token }}
 
       - name: Make the four folders one runtime
         run: |
@@ -641,9 +694,10 @@ jobs:
 
       - name: Install Xvfb and the runtime libraries
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -652,7 +706,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # As the device job's, with the Android 13 image only
       - name: Set up the JDK and the Android SDK

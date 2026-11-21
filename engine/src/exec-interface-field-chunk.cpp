@@ -2395,7 +2395,10 @@ void MCField::GetEffectiveForeColorOfCharChunk(MCExecContext& ctxt, uint32_t p_p
     MCInterfaceNamedColor t_default_color;
     GetEffectiveForeColor(ctxt, t_default_color);
     
-    GetCharPropOfCharChunk< PodFieldPropType<MCInterfaceNamedColor> >(ctxt, this, p_part_id, si, ei, &MCBlock::GetForeColor, true, t_default_color, r_mixed, r_color);
+    // OXT-Beyond: a run on a colour of its own or its paragraph's has the
+    // words drawn on it (MCBlock::GetEffectiveForeColor); before, its own
+    // colour or the field's (MCBlock::GetForeColor)
+    GetCharPropOfCharChunk< PodFieldPropType<MCInterfaceNamedColor> >(ctxt, this, p_part_id, si, ei, &MCBlock::GetEffectiveForeColor, true, t_default_color, r_mixed, r_color);
 
     if (r_mixed)
     {
@@ -3455,6 +3458,42 @@ void MCBlock::GetForeColor(MCExecContext& ctxt, MCInterfaceNamedColor &r_color)
         get_interface_color(*t_color_ptr, nil, r_color);
     else
         r_color . name = MCValueRetain(kMCEmptyString);
+}
+
+// OXT-Beyond: the colour a run's words are drawn in, for the effective
+// foregroundColor of a chunk (MCField::GetEffectiveForeColorOfCharChunk):
+// its own colour; else, when the run is on a backgroundColor of its own or
+// its paragraph's, the field's effective foregroundColor on that colour,
+// as MCBlock::draw and MCParagraph::draw draw it (getlegacywords: in the
+// dark appearance, words that take the theme's colour are black on a light
+// one); else unset, which the caller takes as the field's effective
+// foregroundColor, as before. Declared in LiveCode Community and not
+// defined there
+void MCBlock::GetEffectiveForeColor(MCExecContext& ctxt, MCInterfaceNamedColor &r_color)
+{
+    const MCColor *t_color_ptr;
+    if (getcolor(t_color_ptr))
+    {
+        get_interface_color(*t_color_ptr, nil, r_color);
+        return;
+    }
+
+    MCColor t_back;
+    const MCColor *t_back_ptr;
+    if (!getbackcolor(t_back_ptr))
+    {
+        if (!parent -> getownbackcolor(t_back))
+        {
+            r_color . name = MCValueRetain(kMCEmptyString);
+            return;
+        }
+        t_back_ptr = &t_back;
+    }
+
+    MCField *t_field = parent -> getparent();
+    const MCColor *t_old_words_back = t_field -> setwordsback(t_back_ptr);
+    t_field -> GetEffectiveForeColor(ctxt, r_color);
+    t_field -> setwordsback(t_old_words_back);
 }
 
 void MCBlock::SetForeColor(MCExecContext& ctxt, const MCInterfaceNamedColor& p_color)

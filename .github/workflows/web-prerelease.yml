@@ -1,0 +1,172 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# Publishes main's Stack Player, and the Linux engine that reads stacks, as
+# a pre-release of their own, between two releases of OXT-Beyond (Actions >
+# Web pre-release > Run workflow, on main, with a label).
+#
+# Why: the community gallery (oxt-stacks/oxt-community-stacks) plays its
+# stacks in a Stack Player that its tools/pins.json pins to the assets of
+# one release, by SHA-256. When the web engine gains something a shared
+# stack needs (an xTalk Suite library linked in, say), the gallery cannot
+# have it until a release carries it. This gives it one without making a
+# release of the desktop programs.
+#
+# What it publishes, unchanged, from the packages that build-linux.yml made
+# and tested for the commit main points at (its push to main, or a run by
+# hand on main):
+#
+#   OXT-Beyond-<ver>-web-player.zip                the Stack Player
+#   OXT-Beyond-<ver>-linux-x86_64-binaries.tar.xz  the engine, for reading
+#                                                  stacks without running
+#                                                  them
+#   SHA256SUMS                                     of those two
+#
+# <ver> is ide/.version as it stood at that commit, which is the last
+# release's or the next one's: the tag and the notes, not the file names,
+# say which commit they are.
+#
+# It is NOT an OXT-Beyond release: the tag is web-<label>, never v<version>,
+# so release.yml does not start, and every workflow, page and updater that
+# looks for the newest release takes tags that begin "v" and a digit and
+# does not see it. It is marked a pre-release and never the latest. A tag is
+# never moved and a published asset never replaced: a label that exists is
+# refused. Nothing is built here, so a commit whose Linux build did not pass
+# on main cannot be published.
+#
+# Permissions: contents: write to create the release, actions: read for
+# main's build's packages, in the one job.
+
+name: Web pre-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: >-
+          The label: the tag is web-<label> (for example 2026.11.21 for the
+          first of that day, 2026.11.21.2 for the second)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-prerelease
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Publish main's Stack Player as web-${{ inputs.label }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: ${{ inputs.label }}
+    steps:
+      - name: Check the label, and find main's Linux build of this commit
+        id: find
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          [[ "$LABEL" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]] || fail "label '$LABEL': use letters, digits, '.', '_' and '-'"
+          if gh api "repos/$GH_REPO/git/ref/tags/web-$LABEL" --silent 2> /dev/null; then
+            fail "the tag web-$LABEL exists already; a published asset is never replaced, so choose a new label"
+          fi
+          runs=$(gh api "repos/$GH_REPO/actions/workflows/build-linux.yml/runs?head_sha=$GITHUB_SHA&branch=main&per_page=30" \
+            --jq '.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch") | "\(.id) \(.status) \(.conclusion // "-")"')
+          echo "build-linux.yml on main for $GITHUB_SHA:"
+          echo "${runs:-none}"
+          id=$(awk '$2 == "completed" && $3 == "success" { print $1; exit }' <<< "$runs")
+          [ -n "$id" ] || fail "no passed run of build-linux.yml on main for $GITHUB_SHA: wait for it, or run it by hand on main, and start this again"
+          echo "run=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Download that build's packages
+        uses: actions/download-artifact@v8
+        with:
+          name: OXT-Beyond-linux-x86_64
+          path: ${{ runner.temp }}/linux
+          run-id: ${{ steps.find.outputs.run }}
+          github-token: ${{ github.token }}
+
+      - name: Check the two files and publish them
+        env:
+          RUN: ${{ steps.find.outputs.run }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          cd "$RUNNER_TEMP/linux"
+          # every file the build listed that is here, against its own list
+          sha256sum -c SHA256SUMS --ignore-missing
+          shopt -s nullglob
+          player=(OXT-Beyond-*-web-player.zip)
+          engine=(OXT-Beyond-*-linux-x86_64-binaries.tar.xz)
+          [ "${#player[@]}" = 1 ] || fail "expected one web-player.zip in the build's packages, found ${#player[@]}"
+          [ "${#engine[@]}" = 1 ] || fail "expected one linux-x86_64-binaries.tar.xz in the build's packages, found ${#engine[@]}"
+          # both must be in the build's own list: a file it did not vouch
+          # for is not published
+          for f in "${player[0]}" "${engine[0]}"; do
+            grep -qE "^[0-9a-f]{64} [ *]$f\$" SHA256SUMS || fail "$f is not in the build's SHA256SUMS"
+          done
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          cp "${player[0]}" "${engine[0]}" "$out/"
+          cd "$out"
+          sha256sum "${player[0]}" "${engine[0]}" > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "The Stack Player, and the Linux engine that reads stacks, as main had them at commit $GITHUB_SHA,"
+            echo "from the packages its Linux build made and tested ([run $RUN]($GITHUB_SERVER_URL/$GH_REPO/actions/runs/$RUN))."
+            echo
+            echo "**Not an OXT-Beyond release.** It exists so that the community gallery, which pins its Stack Player"
+            echo "to a release's files, can play stacks that need what the web engine gained since the last release."
+            echo "The file names carry the version main had at that commit; this tag says which commit they are."
+            echo "For OXT-Beyond itself, take a release whose tag begins with v."
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "web-$LABEL" "${player[0]}" "${engine[0]}" SHA256SUMS --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Web pre-release $LABEL" --notes-file "$RUNNER_TEMP/notes.md"
+          # what was uploaded is what was checked
+          for f in "${player[0]}" "${engine[0]}"; do
+            sha=$(sha256sum "$f" | cut -d' ' -f1)
+            size=$(stat -c %s "$f")
+            uploaded=$(gh api "repos/$GH_REPO/releases/tags/web-$LABEL" \
+              --jq ".assets[] | select(.name == \"$f\") | [.size, .state, (.digest // \"\")] | @tsv")
+            echo "uploaded: $f $uploaded"
+            IFS=$'\t' read -r usize ustate udigest <<< "$uploaded"
+            [ "$usize" = "$size" ] && [ "$ustate" = uploaded ] || fail "the upload of $f is $usize bytes, $ustate"
+            [ -z "$udigest" ] || [ "$udigest" = "sha256:$sha" ] || fail "the upload's digest of $f is $udigest, not sha256:$sha"
+          done
+          {
+            echo "### Published web-$LABEL"
+            echo
+            echo "$GITHUB_SERVER_URL/$GH_REPO/releases/tag/web-$LABEL"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

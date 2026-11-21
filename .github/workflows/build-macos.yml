@@ -124,11 +124,14 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
+      - '.github/workflows/web-prerelease.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-java.yml'
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
+      - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/web-host/**'
@@ -137,10 +140,13 @@ on:
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
       - 'tools/ci/release_notes.py'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
@@ -152,6 +158,8 @@ on:
       - 'tools/ci/backdrop_focus_check.py'
       - 'tools/ci/browser-wm-check.livecodescript'
       - 'tools/ci/browser_wm_check.py'
+      - 'tools/ci/grab-menu-check.livecodescript'
+      - 'tools/ci/grab_menu_check.py'
       - 'tools/ci/check_elf_floor.py'
       - 'tools/ci/check_linux_libraries.py'
       - 'tools/ci/engine-tests-baseline-linux*.txt'
@@ -1205,6 +1213,19 @@ jobs:
           python3 tools/ci/field_speed_test.py --app "$APP" --out "$LOGS/field-speed-dark" --mac dark \
             --solve-ms 3000 --limit fill-and-prune=5000 --limit write-unlocked=20 \
             --limit try-digit-unlocked=25
+
+      # Visual effects as the screen shows them: a window of black and
+      # white cards and one effect after another between them, each very
+      # slowly, its area taken from the screen over and over
+      # (tools/ci/visual_effect_check.py). Each effect must show pictures
+      # between the two cards: on 0.2.7 with macOS 15 (the forum's report
+      # of 2026-11-19) every frame was drawn as the card already was, and
+      # the card just changed (engine/src/desktop-stack.cpp)
+      - name: Visual effect check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: |
+          python3 tools/ci/visual_effect_check.py --app "$APP" --out "$LOGS/visual-effects"
 
       # The build's debug symbols, so that a stop at start-up's sample of the
       # engine names its frames (tools/ci/ui_tour.py, mac_symbolicate); a

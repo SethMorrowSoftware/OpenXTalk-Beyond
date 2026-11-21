@@ -266,6 +266,27 @@ class ServerCheckTest(unittest.TestCase):
         self.assertEqual(r.field_bytes('data'), b'a\x00\xff\nb')
         self.assertEqual(r.field('next'), '1')
 
+    def test_session_attributes_of_a_cookie(self):
+        self.assertEqual(server_check.session_attributes('LCSESSION=AB; Path=; Domain=; Secure; HttpOnly; SameSite=Lax'),
+                         ['path=', 'domain=', 'secure', 'httponly', 'samesite=lax'])
+        self.assertEqual(server_check.session_attributes('LCSESSION=AB'), [])
+        self.assertEqual(server_check.session_attributes(None), [])
+
+    def test_files_named_looks_everywhere_but_the_session_folder(self):
+        work = os.path.join(self.tmp, 'work')
+        sessions = os.path.join(work, 'sessions')
+        os.makedirs(os.path.join(work, 'www', 'deep'))
+        os.makedirs(sessions)
+        for path in (os.path.join(sessions, '127.0.0.1_..\\..\\oxt-escape'), os.path.join(work, 'www', 'page.lc')):
+            open(path, 'w').close()
+        self.assertEqual(server_check.files_named(work, 'oxt-escape', but_under=sessions), [])
+        escaped = os.path.join(work, 'www', 'deep', 'oxt-escape')
+        open(escaped, 'w').close()
+        self.assertEqual(server_check.files_named(work, 'oxt-escape', but_under=sessions), [escaped])
+        os.mkdir(os.path.join(work, 'oxt-escape'))
+        self.assertEqual(sorted(server_check.files_named(work, 'oxt-escape', but_under=sessions)),
+                         sorted([escaped, os.path.join(work, 'oxt-escape')]))
+
     def test_fields_on_every_platforms_line_ends(self):
         # The engine writes return as LF on Linux, CR LF on Windows and CR
         # on macOS; the first CI runs on Windows and macOS met the last two.

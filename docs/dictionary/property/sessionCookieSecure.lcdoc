@@ -1,0 +1,56 @@
+Name: sessionCookieSecure
+
+Type: property
+
+Syntax: set the sessionCookieSecure to {true | false}
+
+Syntax: get the sessionCookieSecure
+
+Summary:
+Specifies whether the cookie that stores the session id is sent with the
+Secure attribute, so that browsers return it over HTTPS only.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: server
+
+Example:
+set the sessionCookieSecure to true
+start session
+
+Example:
+if $_SERVER["HTTPS"] is "on" then set the sessionCookieSecure to true
+
+Value (bool):
+The <sessionCookieSecure> is true or false. By default, it is false.
+
+Description:
+Use the <sessionCookieSecure> property on a site served over HTTPS, so
+that the session id is never sent over an unencrypted connection.
+
+When a session is started, a cookie is created in the browser to
+identify the ongoing session. By default that cookie has the HttpOnly
+attribute alone, as it always has. When the <sessionCookieSecure> is
+true, the cookie also has the Secure attribute: the browser then sends
+it back with requests over HTTPS only, and not at all to a page of the
+site that is requested over plain HTTP, where a session would start
+anew on every request.
+
+Set the <sessionCookieSecure> before the <start session> command (and
+before <delete session>, whose expired cookie takes the same
+attributes). It is not saved anywhere: a site that wants it sets it on
+every request, for example in a file every page includes.
+
+>*Note:* You do not need to alter any of the session properties in order
+> to start and use sessions. They provide a way for advanced users to
+> configure the way session work.
+
+>*Note:* The sessionCookieSecure property can be read and set in every
+> engine, and has an effect only when running in CGI mode (Server).
+
+References: sessionCookieSameSite (property),
+sessionCookieName (property), sessionSavePath (property),
+sessionLifetime (property), sessionID (property),
+start session (command), delete session (command), put cookie (command)
