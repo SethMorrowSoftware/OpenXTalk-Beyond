@@ -2452,11 +2452,85 @@ private function revMenubarWindowMenu pContext
    if revIDEPaletteIsVisible("Message Box") is true then put tWdListToShow & return & "!nMessage Box/|stack " & QUOTE & "Message Box" & QUOTE into tWdListToShow
    if revIDEPaletteIsVisible("Tools") is true then put tWdListToShow & return & "!nTools/|stack " & QUOTE & "revTools" & QUOTE into tWdListToShow
    if revIDEPaletteIsVisible("Project Browser") is true then put tWdListToShow & return & "!nProject Browser/|stack " & QUOTE & "revIDEProjectBrowser" & QUOTE into tWdListToShow
+   -- OXT-Beyond: then the IDE's other windows that are open
+   put tWdListToShow & return & revMenubarWindowMenuIDEWindows() into tWdListToShow
    filter lines of tWdListToShow without empty
    if tWdListToShow is empty then put "(No Windows Open" into tWindow
    else put tWdListToShow & return & "-" & return & "Send Window to Back/`" into tWindow
    return modifyMenu("Window", tWindow)
 end revMenubarWindowMenu
+
+-- OXT-Beyond: the IDE's palettes the Window menu does not list above: all
+-- but the Menubar, the Tools palette, the Message Box and the Project
+-- Browser (listed above), the Inspector (a hidden stack that keeps the
+-- Property Inspectors, listed by what they inspect), the About window
+-- (its name opens it: revIDEPaletteToStackName), and the Dictionary, the
+-- Guide and the Resource Center (windows to revIDEStackIsIDEWindow, so
+-- listed with the user's stacks)
+constant kWindowMenuNotPalettes = "Menubar,Tools,Message Box,Project Browser,Inspector,About,Dictionary,Guide,Resource Center"
+-- OXT-Beyond: the IDE's other windows, by their stacks' names: Home, Learn,
+-- the xTalk Academy and its stage, the Release Notes, the About window,
+-- Community Stacks, Share Stack, the web IDE's Home and the Card Navigator
+constant kWindowMenuIDEWindows = "revHub,revLearn,revAcademy,revAcademyStage,revReleaseNotes,revAbout,revCommunityStacks,revShareStack,revWebHome,Card Navigator"
+
+-- OXT-Beyond: the lines of the Window menu for the IDE's windows that are
+-- open and shown and that the lines before them leave out. Those list the
+-- user's stacks, the script editors, the Dictionary and the Resource Center
+-- (revIDEStackIsWindow), then the Message Box, the Tools palette and the
+-- Project Browser, and until 0.2.8-dp.2.1 that was all: a window such as
+-- the Extension Manager or a Property Inspector, once behind another,
+-- could not be brought back from the menu (OpenXTalkPaul, openxtalk.org
+-- p=26643). These lines list:
+--   - the palettes the IDE knows by name (revIDEAvailablePalettes, but
+--     kWindowMenuNotPalettes), by those names, as the Tools menu does: the
+--     Extension Manager, the Extension Builder, the Preferences, ...
+--   - each Property Inspector, by what it inspects (its title)
+--   - the IDE's other windows (kWindowMenuIDEWindows) and the App Browser,
+--     by their titles
+--   - any other stack of the IDE whose cOXTWindowMenu is true (a palette
+--     made later, or a plugin whose name makes it one of the IDE's), by
+--     its title
+-- in the order of their labels. Each line is as the three lines before
+-- are, "!n<label>/|stack "<name>"", so a pick goes to the window as theirs
+-- do (revMenubarWindowMenuPick). A window the lines before list is not
+-- listed again, nor one that is closed, hidden, or a dialog or a menu
+-- (mode 5 and up)
+private function revMenubarWindowMenuIDEWindows
+   local tPalette, tStack, tLabelOf, tBrowser, tLabel, tMode, tLines
+   repeat for each item tPalette in revIDEAvailablePalettes()
+      if tPalette is among the items of kWindowMenuNotPalettes then next repeat
+      put revIDEPaletteToStackName(tPalette) into tStack
+      if tStack is not empty then put tPalette into tLabelOf[tStack]
+   end repeat
+   put revIDEAppBrowserStack() into tBrowser
+   repeat for each line tStack in the openStacks
+      if revIDEStackIsWindow(tStack) then next repeat
+      put the mode of stack tStack into tMode
+      if tMode < 1 or tMode > 4 or not the visible of stack tStack then next repeat
+      if tStack is among the keys of tLabelOf then
+         put tLabelOf[tStack] into tLabel
+      else if tStack begins with "revPropertyInspector " then
+         put "Inspector:" && revMenubarWindowMenuTitle(tStack) into tLabel
+      else if tStack is among the items of kWindowMenuIDEWindows or tStack is tBrowser \
+            or the cOXTWindowMenu of stack tStack is true then
+         put revMenubarWindowMenuTitle(tStack) into tLabel
+      else
+         next repeat
+      end if
+      put "!n" & revMenubarEscapeStackNameForMenu(tLabel) & "/|stack " & quote & tStack & quote & return after tLines
+   end repeat
+   delete the last char of tLines
+   sort lines of tLines
+   return tLines
+end revMenubarWindowMenuIDEWindows
+
+-- OXT-Beyond: a window's title, or its name when it has none
+private function revMenubarWindowMenuTitle pStack
+   local tTitle
+   put the title of stack pStack into tTitle
+   if tTitle is empty then put the short name of stack pStack into tTitle
+   return tTitle
+end revMenubarWindowMenuTitle
 
 ################################################################################
 
