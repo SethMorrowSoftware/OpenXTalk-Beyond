@@ -2796,7 +2796,7 @@ A push or pull request that changes nothing a platform's build uses
 starts no build of that platform: documentation (the Markdown files at
 the top of the repository, the issue forms and the pull request
 template), the workflows and scripts that build nothing (`release.yml`,
-`runtimes.yml`, `tag-release.yml`, the screenshot and check-by-hand
+`runtimes.yml`, `tag-release.yml`, `web-prerelease.yml`, the screenshot and check-by-hand
 workflows, `ci-checks.yml` and `tools/ci/tests`), and what only the
 other platforms use (their build workflows, the `.ps1` scripts for
 Windows, and so on). Each build workflow lists these in its
@@ -3256,6 +3256,31 @@ replaces it (prepare and publish both stop with an error for a tag that
 has one), and its tag must never be moved or deleted. Fix a problem in a
 published release with a new version.
 
+### A web pre-release for the community gallery
+
+The community gallery
+([oxt-stacks/oxt-community-stacks](https://github.com/oxt-stacks/oxt-community-stacks))
+plays its stacks in a Stack Player that its `tools/pins.json` pins to
+the files of one release, by SHA-256. When the web engine gains
+something a shared stack needs (an xTalk Suite library linked in, for
+example) and the next release is some way off,
+[`web-prerelease.yml`](.github/workflows/web-prerelease.yml) gives the
+gallery a player without a release of the desktop programs: Actions >
+*Web pre-release* > Run workflow, on `main`, with a label such as
+`2026.11.21`.
+
+It builds nothing. It takes the Stack Player zip and the Linux x86-64
+binaries from the packages that `build-linux.yml` made and tested for
+the commit `main` points at, checks them against that build's
+`SHA256SUMS`, and publishes them with a `SHA256SUMS` of their own under
+the tag `web-<label>`, as a pre-release that is never the latest. The
+tag does not begin with `v`, so `release.yml` does not start and
+nothing that looks for the newest release (the website, the workflows
+that fetch a release's files, the IDE) sees it. A label that exists is
+refused: a tag is never moved and a published file never replaced. The
+gallery then moves its pins to the new tag in a pull request of its
+own, where its tests play every stack in the new player.
+
 ## 11. Working on the IDE
 
 The IDE is in `ide/` (and eleven libraries in `ide-support/`). Run it
@@ -3633,7 +3658,7 @@ site is static files: serve the folder with any web server (for example
 #### The xTalk Suite's libraries in the web IDE (experimental)
 
 A browser opens no native library, so the web IDE's engine links the
-xTalk Suite's SodiumXT, Box2Dxt, CoinXT and DataChannelXT into itself,
+xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT and box3dxt into itself,
 and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
 they are registered). The web standalone engine, which every HTML5
