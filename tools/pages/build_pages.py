@@ -63,7 +63,7 @@ given.
                      (tools/pages/welcome): a front page, a guide, the GPL
                      for in-house tools, and a stack checker that reads a
                      stack in the visitor's browser; written by hand, made
-                     by its own build/build.py, and copied as they are,
+                     by its own src/build.py, and copied as they are,
                      without the builder, tests and README beside them
   DIR/map/           the codebase map: the one self-contained page that
                      tools/codebase-map/build_map.py writes (index.html),
@@ -773,8 +773,8 @@ def brand(source, target):
 
 
 # The welcome section's own tools, which stay in the repository: how its
-# pages and pictures are made (build/), its tests and its README
-WELCOME_LEFT_OUT = ('build', 'tests', 'README.md')
+# pages and pictures are made (src/), its tests and its README
+WELCOME_LEFT_OUT = ('src', 'tests', 'README.md')
 
 
 def welcome(source, target):

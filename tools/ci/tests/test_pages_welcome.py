@@ -15,7 +15,7 @@
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
 """The welcome section of the GitHub Pages site (tools/pages/welcome): four
-pages for people coming from LiveCode, written by its build/build.py and
+pages for people coming from LiveCode, written by its src/build.py and
 copied to the site's welcome/ by tools/pages/build_pages.py.
 
 Its pages are what the builder writes; every file they name is there; they
@@ -23,9 +23,9 @@ ask no other host for anything; each has the tags a link preview reads
 (Open Graph and X's), naming its own address and a picture 1200 by 630 that
 is there and small enough for every app that shows one; tools/pages/seo.py
 finds their addresses and adds none; nothing moves without end at rest; the
-site gets the section without its builder, tests and README; and the stack
-checker gives each of its test files the verdict it should (with Node,
-when there is one).
+site gets the section without its builder, tests and README; git keeps
+every file of it; and the stack checker gives each of its test files the
+verdict it should (with Node, when there is one).
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -141,7 +141,7 @@ def css_rules(css):
 class ThePages(unittest.TestCase):
 
     def test_they_are_what_the_builder_writes(self):
-        run = subprocess.run([sys.executable, '-I', os.path.join(WELCOME, 'build', 'build.py'), '--check'],
+        run = subprocess.run([sys.executable, '-I', os.path.join(WELCOME, 'src', 'build.py'), '--check'],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         self.assertEqual(run.returncode, 0, run.stdout)
 
@@ -239,14 +239,14 @@ class TheLinkPreviews(unittest.TestCase):
             shutil.rmtree(site, ignore_errors=True)
 
     def test_the_cards_are_drawn_from_the_pages_words(self):
-        # build/share.html draws each card (build/share.js saves them): one
+        # src/share.html draws each card (src/share.js saves them): one
         # for each page's picture, its headline the page's own
-        cards = read(WELCOME, 'build', 'share.html')
+        cards = read(WELCOME, 'src', 'share.html')
         for name in NAMES:
             image = parse(name).meta['og:image'][0]
             card = os.path.splitext(os.path.basename(image))[0]
             self.assertIn('<section class="card" id="%s">' % card, cards)
-            headline = re.search(r'<h1>(.*?)</h1>', read(WELCOME, 'build', 'pages', name), re.S).group(1)
+            headline = re.search(r'<h1>(.*?)</h1>', read(WELCOME, 'src', 'pages', name), re.S).group(1)
             section = cards[cards.index('id="%s"' % card):]
             self.assertIn(re.sub(r'<[^>]+>', '', headline), re.sub(r'<[^>]+>', '', section[:section.index('</h1>')]),
                           '%s: the card says something else' % card)
@@ -285,6 +285,9 @@ class TheSite(unittest.TestCase):
             target = os.path.join(site, 'welcome')
             self.assertEqual(build_pages.welcome(WELCOME, target), sorted(NAMES))
             for left in build_pages.WELCOME_LEFT_OUT:
+                # (there in the section, so that a name changed in one
+                # place and not the other can't leave nothing to leave out)
+                self.assertTrue(os.path.exists(os.path.join(WELCOME, left)), left)
                 self.assertFalse(os.path.exists(os.path.join(target, left)), left)
             for name in NAMES:
                 for tag, key, address in parse(name).refs:
@@ -294,6 +297,21 @@ class TheSite(unittest.TestCase):
                                         '%s: %s is not on the site' % (name, address))
         finally:
             shutil.rmtree(site, ignore_errors=True)
+
+    def test_git_keeps_every_file_of_it(self):
+        # The repository's .gitignore leaves out every folder named build/
+        # and every .zip, so a file of the section could be there to test
+        # here and never reach a commit: the builder did, in a build/
+        # folder, before it moved to src/. A .zip of tests/files is kept
+        # with git add -f, as the games' standalone.zip files are.
+        git = shutil.which('git')
+        if not git or not os.path.exists(os.path.join(REPO, '.git')):
+            self.skipTest('not a git checkout')
+        run = subprocess.run([git, 'ls-files', '--others', '--ignored', '--exclude-standard', '--', WELCOME],
+                             cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        self.assertEqual(run.returncode, 0, run.stdout)
+        ignored = [p for p in run.stdout.splitlines() if '__pycache__/' not in p and not p.endswith('.DS_Store')]
+        self.assertEqual(ignored, [], 'git ignores these, so no commit would take them')
 
 
 class TheChecker(unittest.TestCase):

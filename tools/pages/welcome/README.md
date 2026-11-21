@@ -5,7 +5,7 @@ Four pages of the GitHub Pages site, at
 people who use LiveCode. They say there is another road for their stacks,
 let them check a stack in the browser, explain the GPL for in-house tools,
 and guide them across. `tools/pages/build_pages.py` copies this folder to
-the site's `welcome/` with every site it builds, without `build/`, `tests/`
+the site's `welcome/` with every site it builds, without `src/`, `tests/`
 and this README.
 
 ## Look at it
@@ -36,12 +36,12 @@ folder is in its place in `tools/pages`.
 
 ## How it is made
 
-- `build/build.py` writes the four pages from `build/pages/*.html` (a
-  page's own script, if it has one, in `build/pages/<page>.tail`), putting
+- `src/build.py` writes the four pages from `src/pages/*.html` (a
+  page's own script, if it has one, in `src/pages/<page>.tail`), putting
   in what every page shares: the head with its link-preview tags, the bar
-  at the top, the sky and the footer. Edit the page in `build/pages/` or
+  at the top, the sky and the footer. Edit the page in `src/pages/` or
   the shared part in `build.py`, never the page it writes, then run
-  `python3 -I tools/pages/welcome/build/build.py` and commit both.
+  `python3 -I tools/pages/welcome/src/build.py` and commit both.
   `--check` says which pages differ from what it would write.
 - `assets/site.css`: the look, the OXT-Beyond website's own (the night
   sky over a planet whose rim is lit orange, the road, the fire-rim
@@ -80,15 +80,15 @@ chat apps and social sites read to draw a card when its address is
 shared: a title, a description, and a picture of its own in `share/`,
 1200 by 630 (the size Facebook, LinkedIn, X, Mastodon, Discord and Slack
 show large), each under 300 KB (WhatsApp shows none bigger), with alt
-text. `build/build.py` writes the tags (`BASE`, and `share` and
+text. `src/build.py` writes the tags (`BASE`, and `share` and
 `share_alt` for each page in `PAGES`).
 
-The pictures are drawn in the pages' look from `build/share.html`, one
+The pictures are drawn in the pages' look from `src/share.html`, one
 card a page, each with the page's own headline. After changing a card,
 draw them again and commit them:
 
 ```sh
-node tools/pages/welcome/build/share.js
+node tools/pages/welcome/src/share.js
 ```
 
 It needs Node and Playwright with its Chromium. A site caches a card
@@ -100,17 +100,23 @@ Post Inspector ask it to).
 
 [test_pages_welcome.py](../../ci/tests/test_pages_welcome.py), in CI
 with the other tests of `tools/ci/tests`, holds the section: the pages
-are what `build/build.py` writes; every file they name is there; they ask
+are what `src/build.py` writes; every file they name is there; they ask
 no other host for anything; each has its link-preview tags, naming its
 address and a picture of the right size that is there; `seo.py` adds
 nothing to them; nothing moves without end at rest; the site gets the
-pages without the tools; and, with Node, the checker gives each file in
-`tests/files` and both samples the verdict it should:
+pages without the tools; git keeps every file of the section; and, with
+Node, the checker gives each file in `tests/files` and both samples the
+verdict it should:
 
 ```sh
 node tools/pages/welcome/tests/run.js                 # every test file
 node tools/pages/welcome/tests/run.js some.livecode   # the report for a file
 ```
+
+The repository's `.gitignore` leaves out every `.zip`, so a new `.zip`
+in `tests/files` goes in with `git add -f`, as the games'
+`standalone.zip` files do (and every folder named `build/`, which is why
+the builder is in `src/`).
 
 [check_site_rest.py](../check_site_rest.py) holds the front page at
 rest in a browser, as it does the site's other pages (pages.yml runs it
@@ -130,8 +136,9 @@ or its date. With each release:
 3. **Not tested yet:** stacks from LiveCode 10 and 11, and round trips
    back to LiveCode. The pages and the checker say so; change them when
    that is tested.
-4. **The 3D clips** show box3dxt and render3dxt, which are in development
-   and in no release. The page says so. Update it when they ship.
+4. **The 3D clips** show box3dxt, built into OXT-Beyond since 21 November
+   2026 and in no release yet, and render3dxt, still in development. The
+   page says so. Update it when each ships.
 5. **Dates.** The footers and the page comments say "as of 21 November
    2026"; change them with the facts.
 
@@ -165,5 +172,6 @@ change:
 | Where OXT-Beyond comes from: Terry Little began OpenXTalk Lite, Tom Perry built it from 0.91 to 1.15 | `README.md`, "Where OXT-Beyond comes from" and "Credits" |
 | The ATL and OpenSSL exception, and which parts carry it | `LICENSE-EXCEPTION.md` |
 | Box3D is Erin Catto's 3D engine, the successor of Box2D | the xTalk Suite's `box3dxt/README.md` |
+| box3dxt joined the xTalk Suite on 20 November and is built into OXT-Beyond since 21 November (#606), in no release yet; render3dxt is still a pull request of the suite's | the xTalk Suite's `CLAUDE.md` and `box3dxt/README.md`; `changelog/606.md` (in `CHANGELOG.md` once folded) |
 | The xTalk Suite's extensions and what each binds: libsodium, libtorrent, ENet, libdatachannel, Box2D v3, trezor-crypto and libsecp256k1; Tor and Nostr in plain script | the xTalk Suite's `README.md`, the table of members |
 | Quotations of the GPLv3 | `LICENSE` in this repository, the same text as gnu.org |

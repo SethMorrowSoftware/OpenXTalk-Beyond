@@ -280,13 +280,13 @@ The welcome pages ([welcome/](welcome/README.md)) are four pages for
 people who use LiveCode, in the front page's look: a front page, a guide
 to coming over, the GPL for in-house tools, and a stack checker that
 reads a stack in the visitor's browser and runs nothing in it. They are
-written by hand: their own `build/build.py` writes them from
-`welcome/build/pages`, and `build_pages.py` copies the folder to the
+written by hand: their own `src/build.py` writes them from
+`welcome/src/pages`, and `build_pages.py` copies the folder to the
 site's `welcome/` with every site, without its builder, tests and README.
 They show the site's logo (`../brand/`) and ask no other host for
 anything. Each names its one address and has the Open Graph and X tags a
 link preview reads, with a 1200 by 630 picture of its own in
-`welcome/share/`, drawn from `welcome/build/share.html`. Every fact on
+`welcome/share/`, drawn from `welcome/src/share.html`. Every fact on
 them names its release, so their downloads and their list of where every
 feature stands are changed by hand with each release (welcome/README.md,
 "Keeping it current").

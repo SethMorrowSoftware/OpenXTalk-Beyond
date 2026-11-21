@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<!-- The pictures that link previews show for the welcome pages
+     (share/*.jpg, 1200 by 630), drawn in the pages' own look and fonts.
+     src/share.js opens this page once for each card (?card=home, guide,
+     in-house, check) and saves what it shows; the pages name the pictures
+     in their og:image and twitter:image (src/build.py, SHARE). Every
+     word on a card is the page's own. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share cards</title>
+<style>
+@font-face { font-family: "Bricolage Grotesque"; font-weight: 200 800; src: url("../assets/fonts/bricolage-grotesque.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 100 900; src: url("../assets/fonts/inter.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 100 800; src: url("../assets/fonts/jetbrains-mono.woff2") format("woff2"); }
+:root {
+  --night: #070b14; --night-2: #0c1322; --ember: #ff7a00; --amber: #ffb347; --teal: #4fd1c5; --star: #eef3ff;
+  --fire-text: linear-gradient(100deg, #ffd08a 0%, #ffb347 22%, #ff7a00 62%, #ff4d12 100%);
+  --rim: conic-gradient(from 210deg, #ff3d00, #ffc24d 12%, #fff4b0 16%, #ff7700 24%, rgba(255,119,0,.25) 45%, rgba(255,61,0,.25) 70%, #ff3d00);
+  --display: "Bricolage Grotesque", sans-serif; --sans: "Inter", sans-serif; --mono: "JetBrains Mono", monospace;
+  --ready: #5ad69a; --ready-bg: rgba(90,214,154,.14); --pv: #63e2d2; --pv-bg: rgba(79,209,197,.15);
+  --exp: #b0b4ff; --exp-bg: rgba(150,156,255,.16); --na: #ff8f70; --na-bg: rgba(255,110,80,.15);
+  --wait: #ffc470; --wait-bg: rgba(255,179,71,.15);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--night); }
+.card { display: none; position: relative; width: 1200px; height: 630px; overflow: hidden; isolation: isolate; color: var(--star); font-family: var(--sans);
+  background:
+    radial-gradient(900px 480px at 86% -10%, rgba(79,209,197,.18), transparent 62%),
+    radial-gradient(800px 560px at 0% 0%, rgba(90,108,200,.26), transparent 66%),
+    radial-gradient(640px 300px at 50% 100%, rgba(255,110,20,.2), transparent 70%),
+    linear-gradient(180deg, var(--night) 0%, var(--night-2) 70%, #16213a 100%); }
+.card.on { display: block; }
+.stars, .stars::before { position: absolute; inset: 0; z-index: -2; content: ""; background-repeat: repeat; }
+.stars { background-image:
+    radial-gradient(1.2px 1.2px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 140px 80px, rgba(255,255,255,.8), transparent),
+    radial-gradient(1.6px 1.6px at 90px 150px, #fff, transparent),
+    radial-gradient(1px 1px at 190px 190px, rgba(255,255,255,.7), transparent),
+    radial-gradient(1px 1px at 60px 210px, rgba(255,255,255,.6), transparent);
+  background-size: 230px 240px; opacity: .85; }
+.stars::before { background-image:
+    radial-gradient(1.8px 1.8px at 50px 60px, rgba(255,214,170,.95), transparent),
+    radial-gradient(1.2px 1.2px at 260px 140px, #fff, transparent),
+    radial-gradient(2.2px 2.2px at 330px 40px, rgba(190,240,235,.9), transparent);
+  background-size: 380px 300px; }
+/* the planet, its rim lit orange, and the road to the light */
+.horizon { position: absolute; z-index: -1; left: 50%; bottom: -1196px; width: 2600px; height: 1300px; transform: translateX(-50%); border-radius: 50%; background: #090e18;
+  box-shadow: inset 0 22px 50px -18px rgba(255,140,40,.34), 0 -1px 0 1px rgba(255,190,120,.95), 0 -6px 24px 2px rgba(255,140,40,.7), 0 -30px 90px 10px rgba(255,122,0,.38), 0 -90px 200px 40px rgba(255,90,0,.2); }
+.road { position: absolute; z-index: -1; left: 50%; bottom: 0; width: 1180px; height: 104px; transform: translateX(-50%); overflow: visible; }
+.road .surface { fill: rgba(255,255,255,.04); }
+.road .edge { stroke: rgba(255,179,71,.5); stroke-width: 1.4; fill: none; vector-effect: non-scaling-stroke; }
+.road .lane { stroke: #ffb347; stroke-width: 2.2; fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; opacity: .85; }
+.road .glow { fill: url(#road-glow); }
+
+.brand { position: absolute; left: 72px; top: 52px; display: flex; align-items: center; gap: 14px; }
+.brand img { width: 50px; height: 50px; }
+.brand b { font: 800 31px/1 var(--display); letter-spacing: -.02em; }
+.brand b span { background: var(--fire-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand small { margin-left: 6px; padding-left: 16px; border-left: 1px solid rgba(238,243,255,.22); font: 600 14px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: rgba(238,243,255,.7); }
+
+.text { position: absolute; left: 72px; top: 150px; width: 640px; }
+.eyebrow { display: flex; align-items: center; gap: 12px; margin: 0 0 22px; font: 600 16px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--teal); }
+.eyebrow::before { content: ""; width: 30px; height: 1.5px; background: currentColor; }
+h1 { margin: 0 0 22px; font: 800 70px/1 var(--display); letter-spacing: -.035em; text-wrap: balance; }
+h1 .beyond { background: var(--fire-text); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 26px rgba(255,110,0,.38)); }
+h1 .soft { color: rgba(238,243,255,.9); }
+.lead { margin: 0; max-width: 600px; font: 400 25px/1.42 var(--sans); color: rgba(225,232,245,.8); text-wrap: pretty; }
+.proof { position: absolute; left: 72px; bottom: 132px; display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.proof li { display: flex; align-items: center; gap: 8px; padding: 9px 15px 9px 12px; border-radius: 999px; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); font: 600 16px/1 var(--sans); color: rgba(238,243,255,.92); }
+.proof svg { width: 17px; height: 17px; color: var(--ready); }
+.where { position: absolute; left: 72px; bottom: 30px; margin: 0; font: 500 15px/1 var(--mono); letter-spacing: .04em; color: rgba(238,243,255,.6); }
+.nb { white-space: nowrap; }
+#home .text { top: 168px; }
+
+/* the right side of each card */
+.side { position: absolute; right: 72px; top: 132px; width: 400px; }
+.panel { position: relative; padding: 26px 28px; border-radius: 22px; background: linear-gradient(180deg, rgba(20,30,50,.9), rgba(12,19,34,.92)); box-shadow: 0 30px 70px -20px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.07); }
+.panel::before { content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit; background: var(--rim); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .75; }
+.panel h2 { margin: 0 0 18px; font: 700 15px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: rgba(238,243,255,.62); }
+.pill { display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 12px; border-radius: 999px; white-space: nowrap; font: 600 18px/1.2 var(--sans); }
+.pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 20%, transparent); }
+.pill.ready { color: var(--ready); background: var(--ready-bg); } .pill.preview { color: var(--pv); background: var(--pv-bg); }
+.pill.exp { color: var(--exp); background: var(--exp-bg); } .pill.na { color: var(--na); background: var(--na-bg); }
+.pill.wait { color: var(--wait); background: var(--wait-bg); }
+.lanes { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.lanes li { display: grid; grid-template-columns: 176px 1fr; align-items: center; gap: 12px; }
+.lanes .pill { justify-self: start; }
+.lanes small { font: 400 16px/1.3 var(--sans); color: rgba(225,232,245,.68); }
+.rows { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.rows li { display: grid; gap: 10px; padding: 16px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.rows li:first-child { border-top: 0; padding-top: 2px; }
+.rows b { font: 700 23px/1.1 var(--display); letter-spacing: -.01em; }
+
+/* the logo, in its halo */
+.mark { position: absolute; right: 96px; top: 96px; width: 360px; height: 360px; display: grid; place-items: center; }
+.mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(255,140,40,.32), rgba(255,122,0,.08) 62%, transparent); }
+.mark::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 1px dashed rgba(255,179,71,.32); }
+.mark i { position: absolute; inset: 44px; border-radius: 50%; border: 1px solid rgba(79,209,197,.22); }
+.mark img { position: relative; width: 236px; height: 236px; filter: drop-shadow(0 24px 50px rgba(0,0,0,.6)); }
+
+/* the checker's window */
+.window { border-radius: 18px; overflow: hidden; background: #f4efe7; color: #111925; box-shadow: 0 34px 80px -20px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.12); }
+.titlebar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; background: linear-gradient(#e9e2d7, #ddd4c6); font: 600 14px/1 var(--mono); color: #566273; }
+.titlebar i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; } .titlebar i + i { background: #febc2e; } .titlebar i + i + i { background: #28c840; }
+.titlebar span { margin-left: 10px; }
+.drop { margin: 20px; padding: 30px 20px 26px; border: 2.5px dashed #d0a670; border-radius: 14px; background: #fffaf2; text-align: center; }
+.drop svg { width: 58px; height: 58px; color: #ff7a00; }
+.drop strong { display: block; margin: 12px 0 8px; font: 800 28px/1.1 var(--display); letter-spacing: -.02em; }
+.drop small { display: block; font: 500 14.5px/1.45 var(--sans); color: #566273; }
+.safe { display: grid; gap: 10px; margin: 18px 4px 0; padding: 0; list-style: none; }
+.safe li { display: flex; align-items: center; gap: 10px; font: 600 17px/1.2 var(--sans); color: rgba(238,243,255,.9); }
+.safe svg { width: 20px; height: 20px; color: var(--ready); flex: none; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="road-glow" cx="500" cy="0" r="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd08a" stop-opacity=".9"/>
+      <stop offset=".35" stop-color="#ff7a00" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ff7a00" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="road-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="road-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="150"><rect width="1000" height="150" fill="url(#road-fade)"/></mask>
+    <symbol id="tick" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<template id="ground">
+  <div class="stars"></div>
+  <div class="horizon"></div>
+  <svg class="road" viewBox="0 0 1000 150" preserveAspectRatio="none">
+    <g mask="url(#road-mask)">
+      <path class="surface" d="M497 0 L503 0 L860 150 L140 150 Z"/>
+      <path class="edge" d="M497 0 L140 150"/><path class="edge" d="M503 0 L860 150"/>
+      <path class="lane" d="M500 6 L500 10 M500 18 L500 27 M500 37 L500 52 M500 64 L500 86 M500 101 L500 136"/>
+    </g>
+    <ellipse class="glow" cx="500" cy="0" rx="170" ry="34"/>
+  </svg>
+  <div class="brand"><img src="../../brand/icon.svg" alt=""><b>OXT-<span>Beyond</span></b><small>for LiveCode users</small></div>
+</template>
+
+<section class="card" id="home">
+  <div class="text">
+    <h1>There&rsquo;s <span class="beyond">another road</span> <span class="soft">for your stacks.</span></h1>
+    <p class="lead">LiveCode Community&rsquo;s GPL code lives on as <span class="nb">OXT-Beyond</span>: free, open source and still moving.</p>
+  </div>
+  <div class="mark"><i></i><img src="../../brand/logo.svg" alt=""></div>
+  <ul class="proof">
+    <li><svg><use href="#tick"/></svg>Free and open source</li>
+    <li><svg><use href="#tick"/></svg>Nothing to install to try it</li>
+    <li><svg><use href="#tick"/></svg>Windows, macOS, Linux, the web</li>
+  </ul>
+</section>
+
+<section class="card" id="guide">
+  <div class="text">
+    <p class="eyebrow">Coming from LiveCode</p>
+    <h1>The IDE you know, <span class="beyond">carried on.</span></h1>
+    <p class="lead">What opens, what differs, where your libraries went, and where every feature stands.</p>
+  </div>
+  <div class="side">
+    <div class="panel">
+      <h2>Where everything stands</h2>
+      <ul class="lanes">
+        <li><span class="pill ready">Ready today</span><small>the stable release</small></li>
+        <li><span class="pill preview">In the preview</span><small>newer, less tested</small></li>
+        <li><span class="pill exp">Experimental</span><small>there to try</small></li>
+        <li><span class="pill na">Not available</span><small>what to do instead</small></li>
+        <li><span class="pill wait">Not tested yet</span><small>may well work</small></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="in-house">
+  <div class="text">
+    <p class="eyebrow">In-house tools and the GPL</p>
+    <h1>Tools for your own team <span class="beyond">cost nothing.</span></h1>
+    <p class="lead">A tool that stays inside your organisation owes nothing: no fee, no royalty, and no source to publish.</p>
+  </div>
+  <div class="side">
+    <div class="panel">
+      <ul class="rows">
+        <li><b>Using it</b><span><span class="pill ready">Never restricted</span></span></li>
+        <li><b>Keeping it inside</b><span><span class="pill ready">Nothing owed</span></span></li>
+        <li><b>Giving it to others</b><span><span class="pill wait">They get the source</span></span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="check">
+  <div class="text">
+    <p class="eyebrow">Stack checker</p>
+    <h1>Will it open? <span class="beyond">Ask the file.</span></h1>
+    <p class="lead">Drop a stack on the page, and see what will work, what differs, and what to do next.</p>
+  </div>
+  <div class="side">
+    <div class="window">
+      <div class="titlebar"><i></i><i></i><i></i><span>Stack Checker.oxtstack</span></div>
+      <div class="drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="13" height="16" rx="2"/><path d="M4 6v13.5A2.5 2.5 0 0 0 6.5 22H15"/><path d="M12.5 7v7M9.5 11l3 3 3-3"/></svg>
+        <strong>Drop a stack here</strong>
+        <small>.livecode, .rev, .oxtstack, .livecodescript,<br>HyperCard stacks and .zip files</small>
+      </div>
+    </div>
+    <ul class="safe">
+      <li><svg><use href="#tick"/></svg>Read in your browser: nothing is uploaded</li>
+      <li><svg><use href="#tick"/></svg>Nothing in the stack runs</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+  // Shows the card ?card= names, with the sky, the planet and the brand
+  // that every card shares. document.title says when it is ready to save.
+  var name = new URLSearchParams(location.search).get('card') || 'home';
+  var card = document.getElementById(name);
+  card.insertAdjacentHTML('afterbegin', document.getElementById('ground').innerHTML);
+  card.insertAdjacentHTML('beforeend', '<p class="where">sethmorrowsoftware.github.io/OpenXTalk-Beyond/welcome/</p>');
+  card.classList.add('on');
+  Promise.all([document.fonts.ready].concat(Array.prototype.map.call(card.querySelectorAll('img'), function (img) {
+    return img.complete ? 0 : new Promise(function (done) { img.onload = img.onerror = done; });
+  }))).then(function () { document.title = 'ready'; });
+</script>
+</body>
+</html>
