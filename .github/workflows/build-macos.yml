@@ -131,6 +131,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
       - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -1226,6 +1227,19 @@ jobs:
         timeout-minutes: 8
         run: |
           python3 tools/ci/visual_effect_check.py --app "$APP" --out "$LOGS/visual-effects"
+
+      # A stack's window at the opacity of its blendLevel, as the screen
+      # shows it: set twice with the screen locked, and the IDE's way with
+      # the Message Box (made invisible as a palette at blendLevel 99,
+      # closed, set to 0 twice while closed, opened again). The second set
+      # lost the first, and on a Mac the Message Box never appeared (the
+      # forum's report of 2026-11-21; engine/src/exec-interface-stack.cpp,
+      # tools/ci/window_opacity_check.py)
+      - name: Window opacity check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: |
+          python3 tools/ci/window_opacity_check.py --app "$APP" --out "$LOGS/window-opacity"
 
       # The build's debug symbols, so that a stop at start-up's sample of the
       # engine names its frames (tools/ci/ui_tour.py, mac_symbolicate); a
