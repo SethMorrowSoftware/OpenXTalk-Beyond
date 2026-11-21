@@ -2428,7 +2428,7 @@ private function leShowcaseInfo pName
                "Hidden Word of four to six letters, new every day, with stickers to collect. Build it " & \
                "for HTML5 and play it on a phone, or here with the mouse and the keys.|puzzle|amber|game puzzles"
       case "Render3D Tour"
-         return "small|Nine small 3D scenes drawn into an ordinary image by render3dxt: shapes, " & \
+         return "small|Ten small 3D scenes drawn into an ordinary image by render3dxt: a sun and its planets, shapes, " & \
                "textures, materials, coloured lamps, a model read from text, hills built corner by " & \
                "corner, fog, clicking on things and 225 cubes on a wave. Drag the picture to look " & \
                "round.|orbit|indigo|3d graphics"

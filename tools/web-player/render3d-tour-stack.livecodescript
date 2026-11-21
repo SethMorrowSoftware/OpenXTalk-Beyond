@@ -1,5 +1,5 @@
 script "Render3D Tour"
--- Render3D Tour: nine small 3D scenes, each showing one thing that
+-- Render3D Tour: ten small 3D scenes, each showing one thing that
 -- render3dxt (the xTalk Suite's 3D renderer) can do, drawn into an
 -- ordinary image control. Built by
 -- tools/web-player/render3d-tour.livecodescript in OXT-Beyond's
@@ -8,7 +8,7 @@ script "Render3D Tour"
 --
 -- How it is made:
 --   one card, "Tour": the picture (image "View"), a button for each
---     exhibit (Ex1 to Ex9), three tick boxes (Smooth, Fog, Spin), a few
+--     exhibit (Ex1 to Ex10), three tick boxes (Smooth, Fog, Spin), a few
 --     words about the exhibit (About), what the last picture cost
 --     (Stats), and six labels (Tag1 to Tag6) that float over the things
 --     in the picture
@@ -29,7 +29,9 @@ script "Render3D Tour"
 
 constant kViewW = 640
 constant kViewH = 480
-constant kExhibits = 9
+constant kExhibits = 10
+constant kExLights = 5
+constant kExAim = 9
 constant kTags = 6
 constant kNight = "24,28,40"
 
@@ -54,6 +56,7 @@ local sTagAt                 -- array: tag number -> "x,y,z" it floats over
 local sHover                 -- the node under the pointer in "Click and aim"
 local sPicked                -- what the last click said
 local sTesting
+local sPlanetData            -- array: the planets' pictures, kept once made
 
 ----------------------------------------------------------------------
 -- The stack's own messages
@@ -100,7 +103,7 @@ on mouseMove pX, pY
       add abs(pX - sDragX) + abs(pY - sDragY) to sDragMoved
       put pX into sDragX
       put pY into sDragY
-   else if sExhibit is 8 and the short name of the target is "View" then
+   else if sExhibit is kExAim and the short name of the target is "View" then
       rtHoverView pX - the left of image "View", pY - the top of image "View"
    else
       pass mouseMove
@@ -281,30 +284,33 @@ command rtGo pExhibit
    end repeat
    switch sExhibit
       case 1
-         rtBuildShapes
+         rtBuildOrrery
          break
       case 2
-         rtBuildTextures
+         rtBuildShapes
          break
       case 3
-         rtBuildMaterials
+         rtBuildTextures
          break
       case 4
-         rtBuildLights
+         rtBuildMaterials
          break
       case 5
-         rtBuildModel
+         rtBuildLights
          break
       case 6
-         rtBuildTerrain
+         rtBuildModel
          break
       case 7
-         rtBuildColonnade
+         rtBuildTerrain
          break
       case 8
-         rtBuildAim
+         rtBuildColonnade
          break
       case 9
+         rtBuildAim
+         break
+      case 10
          rtBuildMany
          break
    end switch
@@ -503,30 +509,33 @@ end rtShowStats
 command rtTick
    switch sExhibit
       case 1
-         rtTickTurners 0.9
+         rtTickOrrery
          break
       case 2
-         rtTickTurners 0.6
+         rtTickTurners 0.9
          break
       case 3
-         rtTickMaterials
+         rtTickTurners 0.6
          break
       case 4
-         rtTickLights
+         rtTickMaterials
          break
       case 5
-         rtTickTurners 0.4
+         rtTickLights
          break
       case 6
-         rtTickTerrain
+         rtTickTurners 0.4
          break
       case 7
-         rtTickColonnade
+         rtTickTerrain
          break
       case 8
-         rtTickAim
+         rtTickColonnade
          break
       case 9
+         rtTickAim
+         break
+      case 10
          rtTickMany
          break
    end switch
@@ -661,7 +670,181 @@ function rtLatticePng
 end rtLatticePng
 
 ----------------------------------------------------------------------
--- 1. Shapes: the five meshes made to measure, and a model
+-- 1. Welcome: a small sun and its planets, with a little of everything
+
+-- A planet's surface, as the imageData of a picture 128 by 64: four bytes
+-- a pixel, the first unused. Made once and kept, because 8192 pixels take
+-- script a moment.
+function rtPlanetData pKind
+   local tData, tX, tY, tU, tV, tR, tG, tB, tLand, tBand
+   if sPlanetData[pKind] is not empty then
+      return sPlanetData[pKind]
+   end if
+   repeat with tY = 0 to 63
+      put tY / 64 into tV
+      repeat with tX = 0 to 127
+         put tX / 128 * 2 * pi into tU
+         switch pKind
+            case "sea"
+               -- land where three waves add up high, ice at the poles
+               put sin(tU * 2 + 1) * cos(tV * 9) + 0.6 * sin(tU * 5 + tV * 7) + 0.4 * cos(tU * 3 - tV * 13) into tLand
+               if tV < 0.1 or tV > 0.9 then
+                  put 240 into tR
+                  put 244 into tG
+                  put 250 into tB
+               else if tLand > 0.35 then
+                  put 70 + 40 * tLand into tR
+                  put 150 + 30 * tLand into tG
+                  put 70 into tB
+               else
+                  put 30 into tR
+                  put 90 + 30 * tLand into tG
+                  put 190 + 30 * tLand into tB
+               end if
+               break
+            case "bands"
+               -- stripes round the middle, each with a wave in it
+               put sin(tV * 34 + 0.5 * sin(tU * 3)) into tBand
+               put 214 + 30 * tBand into tR
+               put 170 + 34 * tBand into tG
+               put 120 + 24 * tBand into tB
+               break
+            case "rock"
+               put sin(tU * 7 + tV * 11) * cos(tU * 3 - tV * 17) + 0.5 * sin(tU * 13 + tV * 5) into tLand
+               put 150 + 40 * tLand into tR
+               put 120 + 34 * tLand into tG
+               put 100 + 30 * tLand into tB
+               break
+            case "fire"
+               put sin(tU * 6 + 3 * sin(tV * 9)) * cos(tV * 14 + 2 * sin(tU * 5)) into tLand
+               put 255 into tR
+               put 200 + 40 * tLand into tG
+               put 90 + 60 * tLand into tB
+               break
+            case "ring"
+               -- across the ring: bright and dim circles
+               put 0.6 + 0.4 * sin(tX * 0.7) * sin(tX * 0.23 + 1) into tBand
+               put 230 * tBand into tR
+               put 210 * tBand into tG
+               put 170 * tBand into tB
+               break
+            default
+               put sin(tV * 20 + sin(tU * 4)) into tBand
+               put 150 + 40 * tBand into tR
+               put 200 + 30 * tBand into tG
+               put 235 + 20 * tBand into tB
+         end switch
+         put numToByte(255) & numToByte(max(0, min(255, trunc(tR)))) & numToByte(max(0, min(255, trunc(tG)))) \
+               & numToByte(max(0, min(255, trunc(tB)))) after tData
+      end repeat
+   end repeat
+   put tData into sPlanetData[pKind]
+   return tData
+end rtPlanetData
+
+-- A flat ring round the y axis, from pInner to pOuter metres, built corner
+-- by corner; its texture runs from the inner edge to the outer
+function rtRingMesh pInner, pOuter
+   local tMesh, tI, tAngle, tA
+   put rtMesh(r3MeshCreate()) into tMesh
+   repeat with tI = 0 to 96
+      put tI / 96 * 2 * pi into tAngle
+      get r3MeshAddVertex(tMesh, pInner * cos(tAngle), 0, pInner * sin(tAngle), 0, 1, 0, 0, 0.5)
+      get r3MeshAddVertex(tMesh, pOuter * cos(tAngle), 0, pOuter * sin(tAngle), 0, 1, 0, 1, 0.5)
+   end repeat
+   repeat with tI = 0 to 95
+      put tI * 2 + 1 into tA
+      get r3MeshAddTriangle(tMesh, tA, tA + 2, tA + 1, 1)
+      get r3MeshAddTriangle(tMesh, tA + 1, tA + 2, tA + 3, 1)
+   end repeat
+   return tMesh
+end rtRingMesh
+
+command rtBuildOrrery
+   local tBall, tSmall, tMat, tIndex, tStar, tStarMat, tAngle, tUp, tKinds, tSizes, tOrbits, tNode, tSize, tPathMat
+   put "Welcome. A sun with a lamp inside it, four planets wearing pictures this stack worked out pixel by pixel, a moon, a ring built corner by corner and 160 stars: all of it drawn by render3dxt into an ordinary image. Drag the picture to look round, turn the wheel to come closer, then try the other exhibits." into field "About"
+   put "0,0,0" into sTarget
+   put 15 into sDist
+   put 0.6 into sYaw
+   put 0.36 into sPitch
+   put "8,10,20" into sBack
+   -- fog would put out the stars: here it starts beyond them
+   put 80 into sFogNear
+   put 200 into sFogFar
+   r3SceneSetAmbient sScene, 34, 36, 48
+   -- the scene's own sun is far away and lights one side of everything;
+   -- this one is a lamp in the middle, so it goes out
+   r3LightSetEnabled sParts["sun"], false
+   put r3LightCreatePoint(sScene, 0, 0, 0, 255, 236, 200, 3.2, 30) into sParts["lamp"]
+   put rtMesh(r3MeshSphere(1, 36, 18)) into tBall
+   put rtMesh(r3MeshSphere(1, 8, 5)) into tSmall
+   put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData("fire"), 128, 64))) into tMat
+   r3MaterialSetUnlit tMat, true
+   put rtNode(tBall, tMat, 0, 0, 0) into sParts["star"]
+   r3NodeSetScale sParts["star"], 1.25, 1.25, 1.25
+   put rtMat(70, 80, 110) into tPathMat
+   r3MaterialSetUnlit tPathMat, true
+   r3MaterialSetDoubleSided tPathMat, true
+   put "rock,sea,bands,ice" into tKinds
+   put "0.45,0.75,1.3,0.6" into tSizes
+   put "2.7,4.6,7.4,10" into tOrbits
+   repeat with tIndex = 1 to 4
+      put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData(item tIndex of tKinds), 128, 64))) into tMat
+      r3MaterialSetSpecular tMat, 0.25, 30
+      put rtNode(tBall, tMat, item tIndex of tOrbits, 0, 0) into tNode
+      r3NodeSetScale tNode, item tIndex of tSizes, item tIndex of tSizes, item tIndex of tSizes
+      put tNode into sParts["planet" & tIndex]
+      put item tIndex of tOrbits into sParts["orbit" & tIndex]
+      -- the path it follows: a ring two centimetres wide
+      get rtNode(rtRingMesh(item tIndex of tOrbits - 0.012, item tIndex of tOrbits + 0.012), tPathMat, 0, 0, 0)
+   end repeat
+   put rtNode(tBall, rtMat(200, 200, 205), 0, 0, 0) into sParts["moon"]
+   r3NodeSetScale sParts["moon"], 0.16, 0.16, 0.16
+   put rtTexMat(rtTex(r3TextureFromImageData(rtPlanetData("ring"), 128, 64))) into tMat
+   r3MaterialSetDoubleSided tMat, true
+   r3MaterialSetUnlit tMat, true
+   put rtNode(rtRingMesh(1.7, 2.8), tMat, 0, 0, 0) into sParts["ring"]
+   -- the stars: small unlit balls on a shell far away, always in the same
+   -- places (no random number is asked for)
+   put rtMat(235, 240, 255) into tStarMat
+   r3MaterialSetUnlit tStarMat, true
+   repeat with tIndex = 1 to 160
+      put tIndex * 2.39996 into tAngle
+      put 1 - 2 * (tIndex - 0.5) / 160 into tUp
+      put rtNode(tSmall, tStarMat, 45 * sqrt(1 - tUp * tUp) * cos(tAngle), 45 * tUp, 45 * sqrt(1 - tUp * tUp) * sin(tAngle)) into tStar
+      put 0.09 + 0.07 * (tIndex mod 4) into tSize
+      r3NodeSetScale tStar, tSize, tSize, tSize
+   end repeat
+   put 160 into sParts["stars"]
+end rtBuildOrrery
+
+command rtTickOrrery
+   local tIndex, tAngle, tX, tZ, tR, tSpeeds
+   put "0.9,0.55,0.3,0.2" into tSpeeds
+   repeat with tIndex = 1 to 4
+      put sTime * item tIndex of tSpeeds + tIndex * 1.7 into tAngle
+      put sParts["orbit" & tIndex] into tR
+      put tR * cos(tAngle) into tX
+      put tR * sin(tAngle) into tZ
+      r3NodeSetPosition sParts["planet" & tIndex], tX, 0, tZ
+      rtRotate sParts["planet" & tIndex], 0, 1, 0, sTime * (1.6 - tIndex * 0.25)
+      if tIndex is 2 then
+         r3NodeSetPosition sParts["moon"], tX + 1.25 * cos(sTime * 2.2), 0.15, tZ + 1.25 * sin(sTime * 2.2)
+      else if tIndex is 3 then
+         r3NodeSetPosition sParts["ring"], tX, 0, tZ
+         -- the ring leans a little, as rings do
+         rtRotate sParts["ring"], 0.948683, 0, 0.316228, 0.35
+      end if
+   end repeat
+   rtRotate sParts["star"], 0, 1, 0, sTime * 0.2
+   if sDragging is not true then
+      add sDelta * 0.08 to sYaw
+      rtAim
+   end if
+end rtTickOrrery
+
+----------------------------------------------------------------------
+-- 2. Shapes: the five meshes made to measure, and a model
 
 command rtBuildShapes
    local tGem
@@ -701,7 +884,7 @@ function rtGemMtl
 end rtGemMtl
 
 ----------------------------------------------------------------------
--- 2. Textures: four ways to get one, and how it is drawn
+-- 3. Textures: four ways to get one, and how it is drawn
 
 command rtBuildTextures
    local tCube, tSharp, tSoft, tBricks, tLattice, tMat
@@ -735,7 +918,7 @@ command rtBuildTextures
 end rtBuildTextures
 
 ----------------------------------------------------------------------
--- 3. Materials: what a surface does with light
+-- 4. Materials: what a surface does with light
 
 command rtBuildMaterials
    local tBall, tRough, tMat
@@ -783,7 +966,7 @@ command rtTickMaterials
 end rtTickMaterials
 
 ----------------------------------------------------------------------
--- 4. Lights: a sun and three coloured lamps
+-- 5. Lights: a sun and three coloured lamps
 
 command rtBuildLights
    local tColumn, tWhite, tBulb, tIndex, tAngle, tColors, tMat, tTexture
@@ -835,7 +1018,7 @@ command rtTickLights
 end rtTickLights
 
 ----------------------------------------------------------------------
--- 5. A model: read from text, with its own materials
+-- 6. A model: read from text, with its own materials
 
 command rtBuildModel
    local tHouse, tSlot, tNames, tWants, tBricks, tSpire
@@ -903,7 +1086,7 @@ function rtSpireTriangles
 end rtSpireTriangles
 
 ----------------------------------------------------------------------
--- 6. A mesh of your own: hills, corner by corner
+-- 7. A mesh of your own: hills, corner by corner
 
 constant kHillCells = 24
 constant kHillStep = 0.5
@@ -971,7 +1154,7 @@ command rtTickTerrain
 end rtTickTerrain
 
 ----------------------------------------------------------------------
--- 7. Fog and distance: a walk between columns
+-- 8. Fog and distance: a walk between columns
 
 constant kColumnGap = 3
 
@@ -1005,7 +1188,7 @@ command rtTickColonnade
 end rtTickColonnade
 
 ----------------------------------------------------------------------
--- 8. Click and aim: what is under a point, and what a ray meets
+-- 9. Click and aim: what is under a point, and what a ray meets
 
 command rtBuildAim
    local tBall, tI, tJ, tNode, tMat, tCount
@@ -1082,7 +1265,7 @@ command rtPaintBall pTag
 end rtPaintBall
 
 ----------------------------------------------------------------------
--- 9. Many things: one call a frame moves them all
+-- 10. Many things: one call a frame moves them all
 
 constant kManySide = 15
 
@@ -1142,14 +1325,14 @@ command rtClickView pX, pY
       put r3NodeTag(tNode) into tTag
       put "You touched something" && format("%.1f", item 4 of tHit) && "metres away, at" \
             && format("%.2f, %.2f, %.2f", item 1 of tHit, item 2 of tHit, item 3 of tHit) into sPicked
-      if sExhibit is 4 and tTag >= 1 and tTag <= 3 then
+      if sExhibit is kExLights and tTag >= 1 and tTag <= 3 then
          put sParts["lamp" & tTag] into tLamp
          r3LightSetEnabled tLamp, not r3LightIsEnabled(tLamp)
          r3NodeSetScale sParts["bulb" & tTag], 1, 1, 1
          if r3LightIsEnabled(tLamp) is not true then
             r3NodeSetScale sParts["bulb" & tTag], 0.5, 0.5, 0.5
          end if
-      else if sExhibit is 8 and tTag >= 1 and tTag <= sParts["balls"] then
+      else if sExhibit is kExAim and tTag >= 1 and tTag <= sParts["balls"] then
          put (sParts["gold" & tTag] is not true) into sParts["gold" & tTag]
          rtPaintBall tTag
       end if
@@ -1161,7 +1344,7 @@ end rtClickView
 -- The pointer at pX, pY of the picture, in "Click and aim"
 command rtHoverView pX, pY
    local tNode, tTag, tWas
-   if sScene is empty or sExhibit is not 8 then
+   if sScene is empty or sExhibit is not kExAim then
       exit rtHoverView
    end if
    put r3ScenePick(sScene, kViewW, kViewH, pX + 0.5, pY + 0.5) into tNode

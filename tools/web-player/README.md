@@ -62,7 +62,7 @@ cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
 at full size; **Box2Dxt Platformer**, the xTalk Suite's seven scrolling
-levels on Box2D; **Render3D Tour**, nine small 3D scenes drawn by the
+levels on Box2D; **Render3D Tour**, ten small 3D scenes drawn by the
 xTalk Suite's render3dxt; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
@@ -454,7 +454,8 @@ there; `build_player.py --check` runs that check on the player it builds.
 ## The Render3D Tour
 
 `stacks/Render3D Tour.oxtstack` shows what render3dxt, the xTalk Suite's
-3D renderer, can do, one thing at a time. It has nine exhibits: the
+3D renderer, can do, one thing at a time. It has ten exhibits: a sun
+and its planets, with a little of everything; the
 shapes made to measure and a model; textures from a checkerboard, from
 imageData and from a PNG with gaps; five materials; a sun and three
 coloured lamps to switch by a click; a model read from the text of an OBJ

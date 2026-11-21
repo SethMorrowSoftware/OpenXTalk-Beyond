@@ -16,7 +16,7 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
--- Builds stacks/Render3D Tour.oxtstack: nine small 3D scenes, each showing
+-- Builds stacks/Render3D Tour.oxtstack: ten small 3D scenes, each showing
 -- one thing render3dxt (the xTalk Suite's 3D renderer) can do. The stack
 -- is never edited by hand: change this script or the tour's script
 -- (render3d-tour-stack.livecodescript) and build it again, with any
@@ -30,7 +30,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 --
 -- What goes in: one card, "Tour", with the picture (image "View", exactly
 -- the size of the pictures the tour draws, because imageData is not
--- scaled), a button for each exhibit (Ex1 to Ex9), three tick boxes, the
+-- scaled), a button for each exhibit (Ex1 to Ex10), three tick boxes, the
 -- words about an exhibit, what a picture cost, the labels that float over
 -- the picture (Tag1 to Tag6), and what is said when the engine has no
 -- render3dxt (Missing). No file goes in: the tour makes its textures and
@@ -55,7 +55,7 @@ constant kSoft = "#A9B2C7"
 constant kAccent = "#FF8A3D"
 constant kButton = "#2A3146"
 
-constant kExhibitNames = "Shapes,Textures,Materials,Lights,A model,Your own mesh,Fog and distance,Click and aim,Many things"
+constant kExhibitNames = "Welcome,Shapes,Textures,Materials,Lights,A model,Your own mesh,Fog and distance,Click and aim,Many things"
 
 on startup
    local tFile, tError

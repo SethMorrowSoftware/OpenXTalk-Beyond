@@ -182,7 +182,7 @@ on TestWithoutTheRendererNothingThrows
    if drawing() then
       exit TestWithoutTheRendererNothingThrows
    end if
-   press "Ex3"
+   press "Ex4"
    press "Smooth"
    tour "rtTestStep", 1
    tour "rtClickView", 100, 100
@@ -191,10 +191,10 @@ end TestWithoutTheRendererNothingThrows
 
 on TestEveryExhibitDrawsAPicture
    local tN, tData, tLive
-   if not needRenderer("the nine exhibits") then
+   if not needRenderer("the ten exhibits") then
       exit TestEveryExhibitDrawsAPicture
    end if
-   repeat with tN = 1 to 9
+   repeat with tN = 1 to 10
       press "Ex" & tN
       tour "rtTestStep", 0.5
       put picture() into tData
@@ -202,7 +202,8 @@ on TestEveryExhibitDrawsAPicture
       TestAssert "exhibit" && tN && "draws a whole picture", st("frame") is kViewW * kViewH * 4 \
             and the number of bytes of tData is kViewW * kViewH * 4
       TestAssert "exhibit" && tN && "draws triangles", item 1 of st("stats") > 10
-      TestAssert "exhibit" && tN && "paints over the sky", paintedPixels(tData) > 300
+      -- (the first exhibit is mostly night sky)
+      TestAssert "exhibit" && tN && "paints over the sky", paintedPixels(tData) > 100
       TestAssert "exhibit" && tN && "says what it shows", the number of words of fieldText("About") > 15
       TestAssert "exhibit" && tN && "says what the picture cost", fieldText("Stats") contains "triangles, drawn in"
       -- the exhibit before is given back: one scene, and no more lights
@@ -217,7 +218,7 @@ on TestClosingGivesEverythingBack
    if not needRenderer("closing") then
       exit TestClosingGivesEverythingBack
    end if
-   press "Ex8"
+   press "Ex9"
    tour "rtTestStep", 0.2
    close stack kStack
    TestAssert "no scene, node, mesh, material, texture or light is left", r3LiveCounts() is "0,0,0,0,0,0"
@@ -228,7 +229,7 @@ on TestShapesAndTheirLabels
    if not needRenderer("the shapes") then
       exit TestShapesAndTheirLabels
    end if
-   press "Ex1"
+   press "Ex2"
    tour "rtTestStep", 0.1
    TestAssert "a floor, four shapes and a model", st("nodes") is 6
    put the rect of image "View" of stack kStack into tRect
@@ -246,7 +247,7 @@ on TestTexturesFromFourSources
    if not needRenderer("the textures") then
       exit TestTexturesFromFourSources
    end if
-   press "Ex2"
+   press "Ex3"
    TestAssert "the PNG in the script is decoded", st("part lattice size") is "32x32"
    TestAssert "two checkers, the bricks, the lattice and the floor's", item 5 of st("live") is 5
 end TestTexturesFromFourSources
@@ -256,7 +257,7 @@ on TestALampIsSwitchedByAClick
    if not needRenderer("the lamps") then
       exit TestALampIsSwitchedByAClick
    end if
-   press "Ex4"
+   press "Ex5"
    tour "rtTestStep", 0.3
    TestAssert "a sun and three lamps", st("lights") is 4
    put st("part lamp2") into tLamp
@@ -274,7 +275,7 @@ on TestTheModelComesFromText
    if not needRenderer("the model") then
       exit TestTheModelComesFromText
    end if
-   press "Ex5"
+   press "Ex6"
    TestAssert "the model's file names two materials", st("part slots") is "walls,roof"
    TestAssert "its faces become triangles", st("part house triangles") is 14
    TestAssert "the words name the picture the file asks for", fieldText("About") contains "bricks.png"
@@ -285,7 +286,7 @@ on TestTheHillsAreBuiltCornerByCorner
    if not needRenderer("the hills") then
       exit TestTheHillsAreBuiltCornerByCorner
    end if
-   press "Ex6"
+   press "Ex7"
    TestAssert "625 corners and 1152 triangles", st("part hill size") is "625,1152"
    put st("part hill bounds") into tBounds
    TestAssert "twelve metres each way", item 1 of tBounds is -6 and item 4 of tBounds is 6 \
@@ -298,7 +299,7 @@ on TestTheWalkAndItsFog
    if not needRenderer("the colonnade") then
       exit TestTheWalkAndItsFog
    end if
-   press "Ex7"
+   press "Ex8"
    tour "rtTestStep", 0.2
    put st("camera") into tCamera
    TestAssert "nothing is drawn past seventy metres", st("part clip") is "0.05,70"
@@ -323,7 +324,7 @@ on TestPointingAndClicking
    if not needRenderer("click and aim") then
       exit TestPointingAndClicking
    end if
-   press "Ex8"
+   press "Ex9"
    tour "rtTestStep", 0.3
    TestAssert "twenty-five balls", st("part balls") is 25
    TestAssert "the ray cast down meets something", st("part under the ray") is not 0
@@ -345,7 +346,7 @@ on TestManyThingsMoveInOneCall
    if not needRenderer("the wave") then
       exit TestManyThingsMoveInOneCall
    end if
-   press "Ex9"
+   press "Ex10"
    tour "rtTestStep", 0.1
    TestAssert "225 cubes", st("part cubes") is 225 and st("nodes") is 225
    TestAssert "one call moved them all", st("part moved") is 225
@@ -359,14 +360,14 @@ on TestSmoothEdges
    if not needRenderer("smooth edges") then
       exit TestSmoothEdges
    end if
-   press "Ex1"
+   press "Ex2"
    put st("smooth") into tWas
    TestAssert "the box and the scene agree", the hilite of button "Smooth" of stack kStack is tWas \
          and (st("supersample") is 2) is tWas
    press "Smooth"
    TestAssert "the box changes the scene", the hilite of button "Smooth" of stack kStack is not tWas \
          and (st("supersample") is 2) is not tWas
-   press "Ex2"
+   press "Ex3"
    TestAssert "and the next exhibit keeps it", (st("supersample") is 2) is not tWas
    press "Smooth"
 end TestSmoothEdges
@@ -376,7 +377,7 @@ on TestTheCamera
    if not needRenderer("the camera") then
       exit TestTheCamera
    end if
-   press "Ex1"
+   press "Ex2"
    put st("camera") into tCamera
    tour "rtOrbitBy", 60, 0
    TestAssert "a drag walks the camera round", item 1 of st("camera") is not item 1 of tCamera

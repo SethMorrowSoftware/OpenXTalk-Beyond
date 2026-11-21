@@ -24,7 +24,7 @@ to the files it is made from, without a browser or an engine:
   transparent pixels
 - the picture the builder makes is the size the tour draws, and the
   controls the tour's script names are the ones the builder makes
-- nine exhibits: a button, a name, a builder and a turn of the switch for
+- ten exhibits: a button, a name, a builder and a turn of the switch for
   each
 - every render3dxt handler the tour calls is one the suite's binding has,
   when the suite is beside this checkout (XTALK_SUITE, or ../xtalk-suite)
@@ -173,21 +173,21 @@ class ItsWindow(unittest.TestCase):
         self.assertTrue(named <= made, named - made)
         self.assertTrue({'View', 'Missing', 'About', 'Stats', 'Smooth', 'Fog', 'Spin'} <= named, named)
 
-    def test_nine_exhibits(self):
+    def test_ten_exhibits(self):
         tour, build = tour_script(), builder()
         names = constant('kExhibitNames', build).split(',')
-        self.assertEqual(len(names), 9)
-        self.assertEqual(len(set(names)), 9)
-        self.assertEqual(constant('kExhibits', tour), '9')
+        self.assertEqual(len(names), 10)
+        self.assertEqual(len(set(names)), 10)
+        self.assertEqual(constant('kExhibits', tour), '10')
         go = tour[tour.index('command rtGo'):tour.index('end rtGo')]
         tick = tour[tour.index('command rtTick\n'):tour.index('end rtTick\n')]
         have = handlers(tour)
-        for n in range(1, 10):
+        for n in range(1, 11):
             for body in (go, tick):
                 case = re.search(r'case %d\n\s+(\w+)' % n, body)
                 self.assertIsNotNone(case, n)
                 self.assertIn(case.group(1), have)
-        self.assertEqual(len(set(re.findall(r'case \d\n\s+(rtBuild\w+)', go))), 9)
+        self.assertEqual(len(set(re.findall(r'case \d+\n\s+(rtBuild\w+)', go))), 10)
 
     def test_no_statement_is_too_long(self):
         sys.path.insert(0, HERE)
