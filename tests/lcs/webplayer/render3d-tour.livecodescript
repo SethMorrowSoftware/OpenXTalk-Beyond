@@ -372,7 +372,7 @@ on TestTheHillsAreBuiltCornerByCorner
       exit TestTheHillsAreBuiltCornerByCorner
    end if
    press "Ex7"
-   TestAssert "625 corners and 1152 triangles", st("part hill size") is "625,1152"
+   TestAssert "the hill has 625 corners and 1152 triangles", st("part hill size") is "625,1152"
    put st("part hill bounds") into tBounds
    TestAssert "twelve metres each way", item 1 of tBounds is -6 and item 4 of tBounds is 6 \
          and item 3 of tBounds is -6 and item 6 of tBounds is 6
@@ -433,7 +433,7 @@ on TestManyThingsMoveInOneCall
    end if
    press "Ex10"
    tour "rtTestStep", 0.1
-   TestAssert "225 cubes", st("part cubes") is 225 and st("nodes") is 225
+   TestAssert "there are 225 cubes", st("part cubes") is 225 and st("nodes") is 225
    TestAssert "one call moved them all", st("part moved") is 225
    put picture() into tBefore
    tour "rtTestStep", 0.4
