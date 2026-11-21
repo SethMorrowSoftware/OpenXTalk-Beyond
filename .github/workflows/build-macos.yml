@@ -131,6 +131,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
       - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -144,6 +145,7 @@ on:
       - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android-xtalk-tests.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
       - 'tools/ci/android_runs.py'
@@ -833,8 +835,25 @@ jobs:
           if [ ! -d "$app" ]; then echo "::error::package.py wrote no $app"; exit 1; fi
           echo "APP=$app" >> "$GITHUB_ENV"
 
+      # Whether there is anything to save, found by listing the folders
+      # rather than by hashFiles() in the save steps' if:, which reads every
+      # file and fails the job when it takes more than 120 seconds (see
+      # build-windows.yml).
+      - name: Look for fetched files to cache
+        id: fetched
+        if: always() && (steps.assets-cache.outputs.cache-hit != 'true' || steps.xtalk-cache.outputs.cache-hit != 'true')
+        continue-on-error: true
+        run: |
+          assets=false
+          xtalk=false
+          if [ -n "$(find prebuilt/fetched-assets -maxdepth 1 -type f -name '*.zip' -print -quit 2>/dev/null)" ]; then assets=true; fi
+          if [ -n "$(find prebuilt/fetched-assets/xtalk -type f -print -quit 2>/dev/null)" ]; then xtalk=true; fi
+          echo "assets=$assets" >> "$GITHUB_OUTPUT"
+          echo "xtalk=$xtalk" >> "$GITHUB_OUTPUT"
+          echo "External assets to save: $assets. xTalk extension files to save: $xtalk."
+
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.assets == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -842,7 +861,7 @@ jobs:
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
 
       - name: Save xTalk extension files to the cache
-        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.xtalk == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -1226,6 +1245,19 @@ jobs:
         timeout-minutes: 8
         run: |
           python3 tools/ci/visual_effect_check.py --app "$APP" --out "$LOGS/visual-effects"
+
+      # A stack's window at the opacity of its blendLevel, as the screen
+      # shows it: set twice with the screen locked, and the IDE's way with
+      # the Message Box (made invisible as a palette at blendLevel 99,
+      # closed, set to 0 twice while closed, opened again). The second set
+      # lost the first, and on a Mac the Message Box never appeared (the
+      # forum's report of 2026-11-21; engine/src/exec-interface-stack.cpp,
+      # tools/ci/window_opacity_check.py)
+      - name: Window opacity check
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: |
+          python3 tools/ci/window_opacity_check.py --app "$APP" --out "$LOGS/window-opacity"
 
       # The build's debug symbols, so that a stop at start-up's sample of the
       # engine names its frames (tools/ci/ui_tour.py, mac_symbolicate); a

@@ -8661,10 +8661,13 @@ must be the bytes that the gallery's signed list names, and only the
 files it names are written, into a folder of their own. A copy the user
 has changed is never written over.
 
-The last dialog shows where the copy is, and opens it when asked: with
-the pointer tool, and without running any of its opening scripts. That
-is no promise about what the stack does once it is used; the dialog says
-that too.
+The last dialog shows where the copy is, and opens it when asked: Open It
+to Look opens it with the pointer tool, and without running any of its
+opening scripts. That is no promise about what the stack does once it is
+used; the dialog says that too. Open and Run opens it as File > Open
+does, with the browse tool, its opening scripts running: a stack that
+draws what it shows as it opens shows its cards bare when it is opened to
+look at (richmond62, openxtalk.org p=26654), and the dialog says that.
 
 The result is the path of the copy's main file, empty when the user
 chose not to, or "error: " and why there is no copy.
@@ -8736,17 +8739,19 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
    put "emerald" into tSpec["tone"]
    put "It is in" && tFolder & ", and it is exactly the file that the gallery lists." & return & return & \
          "Open It to Look opens it with the pointer tool, the one for looking and changing, " & \
-         "and runs none of its opening scripts." into tSpec["text"]
+         "and runs none of its opening scripts, so a stack that draws its screen as it opens shows its cards bare." & return & return & \
+         "Open and Run opens it as File > Open does, with the browse tool: its opening scripts run, as your own stacks' do." into tSpec["text"]
    put "Once it is open it is a stack like any other of yours: its scripts run when you choose the browse tool and use it." into tSpec["callout"]
    put "note" into tSpec["calloutKind"]
-   put "Show the Folder" & return & "Done" & return & "Open It to Look" into tSpec["buttons"]
+   put "Show the Folder" & return & "Done" & return & "Open and Run" & return & "Open It to Look" into tSpec["buttons"]
    put "Done" into tSpec["cancel"]
    repeat
       if not revIDEKitDialog(tSpec, tChoice) then
          answer information "Your copy is ready:" && tResult & return & return & \
                "Open It to Look opens it with the pointer tool and runs none of its opening scripts. " & \
-               "Its scripts run once you choose the browse tool and use it." \
-               with "Show the Folder" or "Done" or "Open It to Look"
+               "Its scripts run once you choose the browse tool and use it. " & \
+               "Open and Run opens it as File > Open does, its opening scripts running." \
+               with "Show the Folder" or "Done" or "Open and Run" or "Open It to Look"
          put it into tChoice
       end if
       switch tChoice
@@ -8760,14 +8765,12 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
             catch tError
                put "error: The copy could not be opened." into tOpened
             end try
-            if tOpened begins with "error:" then
-               __communityStacksSay "The copy was not opened", tFileName, word 2 to -1 of tOpened
-            else
-               try
-                  revIDEAddRecentStack tResult
-               catch tError
-               end try
-            end if
+            __communityStacksOpened tOpened, tResult, tFileName
+            exit repeat
+            break
+         case "Open and Run"
+            -- (sent, not called: see revIDECommunityStacksRunCopy)
+            send "revIDECommunityStacksRunCopy tResult, tFileName" to me in 0 milliseconds
             exit repeat
             break
          default
@@ -8776,6 +8779,54 @@ command revIDECommunityStacksGetCopy pEntry, pSite, pFolder
    end repeat
    return tResult
 end revIDECommunityStacksGetCopy
+
+/*
+Opens a copy of a stack of the Community Stacks to run it: Open and Run in
+the dialog after Get a Copy (revIDECommunityStacksGetCopy).
+
+pFile (string): The path of the copy's main file
+
+pFileName (string): Its name, as the dialog showed it
+
+Description:
+The copy opens as File > Open opens a stack, with the browse tool and its
+opening scripts running, unless it is one the IDE would take for a part
+of itself (revCommunityStacksOpenToRun says why, and the user is told).
+revIDECommunityStacksGetCopy sends this, and does not call it: what
+called that (the Community Stacks window's Get a Copy) waits with a try
+around it, and while a try is waiting the engine shows no error. So an
+error of the copy's own opening scripts would be lost there; here nothing
+waits under it, and the IDE shows it as it shows any stack's (Codex
+review of #617).
+
+References: revIDECommunityStacksGetCopy (command)
+
+Tags: ide
+*/
+command revIDECommunityStacksRunCopy pFile, pFileName
+   local tOpened
+   if revEnvironmentIsWeb() or pFile is empty then
+      exit revIDECommunityStacksRunCopy
+   end if
+   dispatch "revCommunityStacksOpenToRun" to stack __communityStacksFile() with pFile
+   put the result into tOpened
+   __communityStacksOpened tOpened, pFile, pFileName
+end revIDECommunityStacksRunCopy
+
+-- After a copy was opened (pOpened is empty), or was not (pOpened is
+-- "error: " and why): the copy's file pFile among the recent stacks, or
+-- the user told why it is not open
+private command __communityStacksOpened pOpened, pFile, pFileName
+   local tError
+   if pOpened begins with "error:" then
+      __communityStacksSay "The copy was not opened", pFileName, word 2 to -1 of pOpened
+   else
+      try
+         revIDEAddRecentStack pFile
+      catch tError
+      end try
+   end if
+end __communityStacksOpened
 
 /*
 Installs a script library of the Community Stacks' gallery, after asking
