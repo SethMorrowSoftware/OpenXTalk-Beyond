@@ -2427,6 +2427,11 @@ private function leShowcaseInfo pName
          return "small|A daily puzzle book made for a phone: a Number Place in three sizes and a " & \
                "Hidden Word of four to six letters, new every day, with stickers to collect. Build it " & \
                "for HTML5 and play it on a phone, or here with the mouse and the keys.|puzzle|amber|game puzzles"
+      case "Render3D Tour"
+         return "small|Ten small 3D scenes drawn into an ordinary image by render3dxt: a sun and its planets, shapes, " & \
+               "textures, materials, coloured lamps, a model read from text, hills built corner by " & \
+               "corner, fog, clicking on things and 225 cubes on a wave. Drag the picture to look " & \
+               "round.|orbit|indigo|3d graphics"
       case "Ember Bricks"
          return "small|A brick breaker made for a phone and a desktop: twenty-four levels, ten sparks to " & \
                "catch, and a heat that multiplies the score. Its Online Duel races a rival for three " & \

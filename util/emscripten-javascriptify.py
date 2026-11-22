@@ -152,6 +152,44 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # audioxt: the shim's exports, and miniaudio, compiled into it, whose
+    # every function (its WAV, FLAC and MP3 decoders' too) is named ma_*;
+    # the shim's few file-local helpers keep their own names and are
+    # instrumented where they call through a pointer. Web Audio calls into
+    # it for each block of sound from the browser's own event loop, while
+    # the engine may be asleep, and nothing in it yields or calls back into
+    # the engine (a sound's end is polled by script). No other ma_* is in
+    # the web engine: MySQL's client (libmariadb) is not linked into it.
+    # On a test link with the engine's Asyncify settings the list took
+    # about 135 KB off the .wasm
+    'aux_*', 'ma_*',
+    # xlsxt: the shim, and libxlsxwriter, zlib and Expat under the names
+    # the member's web build gives their globals (src/xlsx_web_names.h).
+    # It reads and writes files in the page's own file system, which
+    # never yields. Their file-local functions keep their own names and
+    # are instrumented where they call through a pointer (Expat's
+    # handlers, zlib's allocator)
+    'xlx_*', 'xlxw_*',
+    # gamepadxt is not here, on purpose: in an engine built with Asyncify,
+    # SDL's delay sleeps through emscripten_sleep (SDL_SYS_DelayNS), and a
+    # spinlock that has to wait calls it, so SDL and the shim stay
+    # instrumented. A function left out that sleeps stops the engine.
+    # webpxt: the shim and libwebp (decoder, encoder, mux, demux and
+    # libsharpyuv), whose pixel code is reached through function pointers
+    # it sets on first use; buffers in, buffers out
+    'wpx_*', 'WebP*', 'VP8*', 'SharpYuv*',
+    # barcodext: the shim, zxing-cpp (C++, so by its namespace wherever it
+    # stands in a name: a template's name begins with its return type) and
+    # the Zint writer backend, its GS1 checks and libzueci under it; a
+    # picture in, symbols out. Their file-local functions keep their own
+    # names and are instrumented where they call through a pointer
+    'bcx_*', '*ZXing::*', '*librscpp::*', 'ZBarcode_*', 'zint_*', 'gs1_*', 'zueci_*',
+    # render3dxt: the shim, and the stb_image and fast_obj compiled into
+    # it, whose readers call their input functions through pointers (as
+    # the shim's text results reach snprintf's). Its drawing calls none,
+    # so Asyncify leaves a picture alone either way; its other functions
+    # have plain names that could be anyone's, and are not listed
+    'r3x_*', 'stbi*', 'fast_obj*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that
