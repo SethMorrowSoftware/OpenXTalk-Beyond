@@ -993,7 +993,7 @@ asset is one zip archive with a fixed URL, size and SHA-256:
 | `android_engine` | Optional, the runtimes asset only: the folder of OXT-Beyond's own Android engine (`Runtime/Android/Beyond`) when the asset carries it, built from the commit `source` names (see [Building the Android engine](#15-building-the-android-engine)). |
 | `description`, `licence`, `source` | Text for people and reports. |
 
-Today there is one asset, `oxt-runtimes-0.2.8-dp.2`: the Windows (x86-64
+Today there is one asset, `oxt-runtimes-0.2.8-dp.2.1`: the Windows (x86-64
 and x86) and Linux (x86-64 and x86) runtimes and the time zone library's
 code for them and its zoneinfo data, made from this repository's CI
 builds, the Android runtime's Java layer (`Runtime/Android/Classes`)
@@ -1002,11 +1002,11 @@ built from the same commit, and OXT-Beyond's own Android engine
 the rest of the Android runtime and its
 time zone library code carried over unchanged from the earlier asset
 `oxt-runtimes-1.15` (OpenXTalk Lite 1.15's files). Its `PROVENANCE.md` (installed as
-`PROVENANCE-oxt-runtimes-0.2.8-dp.2.md`) names the commit and the CI
+`PROVENANCE-oxt-runtimes-0.2.8-dp.2.1.md`) names the commit and the CI
 runs and lists every file; the 1.15 asset's provenance comes with it as
 `PROVENANCE-oxt-runtimes-1.15.md`. It is published as the file
-`oxt-runtimes-0.2.8-dp.2.zip` of this repository's release
-`runtimes-0.2.8-dp.2`. Each package leaves out the part its own build
+`oxt-runtimes-0.2.8-dp.2.1.zip` of this repository's release
+`runtimes-0.2.8-dp.2.1`. Each package leaves out the part its own build
 makes (the entry's `exclude`). The manifest names that release in this
 repository, so a fork downloads it from here too. To package
 without the external assets, for example while a new asset is not
@@ -1136,16 +1136,25 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
 `code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
-x86 and arm64, macOS, and, for the seven native members, Android's
+x86 and arm64, macOS, and, for every native member but gamepadxt, Android's
 `arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
 (the IDE maps the one for its platform into `revLibraryMapping`, the
 standalone builder copies the one for the target into a standalone, and
 the Android builder packs each Android one into an app as
 `lib/<abi>/lib<library>`), and `licenses\`. Every package carries the
 Android libraries, since each desktop IDE builds Android apps; the
-Android builder workflow builds an app with them for all four ABIs and
-runs each extension's smoke test in it on its emulators
-(`android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
+Android builder workflow builds an app with them, and with the script
+libraries over them, for all four ABIs, and on its emulators runs each
+extension's smoke test in it and then the suite's functional tests
+(`tools/ci/android-xtalk-tests.livecodescript`: known answers through
+SodiumXT and CoinXT, a Box2D and a Box3D world stepped, a scene drawn by
+render3dxt from a model read from the app's folder, a sound mixed with
+no device and read back from a WAV file, an Excel workbook written and
+read back cell for cell, a WebP picture saved and read back from a file,
+a QR code read out of a picture, an ENet connection, a WebRTC
+data channel, a torrent session and a curl request, each between two ends
+inside the one app, and a Nostr event signed and verified;
+`android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
 folder with relative paths, because `module.lcm` embeds the source path
 as given; writes the module interface into a temporary folder
 (`--interface`), never into `modules\lci` (which the build checks is
@@ -2737,8 +2746,8 @@ build again.
 `cmd /c ..\make.cmd` rather than `..\make.cmd`.
 
 **Packaging fails to download the runtimes asset**
-(`oxt-runtimes-0.2.8-dp.2.zip`). The download comes from this
-repository's `runtimes-0.2.8-dp.2` release (also in a fork, which needs
+(`oxt-runtimes-0.2.8-dp.2.1.zip`). The download comes from this
+repository's `runtimes-0.2.8-dp.2.1` release (also in a fork, which needs
 no copy of its own), so a failure is usually the network:
 a proxy or firewall, or no access to `github.com` and its download
 servers. Copy the file into the cache folder, where it is used without
@@ -3088,7 +3097,7 @@ it.
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
    "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7
-   and kept for 0.2.8-dp.1 and 0.2.8-dp.2),
+   and kept for 0.2.8-dp.1, 0.2.8-dp.2 and 0.2.8-dp.2.1),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).
@@ -3674,7 +3683,8 @@ site is static files: serve the folder with any web server (for example
 #### The xTalk Suite's libraries in the web IDE (experimental)
 
 A browser opens no native library, so the web IDE's engine links the
-xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT and box3dxt into itself,
+xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT, box3dxt,
+render3dxt, audioxt, xlsxt, gamepadxt, webpxt and barcodext into itself,
 and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
 they are registered). The web standalone engine, which every HTML5
@@ -3690,7 +3700,10 @@ which makes every symbol of each object local but its table, so that two
 members carrying the same vendored code link side by side.
 DataChannelXT's web build is not libdatachannel: it is the same `dcx_*`
 contract over the browser's own WebRTC (`RTCPeerConnection`), so peers
-and channels behave as the browser's do. TorrentXT and ENetXT need raw
+and channels behave as the browser's do. gamepadxt's is SDL's gamepad
+layer as SDL builds it for the web, which reads the browser's Gamepad
+API: a browser shows a page a controller only after a button on it is
+pressed, and gamepadxt's virtual pads need no controller at all. TorrentXT and ENetXT need raw
 TCP and UDP sockets, which a page cannot open, and OnionXT a tor daemon
 reached over TCP, so none of them has a web build: a call to TorrentXT
 or ENetXT throws an error a script can catch, and OnionXT's script runs

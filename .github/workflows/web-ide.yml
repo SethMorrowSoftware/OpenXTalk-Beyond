@@ -967,7 +967,7 @@ jobs:
       # lc-compile into the install's Extensions in place of the release's
       # own, as android.yml's xTalk probe does: the engine built here links
       # the libraries of this checkout's pins, and a member the release
-      # does not have yet (box3dxt, first) would otherwise have its table in
+      # does not have yet (box3dxt, then audioxt) would otherwise have its table in
       # the engine and no extension to call it. The web takes no native
       # library from them, so one platform's are enough
       - name: Build the suite's extensions as pinned

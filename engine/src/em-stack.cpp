@@ -55,6 +55,8 @@ MCStack::realize()
 	/* OXT-Beyond: the window's opacity, and whether it lets the mouse
 	 * through, as the desktop's (desktop-stack.cpp) */
 	setopacity(blendlevel * 255 / 100);
+	/* and the opacity it has (MCStack::SetBlendLevel) */
+	old_blendlevel = blendlevel;
 	updateignoremouseevents();
 
 	/* By default, don't draw anything */

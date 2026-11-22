@@ -130,6 +130,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
       - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -143,6 +144,7 @@ on:
       - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android-xtalk-tests.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
       - 'tools/ci/android_runs.py'
@@ -159,8 +161,6 @@ on:
       - 'tools/ci/mac_ide_start.sh'
       - 'tools/ci/mac-menu-backdrop.livecodescript'
       - 'tools/ci/mac_menu_backdrop.py'
-      - 'tools/ci/visual-effect-check.livecodescript'
-      - 'tools/ci/visual_effect_check.py'
       - 'tools/ci/merge_universal.py'
       - 'tools/ci/sign_mac_app.py'
       - 'tools/ci/win_crashtrace.py'
@@ -1493,8 +1493,25 @@ jobs:
           python3 tools/oxt/package_server.py --platform "linux-$ARCH" --bin-tar "$BIN_TAR" --out dist --sums \
             2>&1 | tee "$RUNNER_TEMP/logs/server-zip.log"
 
+      # Whether there is anything to save, found by listing the folders
+      # rather than by hashFiles() in the save steps' if:, which reads every
+      # file and fails the job when it takes more than 120 seconds (see
+      # build-windows.yml).
+      - name: Look for fetched files to cache
+        id: fetched
+        if: always() && (steps.assets-cache.outputs.cache-hit != 'true' || steps.xtalk-cache.outputs.cache-hit != 'true')
+        continue-on-error: true
+        run: |
+          assets=false
+          xtalk=false
+          if [ -n "$(find prebuilt/fetched-assets -maxdepth 1 -type f -name '*.zip' -print -quit 2>/dev/null)" ]; then assets=true; fi
+          if [ -n "$(find prebuilt/fetched-assets/xtalk -type f -print -quit 2>/dev/null)" ]; then xtalk=true; fi
+          echo "assets=$assets" >> "$GITHUB_OUTPUT"
+          echo "xtalk=$xtalk" >> "$GITHUB_OUTPUT"
+          echo "External assets to save: $assets. xTalk extension files to save: $xtalk."
+
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.assets == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -1502,7 +1519,7 @@ jobs:
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
 
       - name: Save xTalk extension files to the cache
-        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.xtalk == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -1863,6 +1880,21 @@ jobs:
           python3 tools/ci/backdrop_focus_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/backdrop-focus-check.log" --shots "$RUNNER_TEMP/logs/backdrop-focus-shots"
 
+      # A stack's window at the opacity of its blendLevel: set twice with
+      # the screen locked, and the IDE's way with the Message Box (made
+      # invisible as a palette at blendLevel 99, closed, set to 0 twice
+      # while closed, opened again). The window's _NET_WM_WINDOW_OPACITY is
+      # read with xprop; 0.2.8-dp.2 left both at the opacity of 99, and on
+      # a Mac the Message Box never appeared (the forum's report of
+      # 2026-11-21; tools/ci/window_opacity_check.py)
+      - name: Window opacity check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/window_opacity_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --out "$RUNNER_TEMP/logs/window-opacity"
+
       # A group that grabs itself from the mouseDown of a popup, option or
       # pulldown menu button in it, pressed and released with the system's
       # mouse: the engine runs on (up to 0.2.8-dp.2, and in LiveCode
@@ -2000,6 +2032,32 @@ jobs:
           OXT_BOX2DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
             --filter '^lcs: webplayer/wobble-forts:' --log "$RUNNER_TEMP/logs/wobble-forts-tests.log"
           tail -n 1 "$RUNNER_TEMP/logs/wobble-forts-tests.log" | grep -q ' 0 skip$'
+
+      # The Render3D Tour's tests of its pictures
+      # (tests/lcs/webplayer/render3d-tour.livecodescript), which the engine
+      # tests above skip: the tour draws with render3dxt, and a desktop
+      # engine has it only as an extension. Here the build's standalone
+      # engine runs them with the package's render3dxt (OXT_RENDER3DXT: the
+      # test finds Extensions/org.openxtalk.library.renderthreed in it). A
+      # package made without the xTalk Suite's extensions has none: then
+      # the step says so and does nothing.
+      - name: Render3D Tour with render3dxt
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          if [ ! -f "$OXT_ROOT/Extensions/org.openxtalk.library.renderthreed/module.lcm" ]; then
+            echo "::notice title=Render3D Tour::the package has no render3dxt, so the tests of its pictures were not run"
+            exit 0
+          fi
+          bin_dir="$RUNNER_TEMP/render3d-tour-bin"
+          rm -rf "$bin_dir"
+          mkdir -p "$bin_dir"
+          tar -xJf "$BIN_TAR" -C "$bin_dir"
+          OXT_RENDER3DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
+            --filter '^lcs: webplayer/render3d-tour:' --log "$RUNNER_TEMP/logs/render3d-tour-tests.log"
+          tail -n 1 "$RUNNER_TEMP/logs/render3d-tour-tests.log" | grep -q ' 0 skip$'
 
       # The IDE's own windows, as a user sees them under the Adwaita GTK
       # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE

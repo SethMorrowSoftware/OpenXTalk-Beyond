@@ -224,7 +224,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.8-dp.2.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.8-dp.2.1.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)), and so is
@@ -379,7 +379,8 @@ Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-0.2.7-rc.6.16b`, `runtimes-0.2.7-rc.6.17`,
 `runtimes-0.2.7-rc.6.18`, `runtimes-0.2.7-rc.6.18b`,
 `runtimes-0.2.7-rc.6.19`, `runtimes-0.2.7`,
-`runtimes-0.2.8-dp.1` and `runtimes-0.2.8-dp.2`, are not
+`runtimes-0.2.8-dp.1`, `runtimes-0.2.8-dp.2` and
+`runtimes-0.2.8-dp.2.1`, are not
 programs. They hold files that the build and the packager download: the
 prebuilt third-party libraries of earlier versions and the standalone
 runtimes for other platforms.
@@ -597,9 +598,10 @@ What it needs:
   (from 0.2.7-rc.1): their 64-bit libraries need glibc 2.28 at most and
   carry their own OpenSSL. Up to 0.2.6, SodiumXT needed glibc 2.33 and
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
-  standalones get still need glibc 2.33 (SodiumXT), 2.34 (Box2Dxt and
-  box3dxt), 2.34 and OpenSSL 3 (curlxt), or 2.38 and OpenSSL 3
-  (TorrentXT and DataChannelXT).
+  standalones get still need glibc 2.33 (SodiumXT and xlsxt), 2.34
+  (Box2Dxt, box3dxt, audioxt and render3dxt), 2.34 and OpenSSL 3
+  (curlxt), 2.38 (gamepadxt and barcodext), or 2.38 and
+  OpenSSL 3 (TorrentXT and DataChannelXT).
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4947,6 +4949,12 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 | `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
+| `org.openxtalk.library.audioxt` | audioxt: sound through miniaudio, beside the engine's own `play` (mixing, streaming, tones, 3D sound and microphone capture; WAV, FLAC and MP3) | [xtalk-suite, `audioxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/audioxt) |
+| `org.openxtalk.library.xlsxt` | xlsxt: Excel `.xlsx` workbooks written (cells, formats, formulas, charts, pictures, page setup) and read back, through libxlsxwriter, zlib and Expat; also in the web engine | [xtalk-suite, `xlsxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/xlsxt) |
+| `org.openxtalk.library.gamepadxt` | gamepadxt: game controllers through SDL 3 (Xbox, PlayStation, Switch and most other pads in one button layout, plugged in and out while a stack runs, with rumble, lights and virtual pads made in software); also in the web engine, where it reads the browser's Gamepad API | [xtalk-suite, `gamepadxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/gamepadxt) |
+| `org.openxtalk.library.webpxt` | webpxt: WebP pictures read and written through libwebp, lossy and lossless, with transparency, and animations a frame at a time | [xtalk-suite, `webpxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/webpxt) |
+| `org.openxtalk.library.barcodext` | barcodext: QR codes and barcodes read out of pictures and made as pictures, SVG or rows of squares, through zxing-cpp | [xtalk-suite, `barcodext/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/barcodext) |
+| `org.openxtalk.library.renderthreed` | render3dxt: a software 3D renderer that draws textured, lit meshes (OBJ models, PNG, JPEG, BMP and TGA textures, lights, fog, a camera, picking) into a picture for an image, and draws what box3dxt simulates | [xtalk-suite, `render3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/render3dxt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4978,19 +4986,22 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   inclusions a stack needs, adds an LCB library whose handlers your
   scripts use, together with its native library for the target platform.
   The extensions have native libraries for Windows x86-64 and x86, Linux
-  x86-64, x86 and arm64, and macOS. The seven LCB libraries (SodiumXT,
-  TorrentXT, enetxt, DataChannelXT, Box2Dxt, CoinXT and curlxt) also have
-  them for Android's four architectures (arm64-v8a, armeabi-v7a, x86_64
-  and x86), which the Android builder packs into an app; the four that
-  open sockets (TorrentXT, enetxt, DataChannelXT and curlxt) add the
-  INTERNET permission to an app that includes them. Each one's smoke test
-  runs in an Android app on the Android builder workflow's x86_64
-  emulators (Android 13, and Android 16 with 16 KB pages); the ARM
-  libraries have not run on a device yet. box3dxt has Android libraries
-  too, tested where the xTalk Suite builds them and not yet in an app. The standalone builder
-  never adds the script libraries by itself: tick them in *Standalone
-  Settings*, with the LCB libraries they need (for example `coinxt` with
-  `org.openxtalk.library.coin`).
+  x86-64, x86 and arm64, and macOS. The thirteen LCB libraries with native
+  code other than gamepadxt (SodiumXT, TorrentXT, enetxt, DataChannelXT,
+  Box2Dxt, CoinXT, curlxt, box3dxt, render3dxt, audioxt, xlsxt, webpxt
+  and barcodext) also have them for Android's four architectures
+  (arm64-v8a, armeabi-v7a, x86_64 and x86), which the Android builder
+  packs into an app; the four that open sockets (TorrentXT, enetxt,
+  DataChannelXT and curlxt) add the INTERNET permission to an app that
+  includes them. Each one's smoke test runs in an Android app on the
+  Android builder workflow's x86_64 emulators (Android 13, and Android 16
+  with 16 KB pages); the ARM libraries have not run on a device yet. An
+  app that records with audioxt must ask for the RECORD_AUDIO permission
+  itself. gamepadxt has no Android libraries: SDL reaches controllers
+  there through a Java activity of its own, which an OXT-Beyond app does
+  not have. The standalone builder never adds the script libraries by
+  itself: tick them in *Standalone Settings*, with the LCB libraries they
+  need (for example `coinxt` with `org.openxtalk.library.coin`).
 - Both dictionaries have them: every public handler of their libraries
   has an entry in LiveCode's Dictionary, which reads it from the
   extension's source when the IDE loads the extension, and in the text

@@ -209,6 +209,8 @@ void MCStack::realize(void)
         MCPlatformSetWindowBoolProperty(t_window, kMCPlatformWindowPropertyHideOnSuspend, MChidepalettes && t_window_style == kMCPlatformWindowStylePalette);
 		
 		setopacity(blendlevel * 255 / 100);
+		// OXT-Beyond: the opacity the window has (MCStack::SetBlendLevel)
+		old_blendlevel = blendlevel;
 		
 		// Sort out drawers
 		
