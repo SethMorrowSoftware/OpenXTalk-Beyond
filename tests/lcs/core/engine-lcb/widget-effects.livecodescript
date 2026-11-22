@@ -25,6 +25,7 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 constant kEffects = "dropShadow,innerShadow,outerGlow,innerGlow,colorOverlay"
 
 on TestSetup
+   TestSkipIfNot "lcb"
    TestLoadAuxiliaryExtension "_widget_effects"
    TestLoadExtension "com.livecode.library.widgetutils"
    TestLoadExtension "com.livecode.widget.clock"

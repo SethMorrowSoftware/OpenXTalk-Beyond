@@ -6,6 +6,13 @@
 # compiler) skips there, through the test library's requirements
 # (tests/_testlib.livecodescript), and is not here.
 
+lcs: core/array/keyword-keys: TestKeysThatAlreadyCompiled  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeysThatStillFail  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeys  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysCase  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysInStatements  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysNested  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysWithExplicitVariables  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
 lcs: core/array/kinds: TestAsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
 lcs: core/array/kinds: TestAsAScalar  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
 lcs: core/array/kinds: TestAsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
@@ -134,6 +141,27 @@ lcs: core/field/bidi-order: TestTerminatorBeforeANumberAndAWord
 lcs: core/field/bidi-order: TestTextAfterAClosedEmbedding
 lcs: core/field/bidi-order: TestTextAfterAClosedIsolate
 lcs: core/field/bidi-order: TestZWNJInAWord
+lcs: core/field/markdownText: TestChunks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeAsItIs  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeInEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeWithBackticks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCustomPropertyRemovedGivesMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEmpty  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEscapedStarInEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEscapes  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHandlerThatPasses  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHeadingKeepsItsHash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHeadings  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestLinks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestListNumbersGoOn  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestLists  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestNoHangOrCrash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestOwnHandlerReadsTheMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestPlainText  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestQuoteAndCode  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestSetextHeadings  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestUnicode  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/return-before-image: TestReturnBeforeFirstCharImage
 lcs: core/field/return-before-image: TestReturnBeforeImageInParagraph
 lcs: core/field/return-before-image: TestReturnBeforeImageKeepsStyles
@@ -150,6 +178,21 @@ lcs: core/field/undo-typed-return: TestUndoReturnThenText
 lcs: core/field/undo-typed-return: TestUndoReturnTypedFirst
 lcs: core/field/undo-typed-return: TestUndoReturnTypedInALine
 lcs: core/field/undo-typed-return: TestUndoTextThenReturn
+lcs: core/files/trash: TestMoveCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestMoveRunsAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowInFinderCompiles  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowMissingFile  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowObjectInFinderAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowVariableHoldingAnObject  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashCompiles  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashFileOnLinux  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashFolderOnLinux  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashLinkNotWhatItPointsTo  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashMissingFile  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashNeedsDiskAccess  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashSameNameTwice  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashTakesTheDefaultFolder  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
 lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
 lcs: core/graphics/drawing: TestDrawingClip
 lcs: core/graphics/drawing: TestDrawingClipMalformed

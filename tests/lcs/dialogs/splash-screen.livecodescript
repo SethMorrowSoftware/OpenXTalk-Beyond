@@ -34,6 +34,8 @@ local sFound
 
 on TestSetup
    TestSkipIfNot "ui"
+   -- a phone or tablet shows a stack on its one screen, wherever it is put
+   TestSkipIfNot "desktop"
    -- The IDE's own preferences are never stood in for
    if there is a stack "revPreferences" then
       throw "SKIP the IDE's preferences are in memory"
