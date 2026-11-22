@@ -41,6 +41,8 @@ on TestSetup
    local tText, tStart, tEnd, tStubs
    put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & \
          "/Toolset/palettes/script editor/behaviors/revsecommoneditorbehavior.livecodescript"), "UTF-8") into tText
+   -- (a checkout on Windows ends its lines with CR LF)
+   replace numToChar(13) & numToChar(10) with return in tText
    put offset(return & "function ideAutocompleteIsEnabled" & return, tText) into tStart
    put offset(return & "end ideAutocompleteInsertCompletion", tText, tStart) into tEnd
    if tStart is 0 or tEnd is 0 then
@@ -88,6 +90,7 @@ on TestPreferenceDefault
    local tText, tStart, tEnd, tPrefs
    put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & \
          "/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript"), "UTF-8") into tText
+   replace numToChar(13) & numToChar(10) with return in tText
    put offset(return & "command sePrefGetDefaults" & return, tText) into tStart
    put offset(return & "end sePrefGetDefaults", tText, tStart) into tEnd
    create button "defaults"
