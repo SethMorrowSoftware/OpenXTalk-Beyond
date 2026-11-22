@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
+constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -253,6 +253,68 @@ on ed_new_stack
    if the number of controls of card 1 of stack sStack is not 0 then throw "the new stack is not empty"
    edShotStack sStack, "01-new-stack"
 end ed_new_stack
+
+-- The Window menu lists the IDE's windows that are open, not only the
+-- user's stacks, the script editors and the Dictionary, the Message Box,
+-- the Tools palette and the Project Browser (OpenXTalkPaul, openxtalk.org
+-- p=26643): Tools > Extension Manager, then Object > Stack Inspector, and
+-- each has its line, after the lines the menu had, which stay as they
+-- were; and with the stack in front of the Extension Manager, its line
+-- picked brings it back in front
+on ed_window_menu
+   local tEM, tPI, tItems, tLine, tLabels, tStackAt, tToolsAt, tEMAt, tPIAt, tLast
+   put revIDEPaletteToStackName("extension manager") into tEM
+   edFront
+   edMenu "Tools", "Extension Manager"
+   if not edWaitFor("edOpen(pAx)", 10000, tEM) then throw "Tools > Extension Manager opened nothing"
+   edCloseInspectors
+   edFront
+   edMenu "Object", "Stack Inspector"
+   put edInspector(5000) into tPI
+   put edMenuItems("Window") into tItems
+   set the itemDelimiter to tab
+   repeat for each line tLine in tItems
+      put item 2 of tLine & ", " after tLabels
+   end repeat
+   set the itemDelimiter to comma
+   edRecord "INFO the Window menu:" && char 1 to -3 of tLabels && "(" & edMenuNames(tItems) & ")"
+   put edMenuAt(tItems, the name of stack sStack) into tStackAt
+   put edMenuAt(tItems, "stack" && quote & "revTools" & quote) into tToolsAt
+   put edMenuAt(tItems, "stack" && quote & tEM & quote) into tEMAt
+   put edMenuAt(tItems, "stack" && quote & tPI & quote) into tPIAt
+   put the number of lines of tItems into tLast
+   if tStackAt is 0 then throw "the Window menu does not list the stack" && sStack
+   if tToolsAt is 0 then throw "the Window menu does not list the Tools palette"
+   if tEMAt is 0 then throw "the Window menu does not list the open Extension Manager"
+   if tPIAt is 0 then throw "the Window menu does not list the open Inspector" && tPI
+   if line tEMAt of tItems is not ("stack" && quote & tEM & quote & tab & "Extension Manager" & tab & true) then
+      throw "the Extension Manager's line is" && line tEMAt of tItems
+   end if
+   -- (named by what it inspects, its title)
+   set the itemDelimiter to tab
+   if not (item 2 of line tPIAt of tItems begins with "Inspector: ") then
+      throw "the Inspector's line is" && line tPIAt of tItems
+   end if
+   set the itemDelimiter to comma
+   if not (tStackAt < tToolsAt and tToolsAt < tEMAt and tToolsAt < tPIAt) then
+      throw "the Window menu's lines are out of order: the stack" && tStackAt & ", Tools" && tToolsAt & ", the Extension Manager" && tEMAt & ", the Inspector" && tPIAt
+   end if
+   if line tLast of tItems is not ("Send Window to Back" & tab & "Send Window to Back" & tab & true) then
+      throw "the Window menu does not end with Send Window to Back:" && line tLast of tItems
+   end if
+   edCloseInspectors
+   go stack sStack
+   if not edWaitFor("edFrontOf(pAx, pBx)", 3000, sStack, tEM) then
+      throw "the stack did not come in front of the Extension Manager:" && edJoin(the windows)
+   end if
+   edMenu "Window", "stack" && quote & tEM & quote
+   if not edWaitFor("edFrontOf(pAx, pBx)", 5000, tEM, sStack) then
+      throw "Window > Extension Manager did not bring it in front of the stack:" && edJoin(the windows)
+   end if
+   edShotStack tEM, "01-window-menu"
+   close stack tEM
+   edFront
+end ed_window_menu
 
 on ed_make_button
    edMake "Button", "button", "02-make-button"
@@ -4078,6 +4140,29 @@ function edMenuState pItems, pPath
    end repeat
    return empty
 end edMenuState
+
+-- the line of pItems (edMenuItems) whose pick is pPath, or 0
+function edMenuAt pItems, pPath
+   local tAt
+   set the itemDelimiter to tab
+   repeat for each line tLine in pItems
+      add 1 to tAt
+      if item 1 of tLine is pPath then return tAt
+   end repeat
+   return 0
+end edMenuAt
+
+-- whether the window pStack is in front of the window pOther (the
+-- windows: front to back)
+function edFrontOf pStack, pOther
+   local tAt, tStackAt, tOtherAt
+   repeat for each line tWindow in the windows
+      add 1 to tAt
+      if tWindow is pStack and tStackAt is empty then put tAt into tStackAt
+      if tWindow is pOther and tOtherAt is empty then put tAt into tOtherAt
+   end repeat
+   return tStackAt is not empty and tOtherAt is not empty and tStackAt < tOtherAt
+end edFrontOf
 
 function edMenuNames pItems
    local tNames

@@ -5016,10 +5016,12 @@ class OneSystem(unittest.TestCase):
         self.assertEqual(script.count('"StandaloneTestRunnerMainstack"'), 3)
         self.assertEqual(script.count('if tProbe is "StandaloneTestRunnerMainstack" then'), 1)
         self.assertEqual(script.count('if probeName() is "StandaloneTestRunnerMainstack" then'), 1)
-        # the xTalk Suite's probe: its openStack's calls, its handlers, and
-        # its build's extensions
-        self.assertEqual(script.count('"AndroidXtalkProbe"'), 4)
+        # the xTalk Suite's probe: its openStack's calls, its handlers
+        # (with its functional tests' text), and its build's extensions;
+        # and the stack makeProbeStack makes, whose script must compile
+        self.assertEqual(script.count('"AndroidXtalkProbe"'), 5)
         self.assertEqual(script.count('if probeName() is "AndroidXtalkProbe" then'), 3)
+        self.assertEqual(script.count('if tProbe is "AndroidXtalkProbe" and the result is not empty then'), 1)
         with tempfile.TemporaryDirectory() as work:
             for name in ('Busy', 'AndroidBusyProbe', 'Edge', 'AndroidEdgeProbe', 'Tests',
                          'StandaloneTestRunnerMainstack', 'Xtalk', 'AndroidXtalkProbe', ''):
@@ -5231,8 +5233,12 @@ class OneSystem(unittest.TestCase):
         body = re.search(r'(?s)private function probeScript\n(.*?)\nend probeScript', script).group(1)
         tail = body.split('"end openStack" after tScript')[1]
         tail = tail.split('"end probeBusy" after tScript\n   end if')[1]
-        # (the xTalk Suite's probe's own handlers, before the tap's)
-        xtalk = '\n   if probeName() is "AndroidXtalkProbe" then\n      put return & xtalkHandlers() after tScript\n   end if'
+        # (the xTalk Suite's probe's own handlers and its functional
+        # tests, before the tap's)
+        xtalk = ('\n   if probeName() is "AndroidXtalkProbe" then\n      put return & xtalkHandlers() after tScript\n'
+                 '      -- and its functional tests, their text as it is: its constants are\n'
+                 '      -- declared where it begins, above every handler that reads them\n'
+                 '      put return & xtalkTests() after tScript\n   end if')
         self.assertTrue(tail.startswith(xtalk), tail)
         tail = tail[len(xtalk):]
         self.assertTrue(tail.startswith(

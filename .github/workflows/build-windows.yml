@@ -114,6 +114,7 @@ on:
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
       - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
@@ -127,6 +128,7 @@ on:
       - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android-xtalk-tests.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
       - 'tools/ci/android_runs.py'
@@ -156,6 +158,8 @@ on:
       - 'tools/ci/mac_menu_backdrop.py'
       - 'tools/ci/visual-effect-check.livecodescript'
       - 'tools/ci/visual_effect_check.py'
+      - 'tools/ci/window-opacity-check.livecodescript'
+      - 'tools/ci/window_opacity_check.py'
       - 'tools/ci/merge_universal.py'
       - 'tools/ci/sign_mac_app.py'
       - 'tools/ci/test_linux_package.py'
@@ -764,8 +768,27 @@ jobs:
           ./tools/ci/package-windows.ps1 @packageArgs *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "package-windows.ps1 failed with exit code $LASTEXITCODE" }
 
+      # Whether there is anything to save, found by listing the folders,
+      # which reads no file. The save steps asked hashFiles() in their if:,
+      # which reads every file it matches, and the runner gives hashFiles()
+      # 120 seconds: past that the condition is an error, and an error in a
+      # condition fails the job (continue-on-error covers only a step that
+      # ran). On 2026-11-21 the xTalk files' save took those 120 seconds and
+      # failed twice in #613's run, after their cache had missed, ending the
+      # job before its smoke test; main's run that morning had hashed the
+      # same files in 5 seconds.
+      - name: Look for fetched files to cache
+        id: fetched
+        if: always() && (steps.assets-cache.outputs.cache-hit != 'true' || steps.xtalk-cache.outputs.cache-hit != 'true')
+        continue-on-error: true
+        run: |
+          $assets = if (Get-ChildItem -Path 'prebuilt\fetched-assets\*.zip' -File -ErrorAction SilentlyContinue | Select-Object -First 1) { 'true' } else { 'false' }
+          $xtalk = if (Get-ChildItem -LiteralPath 'prebuilt\fetched-assets\xtalk' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1) { 'true' } else { 'false' }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "assets=$assets`nxtalk=$xtalk" -Encoding utf8
+          Write-Host "External assets to save: $assets. xTalk extension files to save: $xtalk."
+
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.assets == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -773,7 +796,7 @@ jobs:
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
 
       - name: Save xTalk extension files to the cache
-        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.xtalk == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:

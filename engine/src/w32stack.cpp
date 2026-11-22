@@ -549,6 +549,11 @@ void MCStack::realize()
 
 		if ((m_window_shape == NULL || m_window_shape -> is_sharp) && blendlevel != 100)
 			setopacity(blendlevel * 255 / 100);
+		// OXT-Beyond: the opacity the window has, given above or opaque as
+		// it was made (MCStack::SetBlendLevel). A window with a shape that
+		// has an alpha channel is composited, and keeps what it had
+		if (m_window_shape == NULL || m_window_shape -> is_sharp)
+			old_blendlevel = blendlevel;
 	}
 	
 	// IM-2014-01-28: [[ HiDPI ]] Initialize window backing scale to the system DPI

@@ -435,6 +435,12 @@ SAMPLES = [
                     'jump, wall jump and dash, ride lifts and rope bridges, stomp the slimes and '
                     'collect every coin to turn the flag gold. Arrow keys or WASD, Space to jump.',
      'tags': ['Game', 'Physics', 'Keyboard']},
+    {'title': 'Render3D Tour', 'source': 'stacks',
+     'files': ['Render3D Tour.oxtstack'], 'image': 'Render3D Tour.webp',
+     'description': 'Ten small 3D scenes drawn into an ordinary image by render3dxt, the xTalk '
+                    'Suite\'s renderer: a sun and its planets, shapes, textures, materials, coloured lamps, a model read from '
+                    'text, hills built corner by corner, fog, clicking on things and 225 cubes on a wave.',
+     'tags': ['3D', 'Graphics', 'Mouse']},
     {'title': 'Tour', 'files': ['Tour.livecode'],
      'description': 'Cards, a widget, a palette window and a script error, caught and shown.',
      'tags': ['Cards', 'Widget', 'Palette']},
