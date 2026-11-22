@@ -325,7 +325,7 @@
     {
       "name": "box3dxt",
       "repository": "SethMorrowSoftware/xtalk-suite",
-      "commit": "46ad996d1b10c0c2c90c65b3f52716e02927c093",
+      "commit": "1def494651479913b916293eef461bf0993ffd6c",
       "version": "0.1.0",
       "version_from": {
         "path": "box3dxt/src/box3dxt.lcb",
@@ -333,18 +333,18 @@
       },
       "licence": "MIT (Seth Morrow); the libraries statically link Box3D (MIT, Erin Catto)",
       "files": [
-        {"path": "box3dxt/src/box3dxt.lcb", "role": "source", "sha256": "55a4dc311ccc9adb1f84f5d1f152563ea93a58d5f79216902eda32d152b4b05a", "size": 248446},
-        {"path": "box3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "86e1d9dea844d02ab0bd0a2091aa91227ff420efc3a922c3c671e990d671b75d", "size": 996},
-        {"path": "box3dxt/src/code/x86_64-win32/box3dxt.dll", "role": "library", "sha256": "257e576f116954f9920383e8758c13726ea33d14adce2d3c068227a8d3d8fbbc", "size": 1187328, "imports": ["KERNEL32.dll"]},
-        {"path": "box3dxt/src/code/x86-win32/box3dxt.dll", "role": "library", "sha256": "aca922d0e9dd400f97b7d9b07a4eab4a15b4e986760d3de6ab14538d7f92062c", "size": 1042432, "imports": ["KERNEL32.dll"]},
-        {"path": "box3dxt/src/code/x86_64-linux/box3dxt.so", "role": "library", "sha256": "de9b39b73784a48b4d47ea53c366332b06f3bdfbcc9c1c394f9bb7b89260c364", "size": 1436320},
-        {"path": "box3dxt/src/code/x86-linux/box3dxt.so", "role": "library", "sha256": "b8e903665721eb75058d709e71e479e3eaf72efeb00a71fd0833026ed4194601", "size": 1705700},
-        {"path": "box3dxt/src/code/arm64-linux/box3dxt.so", "role": "library", "sha256": "c41f19e5d2eb8e0c83ab4cf11f7c6e410c87abe99f5938233d291cd9a0668434", "size": 1182368},
-        {"path": "box3dxt/src/code/universal-mac/box3dxt.dylib", "role": "library", "sha256": "54f60a722b7c98bfda5164671ee92250bf52c41cb7744fcf9bf2556dffda4ca7", "size": 2242544},
-        {"path": "box3dxt/src/code/arm64-android/box3dxt.so", "role": "library", "sha256": "b1bea3418af357182298e3e7280d19ffcf478dec4008cb984b12b41a52832370", "size": 839416},
-        {"path": "box3dxt/src/code/armv7-android/box3dxt.so", "role": "library", "sha256": "ff69705fd4f810a34cfaf4eb73b9239a37cab70305339c634e182a844d7b6ff5", "size": 738840},
-        {"path": "box3dxt/src/code/x86_64-android/box3dxt.so", "role": "library", "sha256": "79db71738dd37c00cdf4feb74505bf77546d51c5ed3da0c350d1f19e722d8c70", "size": 1049432},
-        {"path": "box3dxt/src/code/x86-android/box3dxt.so", "role": "library", "sha256": "49d70d345104dbb18716a69691de52eaf114bec5fe39d2e63762035543be0fdb", "size": 1166024},
+        {"path": "box3dxt/src/box3dxt.lcb", "role": "source", "sha256": "2546bb1e642d892af6219e09a62326e717cc55ccb566d417df6c9c68180cf61f", "size": 250341},
+        {"path": "box3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "98302d3f5894fa3b963f5339077f17151a7191435293fe71107cad03d37f8ec1", "size": 996},
+        {"path": "box3dxt/src/code/x86_64-win32/box3dxt.dll", "role": "library", "sha256": "5c24121f2bdd3fc10525c6b94d9858e086bb52ddebe882110edb75ad7d59ad4f", "size": 1187840, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86-win32/box3dxt.dll", "role": "library", "sha256": "9be45cc82fededf311d0115d463c3a848fd7acb7b68d5b474408b5954c364e00", "size": 1042944, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86_64-linux/box3dxt.so", "role": "library", "sha256": "dc3280f79968b7deeecb8c03aec218fbf85a438d78a2a4869ad2ea22f1c18ce1", "size": 1440416},
+        {"path": "box3dxt/src/code/x86-linux/box3dxt.so", "role": "library", "sha256": "97c4e191e7d806a991b5f6a697335dde06b7747905cad6b14b3b19aee555c7b4", "size": 1705700},
+        {"path": "box3dxt/src/code/arm64-linux/box3dxt.so", "role": "library", "sha256": "3100b1ece356b00adf4465e1eb1acc8fdf3d6e01fd69611be9bc5ca4aa3a2a2b", "size": 1182368},
+        {"path": "box3dxt/src/code/universal-mac/box3dxt.dylib", "role": "library", "sha256": "323df1c661eb2560c4261686c8f2df98677d65de19f0839d80dd10b4cde890f1", "size": 2242656},
+        {"path": "box3dxt/src/code/arm64-android/box3dxt.so", "role": "library", "sha256": "d2c2e28a52a513b3e455496da5ace6d93a2da5cf639755ae9cc50f2cbe7ab618", "size": 840472},
+        {"path": "box3dxt/src/code/armv7-android/box3dxt.so", "role": "library", "sha256": "397879f731434bdf3a662035804825b374ab768814829e9c14f588eacac41b69", "size": 739552},
+        {"path": "box3dxt/src/code/x86_64-android/box3dxt.so", "role": "library", "sha256": "4723341dfc5604342f022858d8ff5dacb4b25a0fa4a969126748bb6bfdea7b3d", "size": 1050616},
+        {"path": "box3dxt/src/code/x86-android/box3dxt.so", "role": "library", "sha256": "68d7b02deba34b890457b648c9577d1e973e3d42567f3d451469ea51d6ee07a6", "size": 1167048},
         {"path": "box3dxt/LICENSE", "role": "licence", "sha256": "1cb3cec0f02fcb94ae9dd37f0984e29f5ac5336993f39dd680eb0cda0d725956", "size": 2307}
       ],
       "extensions": [
@@ -565,10 +565,10 @@
       {
         "name": "box3dxt",
         "repository": "SethMorrowSoftware/xtalk-suite",
-        "commit": "46ad996d1b10c0c2c90c65b3f52716e02927c093",
+        "commit": "1def494651479913b916293eef461bf0993ffd6c",
         "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
-        "sha256": "6c3824af91f574f94bad50869894f196cd54fae59f51c2652e3fdea0eb27e009",
-        "size": 1852826,
+        "sha256": "31a0bb2807b8b60d4c545c3f4743df1cf1bffe7199c89697ea7d4fceb10c1450",
+        "size": 1853732,
         "emscripten": "6.0.12"
       },
       {

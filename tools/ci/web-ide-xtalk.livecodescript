@@ -263,7 +263,7 @@ end xt_box2d
 on xt_box3d
    local tWorld, tFloor, tBall, tShape, tRay, tData, tWas
    tourRecord "INFO b3LibraryVersion()" && b3LibraryVersion()
-   xtExpect "the library's ABI", word 1 to 3 of b3LibraryVersion(), "box3dxt ABI 2;"
+   xtExpect "the library's ABI", word 1 to 3 of b3LibraryVersion(), "box3dxt ABI 3;"
    put b3WorldCreate(0, -10, 0, 1) into tWorld
    put b3BodyCreate(tWorld, 0, 0, -0.5, 0) into tFloor
    get b3ShapeAddBox(tFloor, 5, 0.5, 5, 0, 0.6, 0)
@@ -294,6 +294,18 @@ on xt_box3d
    put b3RenderRay(32.5, 24.5) into tRay
    xtExpect "the ray through that pixel finds it too", b3CastRayClosest(tWorld, item 1 of tRay, item 2 of tRay, item 3 of tRay, \
          50 * item 4 of tRay, 50 * item 5 of tRay, 50 * item 6 of tRay) && (b3HitShape(1) is tShape), "1 true"
+   -- The sky (ABI 3): the background is a sky of one colour; a sky of
+   -- two paints the picture's top row in the first, a colour out of
+   -- range is refused and leaves both, and the ball is drawn as before
+   xtExpect "the background is a sky of one colour", b3RenderSky(), "32,36,42,32,36,42"
+   b3RenderSetSky 40, 80, 160, 200, 210, 220
+   xtExpect "a sky of two colours", b3RenderSky(), "40,80,160,200,210,220"
+   b3RenderSetSky 300, 0, 0, 0, 0, 0
+   xtExpect "a colour out of range leaves it", b3RenderSky(), "40,80,160,200,210,220"
+   xtExpect "a picture under the sky is drawn", b3RenderWorld(tWorld, 64, 48, 0), "true"
+   xtExpect "the top corner is the sky's top colour", b3RenderPixel(0, 0), 40 * 65536 + 80 * 256 + 160
+   xtExpect "the middle pixel still shows the ball", b3RenderShapeAt(32, 24) is tShape, "true"
+   put b3RenderPixels() into tData
    -- An image takes the picture as its imageData and gives it back
    put the defaultStack into tWas
    create invisible stack "oxtWebBox3d"
