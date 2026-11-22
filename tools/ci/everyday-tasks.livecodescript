@@ -2136,7 +2136,7 @@ end ed_standalone_engine_missing
 -- tasks, so that a dialog that held the IDE for good holds no task after
 -- it
 on ed_import_image_system_dialog
-   local tMany, tName, tFront, tRound, tFile, tFound, tMiss, tCount, i
+   local tMany, tName, tFront, tRound, tFile, tFound, tMiss, tCount, tN, i
    if the platform is not "MacOS" then
       edRecord "INFO import-image-system-dialog: the system's file dialog is looked at on macOS (CamelCaps, p=26676)"
       return "skipped"
@@ -2177,7 +2177,14 @@ on ed_import_image_system_dialog
       -- (the item is the stack in front's: Import As Control is enabled
       -- for a stack that can be edited)
       edFront
-      put sWork & "/dialog-" & word -1 of tRound & ".txt" into tFile
+      -- (a file of each round's own: "the stack" and "a new stack" both
+      -- ended in "stack", and the third round found the first's files,
+      -- picked the item before its watcher had listed a window and read
+      -- the first round's record)
+      add 1 to tN
+      put sWork & "/dialog-" & tN & ".txt" into tFile
+      if there is a file tFile then delete file tFile
+      if there is a file (tFile & ".base") then delete file (tFile & ".base")
       edDialogWatcher tFile
       if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then
          put tRound & ": the watcher did not start" & return after tMiss

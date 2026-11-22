@@ -1428,6 +1428,27 @@ class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
         # (and what it wrote is read once the dialog has closed)
         self.assertLess(picked, self.code.index('put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound'))
 
+    def test_each_round_has_its_own_files(self):
+        # "the stack" and "a new stack" once both wrote dialog-stack.txt:
+        # the third round found the first's files already there, so it
+        # picked the item before its own watcher had listed a window and
+        # read the first round's record (#623's Intel Mac: the same windows
+        # at the same milliseconds both times)
+        loop = self.code[self.code.index('repeat for each item tRound in'):]
+        loop = loop[:loop.index('end repeat')]
+        named = re.search(r'put sWork & "/dialog-" & (.+?) & "\.txt" into tFile', loop)
+        self.assertIsNotNone(named)
+        self.assertEqual(named.group(1), 'tN')
+        self.assertEqual(loop.count('add 1 to tN'), 1)
+        self.assertLess(loop.index('add 1 to tN'), named.start())
+        self.assertRegex(self.code, r'^\s*local [^\n]*\btN\b')
+        # (and nothing in their place before the watcher starts)
+        started = loop.index('edDialogWatcher tFile')
+        for gone in ('if there is a file tFile then delete file tFile',
+                     'if there is a file (tFile & ".base") then delete file (tFile & ".base")'):
+            self.assertLess(named.end(), loop.index(gone))
+            self.assertLess(loop.index(gone), started)
+
     def test_each_round_asks_for_the_dialog_in_front_and_closed(self):
         for line in ('if line 1 of tFound is not "opened" then',
                      'else if line 2 of tFound is not "in front" then',
