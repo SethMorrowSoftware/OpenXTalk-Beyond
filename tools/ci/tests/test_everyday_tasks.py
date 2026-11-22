@@ -28,6 +28,9 @@ Linux, Windows and macOS. The script itself runs only on an engine
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1320,6 +1323,79 @@ class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
         self.assertLess(script.index('var found = null;'), script.index('esc(); delay(1.5);'))
         self.assertIn("lines.push(gone ? 'closed' : 'still open after Escape four times');", script)
         self.assertIn("write(path, lines.join(String.fromCharCode(10)));", script)
+
+    def test_the_dialog_is_the_new_window_on_the_screen(self):
+        # The first run on an Intel Mac (#623, 2026-11-22) took the first
+        # new window for the dialog: after a palette, the Open and Save
+        # Panel Service's own window, never on the screen, while the panel
+        # the IDE showed (its layer 8 window, 800 x 448 in the middle of
+        # the screen) was in front; after a stack, a 0 x 0 window of the
+        # IDE's, one second before the panel was looked for again. The
+        # dialog is now the new window ON the screen, the highest layer
+        # and then the largest, of the IDE or the panel service
+        script = self.watcher_script()
+        self.assertIn("function ours(w) { return (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20; }", script)
+        self.assertIn("var on = shown().filter(function (w) { return ours(w) && w.kCGWindowBounds.Width > 1 && w.kCGWindowBounds.Height > 1; });", script)
+        self.assertIn("on.sort(function (a, b) { return (b.kCGWindowLayer - a.kCGWindowLayer) || (area(b) - area(a)); });", script)
+        # (eight seconds more for it to show, once a new window is there:
+        # a dialog that never shows is the report's)
+        self.assertIn('for (var j = 0; j < 32 && order.length && !found; j++) { delay(0.25); found = look(); }', script)
+        self.assertIn("else if (!found) { lines.push('opened, but not on the screen in eight seconds'); lines.push(''); }", script)
+        # (every new window is written, with when it came)
+        self.assertIn("lines.push('new windows: ' + ", script)
+        self.assertIn("seen[w.kCGWindowNumber] = Date.now() - t0;", script)
+
+    @unittest.skipUnless(shutil.which('node'), 'node runs the watcher against the windows macOS listed')
+    def test_the_watcher_reads_what_the_intel_mac_listed(self):
+        # The watcher's script run against CGWindowListCopyWindowInfo as it
+        # answered on the Intel Mac runner, and as it would for a dialog
+        # that shows late, never shows, or shows behind another window
+        mock = r"""
+const src = require('fs').readFileSync(process.argv[2], 'utf8');
+const W = (n, pid, owner, layer, x, y, w, h, on) => ({ kCGWindowNumber: n, kCGWindowOwnerPID: pid, kCGWindowOwnerName: owner, kCGWindowLayer: layer, kCGWindowBounds: { X: x, Y: y, Width: w, Height: h }, kCGWindowIsOnscreen: on });
+const panel = W(9, 1234, 'OXT-Beyond', 8, 560, 156, 800, 448, true);
+const service = W(8, 77, 'Open and Save Panel Service', 0, 100, 532, 800, 448, false);
+const zero = W(7, 1234, 'OXT-Beyond', 0, 0, 0, 0, 0, false);
+const finder = W(5, 55, 'Finder', 0, 0, 0, 1440, 900, true);
+const cases = { 'a palette': [[1, service], [1.25, panel]], 'late': [[1, zero], [3.5, panel]], 'never shown': [[1, zero]],
+                'behind': [[1, panel], [1, finder]], 'none': [] };
+const out = {};
+for (const name of Object.keys(cases)) {
+  let t = 0, closed = false, file = '';
+  const base = [W(1, 1234, 'OXT-Beyond', 0, 100, 100, 400, 300, true), W(3, 99, 'Dock', 20, 0, 0, 1920, 1080, true)];
+  const list = (o) => { let l = closed ? [] : cases[name].filter(a => t >= a[0]).map(a => a[1]).reverse(); l = l.concat(base); return o === 17 ? l.filter(w => w.kCGWindowIsOnscreen) : l; };
+  const $ = { CGWindowListCopyWindowInfo: list, CGEventCreateKeyboardEvent: (n, k, d) => ({ k, d }),
+              CGEventPost: (p, e) => { if (e.k === 53 && e.d) closed = true; },
+              NSString: { alloc: { initWithUTF8String: (s) => ({ writeToFileAtomicallyEncodingError: (p) => { if (p === '/tmp/dialog.txt') file = s; } }) } } };
+  new Function('ObjC', '$', 'delay', 'Date', src)({ import() {}, deepUnwrap: x => x, castRefToObject: x => x }, $, (s) => { t += s; }, { now: () => Math.round(t * 1000) });
+  out[name] = file.split(String.fromCharCode(10));
+}
+console.log(JSON.stringify(out));
+"""
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            with open(os.path.join(work, 'watcher.js'), 'w') as f:
+                f.write(self.watcher_script())
+            with open(os.path.join(work, 'mock.js'), 'w') as f:
+                f.write(mock)
+            run = subprocess.run(['node', os.path.join(work, 'mock.js'), os.path.join(work, 'watcher.js')],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        found = json.loads(run.stdout)
+        # (after a palette on the Intel Mac: the service's window a poll
+        # before the panel, and the dialog is the panel)
+        self.assertEqual(found['a palette'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['a palette'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 560,156,800,448')
+        self.assertIn('Open and Save Panel Service 77 layer 0 at 100,532,800,448 (not on the screen) at 1000 ms', found['a palette'][4])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 1250 ms', found['a palette'][4])
+        # (a panel that shows two and a half seconds after the first window)
+        self.assertEqual(found['late'][:3], ['opened', 'in front', 'closed'])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 3500 ms', found['late'][4])
+        # (one that never shows, as CamelCaps found)
+        self.assertEqual(found['never shown'][:3], ['opened, but not on the screen in eight seconds', '', 'closed'])
+        self.assertEqual(found['never shown'][3], 'the dialog: none on the screen')
+        self.assertEqual(found['behind'][:2], ['opened', 'Finder 55 layer 0 at 0,0,1440,900'])
+        self.assertEqual(found['none'][:2], ['no new window of the IDE in ten seconds', ''])
 
 
 class QuickStartFirstLesson(BuildTasks, unittest.TestCase):

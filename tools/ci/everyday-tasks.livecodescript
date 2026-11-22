@@ -2118,18 +2118,27 @@ command edDialogWatcher pFile
          "function meets(a, b) { var p = a.kCGWindowBounds, q = b.kCGWindowBounds; " & \
          "return p.X < q.X + q.Width && q.X < p.X + p.Width && p.Y < q.Y + q.Height && q.Y < p.Y + p.Height; } " & \
          "function esc() { [true, false].forEach(function (d) { $.CGEventPost(0, $.CGEventCreateKeyboardEvent(null, 53, d)); delay(0.1); }); } " & \
+         "function ours(w) { return (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20; } " & \
+         "function area(w) { return w.kCGWindowBounds.Width * w.kCGWindowBounds.Height; } " & \
          "var before = {}; all().forEach(function (w) { before[w.kCGWindowNumber] = true; }); write(path + '.base', 'listed'); " & \
-         "var found = null; for (var i = 0; i < 40 && !found; i++) { delay(0.25); " & \
-         "all().forEach(function (w) { if (!found && (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20) found = w; }); } " & \
-         "var lines = [], now = []; if (!found) { lines.push('no new window of the IDE in ten seconds'); lines.push(''); } else { delay(1); " & \
-         "now = shown(); var at = -1; now.forEach(function (w, n) { if (w.kCGWindowNumber == found.kCGWindowNumber) at = n; }); " & \
-         "if (at < 0) { lines.push('opened, but not on the screen: ' + say(found)); lines.push(''); } else { lines.push('opened'); " & \
+         "var t0 = Date.now(), seen = {}, order = []; " & \
+         "function look() { all().forEach(function (w) { if (ours(w) && seen[w.kCGWindowNumber] === undefined) { seen[w.kCGWindowNumber] = Date.now() - t0; order.push(w); } }); " & \
+         "var on = shown().filter(function (w) { return ours(w) && w.kCGWindowBounds.Width > 1 && w.kCGWindowBounds.Height > 1; }); " & \
+         "on.sort(function (a, b) { return (b.kCGWindowLayer - a.kCGWindowLayer) || (area(b) - area(a)); }); return on.length ? on[0] : null; } " & \
+         "var found = null; for (var i = 0; i < 40 && !order.length; i++) { delay(0.25); found = look(); } " & \
+         "for (var j = 0; j < 32 && order.length && !found; j++) { delay(0.25); found = look(); } " & \
+         "var lines = [], now = [], at = -1; if (found) { delay(0.5); found = look() || found; now = shown(); " & \
+         "now.forEach(function (w, n) { if (w.kCGWindowNumber == found.kCGWindowNumber) at = n; }); } " & \
+         "if (!order.length) { lines.push('no new window of the IDE in ten seconds'); lines.push(''); } " & \
+         "else if (!found) { lines.push('opened, but not on the screen in eight seconds'); lines.push(''); } " & \
+         "else if (at < 0) { lines.push('opened, but it left the screen: ' + say(found)); lines.push(''); } else { lines.push('opened'); " & \
          "var over = now.slice(0, at).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20 && w.kCGWindowBounds.Width > 1 && meets(w, found); }); " & \
-         "lines.push(over.length ? over.map(say).join('; ') : 'in front'); } } " & \
-         "var gone = false; for (var k = 0; k < 4 && !gone; k++) { esc(); delay(1.5); " & \
-         "gone = !found || !all().some(function (w) { return w.kCGWindowNumber == found.kCGWindowNumber && w.kCGWindowIsOnscreen; }); } " & \
+         "lines.push(over.length ? over.map(say).join('; ') : 'in front'); } " & \
+         "var aim = found || order[0], gone = false; for (var k = 0; k < 4 && !gone; k++) { esc(); delay(1.5); " & \
+         "gone = !aim || !all().some(function (w) { return w.kCGWindowNumber == aim.kCGWindowNumber && (w.kCGWindowIsOnscreen || !found); }); } " & \
          "lines.push(gone ? 'closed' : 'still open after Escape four times'); " & \
-         "lines.push('the dialog: ' + (found ? say(found) : 'none')); " & \
+         "lines.push('the dialog: ' + (found ? say(found) : 'none on the screen')); " & \
+         "lines.push('new windows: ' + (order.length ? order.map(function (w) { return say(w) + ' at ' + seen[w.kCGWindowNumber] + ' ms'; }).join('; ') : 'none')); " & \
          "(now.length ? now : shown()).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 24; }).forEach(function (w) { lines.push(say(w)); }); " & \
          "write(path, lines.join(String.fromCharCode(10)));" into tScript
    get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")
