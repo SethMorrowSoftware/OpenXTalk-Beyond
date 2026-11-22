@@ -92,7 +92,7 @@ class Render3dxtMemberTest(unittest.TestCase):
         # then the two readers compiled in
         self.assertRegex('render3dxt 0.1.0 ABI 1; stb_image 2.34; fast_obj 1.3', e['expect'])
         self.assertNotRegex('render3dxt', e['expect'])
-        self.assertNotRegex('box3dxt ABI 2; Box3D 0.2.0', e['expect'])
+        self.assertNotRegex('box3dxt ABI 3; Box3D 0.2.0', e['expect'])
 
     def test_its_licence_is_carried(self):
         # LICENSE holds the notices of stb_image and fast_obj too
