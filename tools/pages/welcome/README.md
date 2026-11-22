@@ -128,7 +128,8 @@ The pages are written by hand, and every fact on them names its release
 or its date. With each release:
 
 1. **Downloads.** The front page's Downloads link the files of v0.2.7
-   (stable) and v0.2.8-dp.2 (preview), with their sizes. Point both at
+   (stable) and v0.2.8-dp.2.1 (preview), with their sizes as GitHub's
+   release page gives them (MB and GB of 1,024). Point both at
    the new releases, and keep offering both.
 2. **Where everything stands.** The guide's board is the one list to move
    a feature along as it changes (Preview to Ready when 0.2.8 is stable,
@@ -159,7 +160,7 @@ change:
 
 | Claim | Source |
 | --- | --- |
-| Stable 0.2.7 of 10 November 2026; preview 0.2.8-dp.2 of 20 November; file sizes | The GitHub releases; `CHANGELOG.md` |
+| Stable 0.2.7 of 10 November 2026; preview 0.2.8-dp.2.1 of 21 November; file sizes | The GitHub releases; `CHANGELOG.md` |
 | The browser widget and revBrowser on Chromium 156 on Windows and Linux x86-64 in 0.2.8-dp.2 (Chromium 74 before; the Mac's unchanged; none on 64-bit ARM Linux) | `CHANGELOG.md` 0.2.8-dp.2; `README.md` |
 | tsNetCompat (dp.2); WebSockets on the web, MySQL 8.4 and SCRAM logins, Beyond's engine for new Android stacks (dp.1) | `CHANGELOG.md` |
 | Its own folders for preferences, caches and logs; the engine's licence file in `%APPDATA%\RunRev\Licenses` | `README.md`, "Where OXT-Beyond keeps your files" |
