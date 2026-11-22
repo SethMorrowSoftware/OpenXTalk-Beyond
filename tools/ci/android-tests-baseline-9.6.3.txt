@@ -232,6 +232,8 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
 lcs: core/network/datagram: TestDatagramReopenedListenerAnswersTheSenderAgain # 9.6.3's engine stops reading its sockets once a datagram listener that heard a sender closes (fixed in OXT-Beyond's, #628)
+? lcs: core/network/datagram: TestDatagramSenderIsListedAndAnswered # 9.6.3's engine: a sender's name an earlier datagram test left can stop it reading its sockets (fixed in OXT-Beyond's, #628)
+? lcs: core/network/datagram: TestDatagramSenderNameOutlivesItsListener # 9.6.3's engine: a sender's name an earlier datagram test left can stop it reading its sockets (fixed in OXT-Beyond's, #628)
 lcs: core/network/datagram: TestDatagramWriteAfterListenerClosedFails # 9.6.3's engine sends a write to a closed listener's sender through whatever has the closed descriptor's number (fixed in OXT-Beyond's, #628)
 lcs: core/network/network: TestHostAddressToNameWithNoHost # 9.6.3's engine stops the app at a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestNetworkDNSServers
