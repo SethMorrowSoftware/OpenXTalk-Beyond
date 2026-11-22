@@ -28,6 +28,9 @@ Linux, Windows and macOS. The script itself runs only on an engine
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1371,6 +1374,200 @@ class ShortcutCopyPaste(BuildTasks, unittest.TestCase):
                                          r'then exit revMenubarBuildMenus')
         # (pNow is passed by the group alone: the other builds wait their turn)
         self.assertEqual(self.menubar.count('revMenubarBuildMenus true'), 1)
+
+
+class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
+    """import-image-system-dialog picks File > Import As Control > Image
+    File... with the system's own file dialog and a lot of windows open,
+    on macOS, where a person found that "with a lot of windows/stacks
+    open" the dialog "does not always open" (CamelCaps, openxtalk.org
+    p=26676). The dialog holds the IDE while it is open, so a watcher
+    started before the item is picked (osascript, in the background) lists
+    the system's windows, writes what it found and presses Escape."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.body = cls.handlers['ed_import_image_system_dialog']
+        cls.code = '\n'.join(line for line in cls.body.split('\n') if not line.lstrip().startswith('--'))
+        cls.watcher = cls.handlers['edDialogWatcher']
+
+    def watcher_script(self):
+        """The watcher's JavaScript as the shell gets it, the IDE's process
+        ID and the file put in."""
+        expr = self.watcher.split('put "', 1)[1].split(' into tScript', 1)[0]
+        expr = '"' + expr.replace('& \\\n', '&')
+        parts = []
+        for text, name in re.findall(r'"([^"]*)"|& (the processID|pFile) &', expr):
+            parts.append({'the processID': '1234', 'pFile': '/tmp/dialog.txt'}.get(name, text))
+        return ''.join(parts)
+
+    def test_the_task_is_the_last_before_finish(self):
+        # a dialog that held the IDE for good holds no task after it
+        names = tasks(self.text)
+        self.assertEqual(names[-2:], ['import-image-system-dialog', 'finish'])
+
+    def test_it_is_macos_s(self):
+        self.assertRegex(self.code, r'^\s*local [^\n]*\n\s*if the platform is not "MacOS" then\n[^\n]*\n\s*return "skipped"\n')
+
+    def test_the_systems_dialog_with_a_lot_of_windows_open(self):
+        made = self.code.index('repeat with i = 1 to 12')
+        self.assertIn('create stack tName', self.code[made:])
+        self.assertIn('revIDEOpenPalette "message box"', self.code)
+        self.assertIn('revIDEOpenPalette "project browser"', self.code)
+        on = self.code.index('set the systemFileSelector to true')
+        self.assertLess(made, on)
+        self.assertLess(on, self.code.index('repeat for each item tRound in "the stack,a palette,a new stack"'))
+
+    def test_the_watcher_starts_before_the_item_is_picked(self):
+        started = self.code.index('edDialogWatcher tFile')
+        listed = self.code.index('if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then')
+        picked = self.code.index('edMenu "File", "Import As Control|image"')
+        self.assertLess(started, listed)
+        self.assertLess(listed, picked)
+        # (and what it wrote is read once the dialog has closed)
+        self.assertLess(picked, self.code.index('put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound'))
+
+    def test_each_round_has_its_own_files(self):
+        # "the stack" and "a new stack" once both wrote dialog-stack.txt:
+        # the third round found the first's files already there, so it
+        # picked the item before its own watcher had listed a window and
+        # read the first round's record (#623's Intel Mac: the same windows
+        # at the same milliseconds both times)
+        loop = self.code[self.code.index('repeat for each item tRound in'):]
+        loop = loop[:loop.index('end repeat')]
+        named = re.search(r'put sWork & "/dialog-" & (.+?) & "\.txt" into tFile', loop)
+        self.assertIsNotNone(named)
+        self.assertEqual(named.group(1), 'tN')
+        self.assertEqual(loop.count('add 1 to tN'), 1)
+        self.assertLess(loop.index('add 1 to tN'), named.start())
+        self.assertRegex(self.code, r'^\s*local [^\n]*\btN\b')
+        # (and nothing in their place before the watcher starts)
+        started = loop.index('edDialogWatcher tFile')
+        for gone in ('if there is a file tFile then delete file tFile',
+                     'if there is a file (tFile & ".base") then delete file (tFile & ".base")'):
+            self.assertLess(named.end(), loop.index(gone))
+            self.assertLess(loop.index(gone), started)
+
+    def test_each_round_asks_for_the_dialog_in_front_and_closed(self):
+        for line in ('if line 1 of tFound is not "opened" then',
+                     'else if line 2 of tFound is not "in front" then',
+                     'else if line 3 of tFound is not "closed" then'):
+            self.assertIn(line, self.code)
+        # (each round's record, whatever it found)
+        self.assertIn('edRecord "INFO import-image-system-dialog, after" && tRound & ":" && edJoin(tFound)', self.code)
+
+    def test_the_ide_is_as_it_was_before_the_throw(self):
+        throw = self.code.index('if tMiss is not empty then throw')
+        self.assertEqual(self.code.count('throw'), 2, 'a throw before the rounds end would leave the stacks and the dialog setting')
+        tail = self.code[self.code.index('end repeat\n   set the systemFileSelector to false'):throw]
+        self.assertIn('if there is a stack tName then delete stack tName', tail)
+        # (a cancelled dialog imports nothing)
+        self.assertIn('if the number of images of card 1 of stack sStack is not tCount then', tail)
+
+    def test_the_watcher_reaches_osascript_as_written(self):
+        # one argument in double quotes to the shell: no double quote,
+        # backslash or backtick in it, and no $ the shell would expand
+        script = self.watcher_script()
+        self.assertTrue(script.startswith("ObjC.import('CoreGraphics');"), script[:60])
+        for char in '"\\`':
+            self.assertNotIn(char, script)
+        self.assertIsNone(re.search(r'\$[A-Za-z_{(]', script))
+        self.assertIn('get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")', self.watcher)
+
+    def test_the_watcher_lists_before_it_looks_and_presses_escape(self):
+        script = self.watcher_script()
+        self.assertIn('var pid = 1234;', script)
+        base = script.index("write(path + '.base', 'listed');")
+        self.assertLess(script.index('all().forEach(function (w) { before[w.kCGWindowNumber] = true; });'), base)
+        self.assertLess(base, script.index('var found = null;'))
+        # (Escape is key 53, kVK_Escape, down and up)
+        self.assertIn('$.CGEventCreateKeyboardEvent(null, 53, d)', script)
+        self.assertLess(script.index('var found = null;'), script.index('esc(); delay(1.5);'))
+        self.assertIn("lines.push(gone ? 'closed' : 'still open after Escape four times');", script)
+        self.assertIn("write(path, lines.join(String.fromCharCode(10)));", script)
+
+    def test_the_dialog_is_the_new_window_on_the_screen(self):
+        # The first run on an Intel Mac (#623, 2026-11-22) took the first
+        # new window for the dialog: after a palette, the Open and Save
+        # Panel Service's own window, never on the screen, while the panel
+        # the IDE showed (its layer 8 window, 800 x 448 in the middle of
+        # the screen) was in front; after a stack, a 0 x 0 window of the
+        # IDE's, one second before the panel was looked for again. The
+        # dialog is now the new window ON the screen, the highest layer
+        # and then the largest, of the IDE or the panel service
+        script = self.watcher_script()
+        self.assertIn("function ours(w) { return (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20; }", script)
+        self.assertIn("var on = shown().filter(function (w) { return ours(w) && w.kCGWindowBounds.Width > 1 && w.kCGWindowBounds.Height > 1; });", script)
+        self.assertIn("on.sort(function (a, b) { return (b.kCGWindowLayer - a.kCGWindowLayer) || (area(b) - area(a)); });", script)
+        # (eight seconds more for it to show, once a new window is there:
+        # a dialog that never shows is the report's)
+        self.assertIn('for (var j = 0; j < 32 && order.length && !found; j++) { delay(0.25); found = look(); }', script)
+        self.assertIn("else if (!found) { lines.push('opened, but not on the screen in eight seconds'); lines.push(''); }", script)
+        # (every new window is written, with when it came)
+        self.assertIn("lines.push('new windows: ' + ", script)
+        self.assertIn("seen[w.kCGWindowNumber] = Date.now() - t0;", script)
+
+    @unittest.skipUnless(shutil.which('node'), 'node runs the watcher against the windows macOS listed')
+    def test_the_watcher_reads_what_the_intel_mac_listed(self):
+        # The watcher's script run against CGWindowListCopyWindowInfo as it
+        # answered on the Mac runners (#623's first runs), and as it would
+        # for a dialog that shows late, never shows, or shows behind another
+        # window
+        mock = r"""
+const src = require('fs').readFileSync(process.argv[2], 'utf8');
+const W = (n, pid, owner, layer, x, y, w, h, on) => ({ kCGWindowNumber: n, kCGWindowOwnerPID: pid, kCGWindowOwnerName: owner, kCGWindowLayer: layer, kCGWindowBounds: { X: x, Y: y, Width: w, Height: h }, kCGWindowIsOnscreen: on });
+const panel = W(9, 1234, 'OXT-Beyond', 8, 560, 156, 800, 448, true);
+const service = W(8, 77, 'Open and Save Panel Service', 0, 100, 532, 800, 448, false);
+const zero = W(7, 1234, 'OXT-Beyond', 0, 0, 0, 0, 0, false);
+const finder = W(5, 55, 'Finder', 0, 0, 0, 1440, 900, true);
+const grown = W(7, 1234, 'OXT-Beyond', 8, 112, 84, 800, 448, true);
+const cases = { 'a palette': [[1, service], [1.25, panel]], 'grows': [[1, zero], [1.25, grown]], 'late': [[1, zero], [3.5, panel]], 'never shown': [[1, zero]],
+                'behind': [[1, panel], [1, finder]], 'none': [] };
+const out = {};
+for (const name of Object.keys(cases)) {
+  let t = 0, closed = false, file = '';
+  const base = [W(1, 1234, 'OXT-Beyond', 0, 100, 100, 400, 300, true), W(3, 99, 'Dock', 20, 0, 0, 1920, 1080, true)];
+  // (a window listed again later is the same window, changed: the last listing of each number wins)
+  const list = (o) => { const by = new Map(); if (!closed) cases[name].filter(a => t >= a[0]).forEach(a => { by.delete(a[1].kCGWindowNumber); by.set(a[1].kCGWindowNumber, a[1]); }); let l = Array.from(by.values()).reverse().concat(base); return o === 17 ? l.filter(w => w.kCGWindowIsOnscreen) : l; };
+  const $ = { CGWindowListCopyWindowInfo: list, CGEventCreateKeyboardEvent: (n, k, d) => ({ k, d }),
+              CGEventPost: (p, e) => { if (e.k === 53 && e.d) closed = true; },
+              NSString: { alloc: { initWithUTF8String: (s) => ({ writeToFileAtomicallyEncodingError: (p) => { if (p === '/tmp/dialog.txt') file = s; } }) } } };
+  new Function('ObjC', '$', 'delay', 'Date', src)({ import() {}, deepUnwrap: x => x, castRefToObject: x => x }, $, (s) => { t += s; }, { now: () => Math.round(t * 1000) });
+  out[name] = file.split(String.fromCharCode(10));
+}
+console.log(JSON.stringify(out));
+"""
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            with open(os.path.join(work, 'watcher.js'), 'w') as f:
+                f.write(self.watcher_script())
+            with open(os.path.join(work, 'mock.js'), 'w') as f:
+                f.write(mock)
+            run = subprocess.run(['node', os.path.join(work, 'mock.js'), os.path.join(work, 'watcher.js')],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        found = json.loads(run.stdout)
+        # (after a palette on the Intel Mac: the service's window a poll
+        # before the panel, and the dialog is the panel)
+        self.assertEqual(found['a palette'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['a palette'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 560,156,800,448')
+        self.assertIn('Open and Save Panel Service 77 layer 0 at 100,532,800,448 (not on the screen) at 1000 ms', found['a palette'][4])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 1250 ms', found['a palette'][4])
+        # (after a stack on the Apple Silicon Mac: the IDE's new window is
+        # 0 x 0 and off the screen, and a poll later the same window is the
+        # panel, at layer 8 in the middle of the screen)
+        self.assertEqual(found['grows'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['grows'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 112,84,800,448')
+        self.assertEqual(found['grows'][4], 'new windows: OXT-Beyond 1234 layer 0 at 0,0,0,0 (not on the screen) at 1000 ms')
+        # (a panel that shows two and a half seconds after the first window)
+        self.assertEqual(found['late'][:3], ['opened', 'in front', 'closed'])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 3500 ms', found['late'][4])
+        # (one that never shows, as CamelCaps found)
+        self.assertEqual(found['never shown'][:3], ['opened, but not on the screen in eight seconds', '', 'closed'])
+        self.assertEqual(found['never shown'][3], 'the dialog: none on the screen')
+        self.assertEqual(found['behind'][:2], ['opened', 'Finder 55 layer 0 at 0,0,1440,900'])
+        self.assertEqual(found['none'][:2], ['no new window of the IDE in ten seconds', ''])
 
 
 class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
