@@ -53,7 +53,10 @@ script "oxtwebxtalk"
 --    webp        webpxt: a picture written as a lossless and as a lossy
 --                WebP file and read back, with its transparency; an
 --                animation of three frames written and read; a refusal;
---                the picture set as an image's imageData
+--                an animation made by hand whose frames add up to more
+--                than 2147483647 ms, refused when it is opened and
+--                still read as a picture; the picture set as an
+--                image's imageData
 --    barcode     barcodext: a QR code, an EAN-13 and binary content made
 --                and read back out of their own pictures, the squares
 --                and the SVG of one, a refusal, and a barcode read from
@@ -426,6 +429,20 @@ on xt_webp
    xtExpect "rewound", tFrame["index"], 1
    wpAnimClose tAnim
    xtExpect "nothing left open", wpAnimOpenCount() && wpAnimEncoderOpenCount(), "0 0"
+   -- A whole animation ends by 2147483647 ms, the most the int libwebp
+   -- times it in holds. A file whose frames add up to more is refused
+   -- when it is opened, and is still read as a picture: 128 frames of
+   -- the longest a frame says, 16777215 ms, add up to less; 129 to more
+   put xtWebpAnimation(128, 16777215) into tFile
+   put wpAnimOpen(tFile) into tAnim
+   xtExpect "128 frames of 16777215 ms open", wpAnimIsValid(tAnim) && wpAnimFrameCount(tAnim), "true 128"
+   wpAnimClose tAnim
+   put xtWebpAnimation(129, 16777215) into tFile
+   xtExpect "129 frames of 16777215 ms are refused", wpAnimOpen(tFile) && (wpLastError() contains "add up to"), "0 true"
+   put wpInfo(tFile) into tInfo
+   put wpDecode(tFile) into tBack
+   xtExpect "and still read as a picture", tInfo["animated"] && tInfo["frames"] && tBack["width"], "true 129 1"
+   xtExpect "nothing left open after them", wpAnimOpenCount(), 0
    -- An image takes a decoded picture and gives it back
    put wpDecode(wpEncodeLossless(tPixels, tAlpha, 32, 24)) into tBack
    xtExpect "decoded for an image", tBack["width"], 32
@@ -441,6 +458,48 @@ on xt_webp
    xtExpect "an image takes the picture", the number of bytes in the imageData of image "picture" of stack "oxtWebWebp" && (the alphaData of image "picture" of stack "oxtWebWebp" is tAlpha), "3072 true"
    delete stack "oxtWebWebp"
 end xt_webp
+
+-- An animated WebP file of pCount 1 x 1 frames, each shown for pDuration
+-- ms, made by hand around the VP8L chunk of a still webpxt writes: a file
+-- from elsewhere can say what webpxt's own writer refuses to (the suite's
+-- webpxt/tests/engine-selftest.lc makes the same one)
+function xtWebpAnimation pCount, pDuration
+   local tStill, tAt, tSize, tWhole, tChunk, tFrames, tBody
+   put wpEncodeLossless(numToByte(0) & numToByte(200) & numToByte(100) & numToByte(50), empty, 1, 1) into tStill
+   put 13 into tAt
+   repeat while tAt + 7 <= the number of bytes of tStill
+      put byteToNum(byte tAt + 4 of tStill) + 256 * byteToNum(byte tAt + 5 of tStill) \
+            + 65536 * byteToNum(byte tAt + 6 of tStill) + 16777216 * byteToNum(byte tAt + 7 of tStill) into tSize
+      put 8 + tSize + tSize mod 2 into tWhole
+      if byte tAt to tAt + 3 of tStill is "VP8L" then
+         put byte tAt to tAt + tWhole - 1 of tStill into tChunk
+         exit repeat
+      end if
+      add tWhole to tAt
+   end repeat
+   if tChunk is empty then return empty
+   -- An ANMF chunk a frame: its x, y, width and height less one (all 0),
+   -- its duration, a byte of flags, then the frame's own chunk
+   repeat pCount times
+      put "ANMF" & xtLittleEndian(16 + the number of bytes of tChunk, 4) & xtLittleEndian(0, 12) \
+            & xtLittleEndian(pDuration, 3) & numToByte(0) & tChunk after tFrames
+   end repeat
+   -- VP8X says it is animated, on a canvas of 1 x 1; ANIM: no background
+   -- colour, and it loops for ever
+   put "VP8X" & xtLittleEndian(10, 4) & numToByte(2) & xtLittleEndian(0, 9) \
+         & "ANIM" & xtLittleEndian(6, 4) & xtLittleEndian(0, 6) & tFrames into tBody
+   return "RIFF" & xtLittleEndian(4 + the number of bytes of tBody, 4) & "WEBP" & tBody
+end xtWebpAnimation
+
+-- pValue as pBytes bytes, the lowest first
+function xtLittleEndian pValue, pBytes
+   local tOut
+   repeat pBytes times
+      put numToByte(pValue mod 256) after tOut
+      put pValue div 256 into pValue
+   end repeat
+   return tOut
+end xtLittleEndian
 
 on xt_barcode
    local tPicture, tFound, tRows, tSheet, tWas
