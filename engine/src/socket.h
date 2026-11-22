@@ -133,6 +133,14 @@ public:
 	Boolean added;
 	Boolean connected;
 	Boolean shared;
+	// OXT-Beyond: a shared socket (the name a datagram listener gives a
+	// sender it hears) whose listener has closed. Its fd still holds the
+	// number of the listener's closed descriptor, which the system may give
+	// to something else: an orphan is never polled and never written
+	// through. It stays listed, as it was in LiveCode, until it is closed,
+	// its object is deleted, or a listener hears its sender again and
+	// adopts it.
+	Boolean orphaned;
 	MCSocketState resolve_state;
 	MCObjectHandle object;
 	MCNameRef message;
@@ -171,6 +179,7 @@ public:
 	~MCSocket();
 	void deletereads();
 	void deletewrites();
+	void orphansharers();
 
 	Boolean read_done();
 	void readsome();
@@ -232,6 +241,9 @@ void MCSocketsFinalize(void);
 
 void MCSocketsAppendToSocketList(MCSocket *s);
 void MCSocketsRemoveFromSocketList(uint32_t socket_no);
+// OXT-Beyond: delete every socket, at quit, under the socket list's lock
+// (opensslsocket.cpp: the builds with MCSSL)
+void MCSocketsDeleteAll(void);
 
 bool MCSocketsAddToFileDescriptorSets(int4 &r_maxfd, fd_set &r_rmaskfd, fd_set &r_wmaskfd, fd_set &r_emaskfd);
 void MCSocketsHandleFileDescriptorSets(fd_set &p_rmaskfd, fd_set &p_wmaskfd, fd_set &p_emaskfd);
