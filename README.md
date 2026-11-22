@@ -5341,8 +5341,8 @@ contributions are accepted under the same licence as the project. See
   basis of Quick Dictionary) and the FerrusLogic team (DevGuides).
 - **HyperXTalk** ([emily-elizabeth/HyperXTalk](https://github.com/emily-elizabeth/HyperXTalk)),
   Emily-Elizabeth Howard's GPL-3.0 fork of the same LiveCode Community
-  code, with docmeth02, Mark Wieder, Brian Milby, Paul McClernan, BerndN
-  and other contributors. Code taken from HyperXTalk
+  code, with docmeth02, Mark Wieder, Brian Milby, Paul McClernan, BerndN,
+  Stam Kapetanakis and other contributors. Code taken from HyperXTalk
   names the HyperXTalk commit and its author in the commit message.
 - **The people who report, test and suggest on the OpenXTalk forums.**
   Each fix their report led to names them in [CHANGELOG.md](CHANGELOG.md)
