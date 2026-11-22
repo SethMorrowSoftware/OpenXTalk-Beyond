@@ -178,6 +178,35 @@ on TestTrashFolderOnLinux
    put tOldDataHome into $XDG_DATA_HOME
 end TestTrashFolderOnLinux
 
+on TestTrashLinkNotWhatItPointsTo
+   -- a symbolic link goes to the trash itself, and the folder it points to
+   -- stays where it is (HyperXTalk trashed the folder)
+   TestSkipIfNot "platform", "Linux"
+   local tOldDataHome, tTrash, tTarget, tLink
+   put $XDG_DATA_HOME into tOldDataHome
+   put sFolder & "/data" into tTrash
+   create folder tTrash
+   put tTrash into $XDG_DATA_HOME
+
+   put sFolder & "/kept" into tTarget
+   create folder tTarget
+   put "k" into url ("file:" & tTarget & "/k.txt")
+   put sFolder & "/link" into tLink
+   create alias tLink to folder tTarget
+   TestAssert "the link was made", there is a folder tLink
+
+   move folder tLink to trash
+   TestAssert "the result is empty", the result is empty
+   TestAssert "the link is gone", there is no folder tLink
+   TestAssert "what it pointed to is kept", url ("file:" & tTarget & "/k.txt") is "k"
+   TestAssert "the link is in the trash", url ("file:" & tTrash & "/Trash/files/link/k.txt") is "k"
+
+   -- delete file and delete folder take a link's target, so the link
+   -- leaves by the shell, and TestTeardown removes the rest
+   get shell("rm -f" && quote & tTrash & "/Trash/files/link" & quote)
+   put tOldDataHome into $XDG_DATA_HOME
+end TestTrashLinkNotWhatItPointsTo
+
 on TestTrashTakesTheDefaultFolder
    TestSkipIfNot "platform", "Linux"
    local tOldDataHome, tOldFolder, tTrash

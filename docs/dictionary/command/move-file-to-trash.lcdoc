@@ -47,6 +47,9 @@ empty it.
 If the file is open (with <open file>), it is closed first, as
 <delete file> does.
 
+A <symbolic link> (one made with <create alias> on Linux or macOS) goes
+to the trash itself: the file or folder it points to stays where it is.
+
 On macOS the system's own trash takes the file, which handles files on
 other volumes too. On Windows the shell sends it to the Recycle Bin. On
 Linux, `gio trash` takes it when it is there (every desktop with a trash
@@ -64,6 +67,6 @@ came from, when it is on the same file system.
 References: move folder to trash (command), delete file (command),
 delete folder (command), show in finder (command),
 defaultFolder (property), open file (command), file (keyword),
-command (glossary)
+create alias (command), symbolic link (glossary), command (glossary)
 
 Tags: file system

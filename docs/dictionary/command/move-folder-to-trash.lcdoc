@@ -47,7 +47,9 @@ only an empty folder and for good, it moves the whole folder, with what
 it holds, to the Trash (on macOS and Linux) or the Recycle Bin (on
 Windows), from which the user can put it back or empty it.
 
-It goes to the trash as <move file to trash> describes.
+It goes to the trash as <move file to trash> describes. A symbolic link
+to a folder goes to the trash itself, and the folder it points to stays
+where it is.
 
 >*Note:* "trash" is no word of the language: a variable, a control or
 > a custom property called trash means what it always did. This command
