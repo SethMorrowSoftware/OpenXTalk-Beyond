@@ -17,7 +17,8 @@ script "oxtwebxtalk"
 -- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, render3dxt,
 -- CoinXT, xlsxt, DataChannelXT (a shim over the browser's WebRTC),
 -- audioxt, gamepadxt (SDL's gamepad layer, over the browser's Gamepad
--- API), webpxt and barcodext into itself
+-- API), webpxt, barcodext and midixt (its shim over the browser's Web
+-- MIDI) into itself
 -- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
 -- them unchanged. Each step calls one of them, or an app built on them,
 -- as a user's script does, and checks what comes back against a value
@@ -39,6 +40,15 @@ script "oxtwebxtalk"
 --                pressed and a stick tilted, each read back as state and
 --                as events after a poll, rumbled and lit as the pad saw
 --                it, then unplugged
+--    midi        midixt over a stand-in for the browser's Web MIDI (CI's
+--                browsers have no MIDI device, and a page that asks for
+--                MIDI puts the question to its visitor) with one loop
+--                cable: a virtual port refused in words, nothing asked;
+--                the first listing asks once, with SysEx, and says so; a
+--                listing before the answer says it waits; then the
+--                cable's two ends listed and opened, a note and a
+--                controller sent and polled back, SysEx left out until
+--                it is let in, and both ends closed, the input let go
 --    render3d    render3dxt: a box drawn into a picture (its colour at the
 --                middle, the background at a corner) and found there by a
 --                click; drawn again lit and textured, begun and taken as
@@ -98,7 +108,7 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,render3d,gamepad,coinxt,xlsx,webp,barcode,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,render3d,gamepad,midi,coinxt,xlsx,webp,barcode,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
@@ -363,6 +373,161 @@ on xt_gamepad
    gpStop
    xtExpect "stopped", gpIsStarted(), false
 end xt_gamepad
+
+on xt_midi
+   local tEvent, tIn, tOut, tEvents
+   tourRecord "INFO the browser's own Web MIDI:" && tourJS("typeof navigator.requestMIDIAccess")
+   -- The browser's Web MIDI is replaced before midixt first asks for it:
+   -- CI's browsers have no MIDI device, and the real question would wait
+   -- for a person. The stand-in has one loop cable (what leaves by its
+   -- output arrives at its input, a moment later, as a device's would)
+   -- and answers only when told to, so that the wait is seen. The real
+   -- Web MIDI is owed a pass in a browser with a device
+   xtExpect "the stand-in", tourJS(xtMidiStandIn()), "installed"
+   xtExpect "the library's ABI", midiVersion(), 2
+   -- What needs no port works before anything is asked
+   put midiDecode(xtBytes("903c64")) into tEvent
+   xtExpect "a note-on decoded", xtMidiEvent(tEvent), "noteOn 1 60 100 903c64"
+   put midiDecode(xtBytes("e10040")) into tEvent
+   xtExpect "a pitch bend's 14 bits", tEvent["kind"] && tEvent["channel"] && tEvent["value14"], "pitchBend 2 8192"
+   -- Web MIDI makes no port of its own: refused in words, before the
+   -- browser is asked anything
+   xtExpect "a virtual input", midiOpenVirtualInput("Web Show"), 0
+   xtExpect "refused in words", midiLastError(), "midi: a web page has no virtual ports (Web MIDI makes none)"
+   xtExpect "nothing asked for it", tourJS("String(window.oxtMidiStandIn.asks)"), "0"
+   -- The first listing asks the browser, once and with SysEx; until it
+   -- answers there are no ports, and each listing says why
+   xtExpect "the first listing", the number of elements of midiInputPorts(), 0
+   xtExpect "it says the browser was asked", midiLastError(), \
+         "midi: no MIDI input backend: asked the browser whether this page may use MIDI: ask again once it has answered"
+   xtExpect "asked once, with SysEx", tourJS("window.oxtMidiStandIn.asks + ' ' + window.oxtMidiStandIn.sysex"), "1 true"
+   tourWait 300
+   xtExpect "a listing before the answer", the number of elements of midiOutputPorts(), 0
+   xtExpect "it says the browser has not answered", midiLastError(), \
+         "midi: no MIDI output backend: the browser has not yet answered whether this page may use MIDI: ask again in a moment"
+   xtExpect "not asked again", tourJS("String(window.oxtMidiStandIn.asks)"), "1"
+   -- The answer: the cable's two ends are listed
+   xtExpect "the browser answers", tourJS("window.oxtMidiStandIn.answer()"), "answered"
+   xtWaitTrue "oxtWebMidiAnswered()", 5000
+   xtExpect "the inputs", xtMidiPorts("in"), "0:Loop Cable"
+   xtExpect "the outputs", xtMidiPorts("out"), "0:Loop Cable"
+   xtExpect "and no error", midiLastError(), empty
+   xtExpect "still asked once", tourJS("String(window.oxtMidiStandIn.asks)"), "1"
+   -- Both ends opened; a port that is not there is refused
+   put midiOpenOutput(0) into tOut
+   put midiOpenInput(0) into tIn
+   xtExpect "both ends open", tOut > 0 and tIn > 0, true
+   xtExpect "the input listens", tourJS("window.oxtMidiStandIn.input.connection + ' ' + window.oxtMidiStandIn.listeners()"), "open 1"
+   xtExpect "an input that is not there", midiOpenInput(1) && midiLastError(), "0 midi: port index out of range"
+   -- A note and a controller through the cable, polled back: each its
+   -- own event, the first with no time before it
+   midiNoteOn tOut, 1, 60, 100
+   midiControlChange tOut, 2, 7, 90
+   xtExpect "sent", midiLastError(), empty
+   put xtMidiPoll(tIn, 2) into tEvents
+   xtExpect "two messages came back", the number of elements of tEvents, 2
+   xtExpect "the note", xtMidiEvent(tEvents[1]), "noteOn 1 60 100 903c64"
+   xtExpect "the time before the first", tEvents[1]["delta"], 0
+   xtExpect "the controller", xtMidiEvent(tEvents[2]), "controlChange 2 7 90 b1075a"
+   tourRecord "INFO the time between them:" && tEvents[2]["delta"] && "s"
+   -- SysEx is left out by an input until it is let in, as RtMidi does
+   midiSend tOut, xtBytes("f07d0102f7")
+   xtWaitTrue "oxtWebMidiDelivered() >= 3", 5000
+   xtExpect "SysEx left out", the number of elements of midiPoll(tIn), 0
+   midiIgnoreTypes tIn, false, true, true
+   midiSend tOut, xtBytes("f07d0102f7")
+   put xtMidiPoll(tIn, 1) into tEvents
+   xtExpect "SysEx let in", xtMidiEvent(tEvents[1]), "sysex 0 125 1 f07d0102f7"
+   xtExpect "what the cable carried", tourJS("window.oxtMidiStandIn.sent.join('|')"), \
+         "144 60 100|177 7 90|240 125 1 2 247|240 125 1 2 247"
+   -- Closed: the input's last handle lets the port go; an output is left
+   -- open (closing it could drop what it has not yet sent: the page
+   -- closes it); a closed handle is refused in words
+   midiClose tIn
+   midiClose tOut
+   xtExpect "the input let go", tourJS("window.oxtMidiStandIn.input.connection + ' ' + window.oxtMidiStandIn.listeners()"), "closed 0"
+   xtExpect "the output left open", tourJS("window.oxtMidiStandIn.output.connection"), "open"
+   xtExpect "a closed input", (the number of elements of midiPoll(tIn)) && midiLastError(), "0 midi: not an open input port"
+   midiSend tOut, xtBytes("903c00")
+   xtExpect "a closed output", midiLastError(), "midi: not an open output port"
+end xt_midi
+
+-- The stand-in for the browser's Web MIDI, as JavaScript that installs it
+-- and says "installed": navigator.requestMIDIAccess counts its questions
+-- and keeps the promise it gives until window.oxtMidiStandIn.answer();
+-- the access has one input and one output, both "Loop Cable", and what is
+-- sent to the output (kept in window.oxtMidiStandIn.sent) reaches the
+-- input's midimessage listeners in a timer, as a device's would. Only
+-- what midixt's web layer uses (its src/midi_web.c in the xTalk Suite)
+function xtMidiStandIn
+   return "(function(){" & \
+         "var S=window.oxtMidiStandIn={asks:0,sysex:null,sent:[],delivered:0,answer:null};" & \
+         "function Port(type){this.type=type;this.id='loop-cable-'+type;this.name='Loop Cable';" & \
+         "this.manufacturer='';this.version='';this.state='connected';this.connection='closed';this.heard=[];}" & \
+         "Port.prototype.addEventListener=function(n,f){if(n==='midimessage'&&this.heard.indexOf(f)<0){this.heard.push(f);}};" & \
+         "Port.prototype.removeEventListener=function(n,f){var i=this.heard.indexOf(f);if(n==='midimessage'&&i>=0){this.heard.splice(i,1);}};" & \
+         "Port.prototype.open=function(){this.connection='open';return Promise.resolve(this);};" & \
+         "Port.prototype.close=function(){this.connection='closed';return Promise.resolve(this);};" & \
+         "var input=S.input=new Port('input');var output=S.output=new Port('output');" & \
+         "output.send=function(data){var bytes=Array.from(data);S.sent.push(bytes.join(' '));" & \
+         "setTimeout(function(){var ev={data:new Uint8Array(bytes),timeStamp:performance.now()};" & \
+         "input.heard.slice().forEach(function(f){f(ev);});S.delivered++;},5);};" & \
+         "S.listeners=function(){return input.heard.length;};" & \
+         "var access={sysexEnabled:true,inputs:new Map([[input.id,input]]),outputs:new Map([[output.id,output]]),onstatechange:null};" & \
+         "var ask=function(options){S.asks++;S.sysex=!!(options&&options.sysex);" & \
+         "return new Promise(function(resolve){S.answer=function(){resolve(access);return 'answered';};});};" & \
+         "try{Object.defineProperty(navigator,'requestMIDIAccess',{value:ask,configurable:true,writable:true});}" & \
+         "catch(e){navigator.requestMIDIAccess=ask;}" & \
+         "return navigator.requestMIDIAccess===ask?'installed':'not installed';})()"
+end xtMidiStandIn
+
+function oxtWebMidiAnswered
+   return (the number of elements of midiInputPorts()) > 0
+end oxtWebMidiAnswered
+
+function oxtWebMidiDelivered
+   return tourJS("String(window.oxtMidiStandIn.delivered)")
+end oxtWebMidiDelivered
+
+-- The ports midiInputPorts() ("in") or midiOutputPorts() lists, as
+-- "<number>:<name>" items
+function xtMidiPorts pWhich
+   local tPorts, tIndex, tOut
+   if pWhich is "in" then
+      put midiInputPorts() into tPorts
+   else
+      put midiOutputPorts() into tPorts
+   end if
+   repeat with tIndex = 1 to the number of elements of tPorts
+      put comma & tIndex - 1 & ":" & tPorts[tIndex] after tOut
+   end repeat
+   delete char 1 of tOut
+   return tOut
+end xtMidiPorts
+
+-- Polls pIn until pCount messages have come, for at most 5 s: what came,
+-- as one list (an array numbered from 1), as midiPoll gives each
+function xtMidiPoll pIn, pCount
+   local tAll, tEvents, tIndex, tCount, tDeadline
+   put 0 into tCount
+   put the milliseconds + 5000 into tDeadline
+   repeat until tCount >= pCount or the milliseconds > tDeadline
+      put midiPoll(pIn) into tEvents
+      repeat with tIndex = 1 to the number of elements of tEvents
+         add 1 to tCount
+         put tEvents[tIndex] into tAll[tCount]
+      end repeat
+      if tCount < pCount then
+         wait 50 milliseconds with messages
+      end if
+   end repeat
+   return tAll
+end xtMidiPoll
+
+-- An event as "<kind> <channel> <data1> <data2> <the bytes in hex>"
+function xtMidiEvent pEvent
+   return pEvent["kind"] && pEvent["channel"] && pEvent["data1"] && pEvent["data2"] && xtHex(pEvent["bytes"])
+end xtMidiEvent
 
 on xt_webp
    local tPixels, tAlpha, tRow, tFile, tInfo, tBack, tWriter, tAnim, tFrame, tWas, tN

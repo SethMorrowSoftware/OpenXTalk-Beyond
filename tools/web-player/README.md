@@ -94,8 +94,9 @@ renderer; render3dxt, so the Render3D Tour; sodiumxt, coinxt,
 datachannelxt over the browser's own WebRTC, audioxt's miniaudio over
 Web Audio, xlsxt's Excel files, written into the page's own file
 system, gamepadxt, which reads game controllers through the browser's
-Gamepad API, webpxt's WebP pictures and barcodext's barcodes) are linked
-into the web
+Gamepad API, webpxt's WebP pictures, barcodext's barcodes and midixt,
+which reaches MIDI devices through the browser's Web MIDI once the
+visitor allows it) are linked into the web
 engine the player is built on, as into every HTML5 standalone's
 (EXPERIMENTAL; `engine/src/em-xtalk-web.cpp`).
 

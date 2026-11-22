@@ -32,14 +32,14 @@ with tools/oxt/binfmt.py, and three things are checked:
 
   list      every library it needs (DT_NEEDED) is a base-system library
             (tools/ci/check_native_deps.py LINUX_SYSTEM: glibc, the GCC
-            runtime, zlib, OpenSSL), a file of the package, or in the list:
-            otherwise a user who lacks it gets no word from the launcher.
-            With --repo, the same for the libraries the engine loads with
-            dlopen: every module of engine/src/linux.stubs that the engine
-            requires (initialise_required_weak_link_<module>(), which ends
-            the engine when it fails; "core" when dsklnxmain.cpp requires
-            it at start-up, else "gui" or "core"), and the Pango modules
-            without which MCNewFontlist draws no text (lnxflst.cpp).
+            runtime, zlib, OpenSSL, ALSA's), a file of the package, or in
+            the list: otherwise a user who lacks it gets no word from the
+            launcher. With --repo, the same for the libraries the engine
+            loads with dlopen: every module of engine/src/linux.stubs that
+            the engine requires (initialise_required_weak_link_<module>(),
+            which ends the engine when it fails; "core" when dsklnxmain.cpp
+            requires it at start-up, else "gui" or "core"), and the Pango
+            modules without which MCNewFontlist draws no text (lnxflst.cpp).
   ldd       "ldd <file>" finds every library ("not found" is a failure),
             except KNOWN_UNRESOLVED below. Run it where the list's Debian
             packages are installed; a library that is missing from this

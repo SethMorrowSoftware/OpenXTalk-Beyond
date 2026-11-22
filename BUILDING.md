@@ -1136,8 +1136,9 @@ clone with `core.autocrlf=true` has other bytes in its working copy.
 **What is built.** For each LCB library, `Extensions\<id>\` with the
 `.lcb` source, `module.lcm` and `manifest.xml` from `lc-compile`,
 `code\<platform-id>\<library>` for Windows x86-64 and x86, Linux x86-64,
-x86 and arm64, macOS, and, for every native member but gamepadxt, Android's
-`arm64-android`, `armv7-android`, `x86_64-android` and `x86-android`
+x86 and arm64, macOS, and, for every native member but gamepadxt and
+midixt, Android's `arm64-android`, `armv7-android`, `x86_64-android` and
+`x86-android`
 (the IDE maps the one for its platform into `revLibraryMapping`, the
 standalone builder copies the one for the target into a standalone, and
 the Android builder packs each Android one into an app as
@@ -3688,8 +3689,8 @@ site is static files: serve the folder with any web server (for example
 
 A browser opens no native library, so the web IDE's engine links the
 xTalk Suite's SodiumXT, Box2Dxt, CoinXT, DataChannelXT, box3dxt,
-render3dxt, audioxt, xlsxt, gamepadxt, webpxt and barcodext into itself,
-and the extensions the IDE ships call them unchanged
+render3dxt, audioxt, xlsxt, gamepadxt, webpxt, barcodext and midixt into
+itself, and the extensions the IDE ships call them unchanged
 ([`engine/src/em-xtalk-web.cpp`](engine/src/em-xtalk-web.cpp) says how
 they are registered). The web standalone engine, which every HTML5
 standalone and the Stack Player are built on, links them too
@@ -3707,7 +3708,12 @@ contract over the browser's own WebRTC (`RTCPeerConnection`), so peers
 and channels behave as the browser's do. gamepadxt's is SDL's gamepad
 layer as SDL builds it for the web, which reads the browser's Gamepad
 API: a browser shows a page a controller only after a button on it is
-pressed, and gamepadxt's virtual pads need no controller at all. TorrentXT and ENetXT need raw
+pressed, and gamepadxt's virtual pads need no controller at all. midixt's
+web build, like DataChannelXT's, is not its desktop library: it is the
+same `midi_*` shim over the browser's Web MIDI instead of RtMidi, which
+asks the visitor once, at the first call that lists or opens a port, and
+refuses a virtual port, which Web MIDI cannot make; what arrives waits in
+a queue that `midiPoll` drains. TorrentXT and ENetXT need raw
 TCP and UDP sockets, which a page cannot open, and OnionXT a tor daemon
 reached over TCP, so none of them has a web build: a call to TorrentXT
 or ENetXT throws an error a script can catch, and OnionXT's script runs
@@ -3727,7 +3733,9 @@ in the web IDE in Chromium, Firefox and WebKit (with
 libraries, xTalk Chat against a local Nostr relay
 ([`tools/ci/nostr_test_relay.py`](tools/ci/nostr_test_relay.py)), Hold'em's
 self-test, the Box2Dxt platformer, DataChannelXT's own harness (a live
-loopback in the page) and the refusals of TorrentXT and ENetXT, with the
+loopback in the page), midixt's ports through a stand-in for the
+browser's Web MIDI with a loop cable (CI's browsers have no MIDI device)
+and the refusals of TorrentXT and ENetXT, with the
 apps, that harness and NostrXT's relay
 library (which has a browser transport) taken from the suite at the
 pinned commit (`xtalk_web_libraries.py test-files`).
