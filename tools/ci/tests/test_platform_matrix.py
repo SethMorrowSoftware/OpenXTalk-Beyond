@@ -47,7 +47,8 @@ import check_native_deps  # noqa: E402
 import platform_matrix  # noqa: E402
 
 X86_LIBS = ('sodiumxt.so', 'box2dxt.so', 'torrentxt.so', 'datachannelxt.so', 'curlxt.so', 'box3dxt.so',
-            'audioxt.so', 'xlsxt.so', 'gamepadxt.so', 'webpxt.so', 'barcodext.so', 'render3dxt.so')
+            'audioxt.so', 'xlsxt.so', 'gamepadxt.so', 'webpxt.so', 'barcodext.so', 'render3dxt.so',
+            'midixt.so')
 
 
 def needs(**versions):
@@ -150,13 +151,16 @@ class ElfFloorMatrix(unittest.TestCase):
                 'Extensions/x/code/x86-linux/webpxt.so': needs(GLIBC='2.29'),
                 'Extensions/x/code/x86-linux/barcodext.so': needs(GLIBC='2.38'),
                 # render3dxt's (#607): the same lane, and pthreads like box3dxt's
-                'Extensions/x/code/x86-linux/render3dxt.so': needs(GLIBC='2.34')}
+                'Extensions/x/code/x86-linux/render3dxt.so': needs(GLIBC='2.34'),
+                # midixt's: C++ with its runtime inside it, so glibc 2.38
+                # (__isoc23_strtoul), measured on the suite's committed library
+                'Extensions/x/code/x86-linux/midixt.so': needs(GLIBC='2.38')}
 
     def test_shipped_package_passes(self):
         t = self.tree()
         code, out = self.run_check(t.root, self.shipped())
         self.assertEqual(code, 0, out)
-        self.assertIn('11 exceptions above', out)
+        self.assertIn('12 exceptions above', out)
 
     def test_new_file_over_the_floor_fails_with_path_and_version(self):
         t = self.tree(['Externals/new.so'])

@@ -36,7 +36,11 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
  * zlib of its own under names of its own (xlxw_*), so the engine's zlib
  * and its cannot meet even before the symbols are made local. gamepadxt's is SDL's
  * gamepad layer, which in a page reads the browser's Gamepad API (and its
- * virtual pads, which need no controller), never a device file.
+ * virtual pads, which need no controller), never a device file. midixt's,
+ * like DataChannelXT's, is not its desktop library over a page: RtMidi is
+ * left out, and the same midi_* shim runs over the browser's Web MIDI
+ * (the suite's midixt/src/midi_web.c), whose one JavaScript import only
+ * reads and queues; what arrives waits in a queue that midiPoll drains.
  * tools/web-ide/xtalk_web_libraries.py fetches the pinned
  * archives, makes every other symbol of each object local (so two members
  * that carry the same vendored code, trezor-crypto's in SodiumXT and
@@ -75,6 +79,7 @@ extern "C"
 	__attribute__((weak)) const MCSLibraryStaticExport *gamepadxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *webpxt_web_exports(void);
 	__attribute__((weak)) const MCSLibraryStaticExport *barcodext_web_exports(void);
+	__attribute__((weak)) const MCSLibraryStaticExport *midixt_web_exports(void);
 }
 
 /* The names are those the extensions load: their libraries' files without
@@ -92,6 +97,7 @@ static MCSLibraryStaticInfo s_mc_xtalk_web_libraries[] =
 	{ nullptr, "gamepadxt", nullptr },
 	{ nullptr, "webpxt", nullptr },
 	{ nullptr, "barcodext", nullptr },
+	{ nullptr, "midixt", nullptr },
 };
 
 /* Registered before main(), as em-externals.cpp's are early in startup:
@@ -112,6 +118,7 @@ MCEmscriptenRegisterXTalkWebLibraries(void)
 		gamepadxt_web_exports,
 		webpxt_web_exports,
 		barcodext_web_exports,
+		midixt_web_exports,
 	};
 
 	for (size_t i = 0; i < sizeof(t_exports) / sizeof(t_exports[0]); i++)

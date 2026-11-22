@@ -600,8 +600,12 @@ What it needs:
   DataChannelXT glibc 2.38 and OpenSSL 3. The 32-bit libraries that x86
   standalones get still need glibc 2.33 (SodiumXT and xlsxt), 2.34
   (Box2Dxt, box3dxt, audioxt and render3dxt), 2.34 and OpenSSL 3
-  (curlxt), 2.38 (gamepadxt and barcodext), or 2.38 and
-  OpenSSL 3 (TorrentXT and DataChannelXT).
+  (curlxt), 2.38 (gamepadxt, barcodext and midixt), or 2.38 and
+  OpenSSL 3 (TorrentXT and DataChannelXT). midixt's libraries also need
+  ALSA's library, through which Linux has its MIDI (`libasound.so.2`: the
+  package `libasound2`, `libasound2t64` on Ubuntu 24.04 and Debian 13 and
+  later, or `alsa-lib`); the browser widget needs it too. Every desktop
+  Linux has it, and without it only midixt fails to load.
 - **The player** runs `/usr/bin/mplayer` when it is installed, and plays
   through GStreamer 1.x when it is not (many distributions no longer
   package mplayer). For GStreamer, install its plugins: on Debian and
@@ -4955,6 +4959,7 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `org.openxtalk.library.webpxt` | webpxt: WebP pictures read and written through libwebp, lossy and lossless, with transparency, and animations a frame at a time | [xtalk-suite, `webpxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/webpxt) |
 | `org.openxtalk.library.barcodext` | barcodext: QR codes and barcodes read out of pictures and made as pictures, SVG or rows of squares, through zxing-cpp | [xtalk-suite, `barcodext/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/barcodext) |
 | `org.openxtalk.library.renderthreed` | render3dxt: a software 3D renderer that draws textured, lit meshes (OBJ models, PNG, JPEG, BMP and TGA textures, lights, fog, a camera, picking) into a picture for an image, and draws what box3dxt simulates | [xtalk-suite, `render3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/render3dxt) |
+| `org.openxtalk.library.midi` | midixt: realtime MIDI through RtMidi (the computer's MIDI ports listed, opened and sent to, and what arrives read by polling, with its timing; virtual ports on macOS and Linux); also in the web engine, where it uses the browser's Web MIDI | [xtalk-suite, `midixt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/midixt) |
 
 - The IDE loads them when it starts, like its other built-in
   extensions; the *Extension Manager* lists them and can unload them or
@@ -4987,9 +4992,9 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   scripts use, together with its native library for the target platform.
   The extensions have native libraries for Windows x86-64 and x86, Linux
   x86-64, x86 and arm64, and macOS. The thirteen LCB libraries with native
-  code other than gamepadxt (SodiumXT, TorrentXT, enetxt, DataChannelXT,
-  Box2Dxt, CoinXT, curlxt, box3dxt, render3dxt, audioxt, xlsxt, webpxt
-  and barcodext) also have them for Android's four architectures
+  code other than gamepadxt and midixt (SodiumXT, TorrentXT, enetxt,
+  DataChannelXT, Box2Dxt, CoinXT, curlxt, box3dxt, render3dxt, audioxt,
+  xlsxt, webpxt and barcodext) also have them for Android's four architectures
   (arm64-v8a, armeabi-v7a, x86_64 and x86), which the Android builder
   packs into an app; the four that open sockets (TorrentXT, enetxt,
   DataChannelXT and curlxt) add the INTERNET permission to an app that
@@ -5006,8 +5011,9 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   for the RECORD_AUDIO permission
   itself. gamepadxt has no Android libraries: SDL reaches controllers
   there through a Java activity of its own, which an OXT-Beyond app does
-  not have. The standalone builder never adds the script libraries by
-  itself: tick them in *Standalone Settings*, with the LCB libraries they
+  not have. Nor has midixt: RtMidi's Android backend needs Android 10
+  and Java code of its own. The standalone builder never adds the script
+  libraries by itself: tick them in *Standalone Settings*, with the LCB libraries they
   need (for example `coinxt` with `org.openxtalk.library.coin`).
 - Both dictionaries have them: every public handler of their libraries
   has an entry in LiveCode's Dictionary, which reads it from the

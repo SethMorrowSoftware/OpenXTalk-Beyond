@@ -190,6 +190,15 @@ asyncify_remove_xtalk = [
     # so Asyncify leaves a picture alone either way; its other functions
     # have plain names that could be anyone's, and are not listed
     'r3x_*', 'stbi*', 'fast_obj*',
+    # midixt: the shim (midi_*) and its Web MIDI layer, the part of
+    # RtMidi's C API the shim calls (rtmidi_*), written over the browser's
+    # Web MIDI; RtMidi itself is not in the web build. Like DataChannelXT's,
+    # its one JavaScript import only reads and queues: what arrives waits
+    # in a queue that midiPoll drains, and nothing calls into the engine
+    # from the browser's events. It calls nothing through a pointer; its
+    # file-local functions keep their own names and are instrumented where
+    # they reach snprintf
+    'midi_*', 'rtmidi_*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

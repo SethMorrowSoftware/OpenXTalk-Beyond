@@ -521,6 +521,32 @@
       "extensions": [
         {"kind": "lcb", "id": "org.openxtalk.library.renderthreed", "folder": "org.openxtalk.library.renderthreed", "main": "render3dxt/src/render3dxt.lcb", "probe": "r3LibraryVersion()", "expect": "^render3dxt [0-9.]+ ABI [0-9]+; "}
       ]
+    },
+    {
+      "name": "midixt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "75d071308ffefc2c8e015a14fffb4c76a7ca9f61",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "midixt/src/midi.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow Software and the ShowControl contributors); the libraries statically link RtMidi (MIT, Gary P. Scavone) and, on Linux, use the system's ALSA library",
+      "files": [
+        {"path": "midixt/src/midi.lcb", "role": "source", "sha256": "317bf3e2a9992779cb69005fa156b3a647b68736c18c62b98c6efd3e408352bf", "size": 34997},
+        {"path": "midixt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "c0fd9c84cb9cce83b4bd6bab2594afd6c4299a0f92260140c410769dd48161fa", "size": 626},
+        {"path": "midixt/src/code/x86_64-win32/midixt.dll", "role": "library", "sha256": "d864270451634434437e2aa435a5864c779caf430aaf168476991579f8b2b11d", "size": 308736, "imports": ["WINMM.dll", "KERNEL32.dll"]},
+        {"path": "midixt/src/code/x86-win32/midixt.dll", "role": "library", "sha256": "5d52eba3d83f541e17e6dca1fbad0c9ffce5b3083de5ae50ede7ea336e3df57a", "size": 250368, "imports": ["WINMM.dll", "KERNEL32.dll"]},
+        {"path": "midixt/src/code/x86_64-linux/midixt.so", "role": "library", "sha256": "7ba6428fc6656e57321a49411924b6a4ad3c61aa9466dca5f5319ed8fc9a7e6e", "size": 1261680},
+        {"path": "midixt/src/code/x86-linux/midixt.so", "role": "library", "sha256": "ec80fa35fe645c864ed1294c7d62aad7017a702c613400648eb014c090ce0bff", "size": 1182144},
+        {"path": "midixt/src/code/arm64-linux/midixt.so", "role": "library", "sha256": "24bfd0653a7aa4b80e408af418a05d1372d5971a6f93028f47583b8a12006084", "size": 1380448},
+        {"path": "midixt/src/code/universal-mac/midixt.dylib", "role": "library", "sha256": "862495bfe118af9ceb73d90abd2cba87bae2fa944243f0224b8dc4333e40e616", "size": 207776},
+        {"path": "midixt/LICENSE", "role": "licence", "sha256": "8a2bf7b87c7e1ff6078257d0bb481ef8ab549daa28b1d2c958f2c2ab6b89366c", "size": 1367},
+        {"path": "midixt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "a6f0db32b9c725b288cd247a8ed4fa2d442f34db77e9ae18a4af9871c31c9d52", "size": 2339}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.midi", "folder": "org.openxtalk.library.midi", "main": "midixt/src/midi.lcb", "probe": "midiVersion()", "expect": "^2$"}
+      ]
     }
   ],
   "web_libraries": {
@@ -623,6 +649,15 @@
         "path": "render3dxt/src/code/wasm32-emscripten/render3dxt.a",
         "sha256": "effcc94ab3bf70fea29586511d156f917b6a389da6d589af9d4017f8717625a2",
         "size": 213442,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "midixt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "75d071308ffefc2c8e015a14fffb4c76a7ca9f61",
+        "path": "midixt/src/code/wasm32-emscripten/midixt.a",
+        "sha256": "4af1a75989f65fa50c3465f6fe0ae95712fdd5367b44f0207949c941780dc9b3",
+        "size": 86354,
         "emscripten": "6.0.12"
       }
     ]

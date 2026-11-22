@@ -140,7 +140,7 @@
         "elf": {
           "GLIBC": "2.38"
         },
-        "readme": "2.38 (gamepadxt and barcodext)",
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
         "reason": "barcodext's 32-bit library is built on a newer system than the IDE: zxing-cpp is C++, and glibc 2.38's headers send its strtol calls to __isoc23_strtol (README.md, Linux)"
       },
       {
@@ -164,8 +164,16 @@
         "elf": {
           "GLIBC": "2.38"
         },
-        "readme": "2.38 (gamepadxt and barcodext)",
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
         "reason": "gamepadxt's 32-bit library is built on a newer system than the IDE: SDL's C23 calls need glibc 2.38 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/midixt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
+        "reason": "midixt's 32-bit library is built on a newer system than the IDE, with the C++ runtime inside it: glibc 2.38's headers send a strtoul call in it to __isoc23_strtoul (README.md, Linux)"
       }
     ]
   }
