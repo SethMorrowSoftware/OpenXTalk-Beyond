@@ -11,3 +11,14 @@ functions write a real as SQLite 3.51 and earlier did (15 significant
 digits; quote() uses the exponent form when 15 do not give the value back)
 instead of with 17. Its tests are tests/lcs/core/database/sqlite_values.
 include/sqlite3.h and include/sqlite3ext.h are the release's, unchanged.
+
+ext/misc/regexp.c is the release's regexp extension, unchanged (SHA3-256
+378e6e84516952a4b9f3f4df88927f20e6538e2609f55b773ed78899dab8206e, as the
+manifest of the release's check-in, 555e07ef33f69a09, gives it).
+src/sqlitefunctions.c, OXT-Beyond's, adds its regexp() and regexpi(), and
+SQLite's math functions (the release's code from src/func.c, unchanged),
+to every connection that src/sqlitedataset.cpp opens. That file says why
+they are added there rather than built into SQLite with
+SQLITE_ENABLE_MATH_FUNCTIONS: so that an extension a stack loads can
+still replace them. Their tests are tests/lcs/core/database/sqlite_functions
+and tools/ci/tests/test_thirdparty_libraries.py.

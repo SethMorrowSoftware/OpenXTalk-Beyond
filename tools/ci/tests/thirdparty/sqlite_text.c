@@ -16,15 +16,22 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Runs each line of stdin as SQL on one connection set up as revDB's
    driver sets it up (thirdparty/libsqlite/src/sqlitedataset.cpp: 15
-   significant digits), and prints the type and text of every value, the
-   text a script gets. test_thirdparty_libraries.py compares it with the
-   answers of SQLite 3.51.3. Built with the SQLite of thirdparty/libsqlite. */
+   significant digits, and with OXT_SQLITE_FUNCTIONS defined, the math and
+   REGEXP functions it adds), and prints the type and text of every value,
+   the text a script gets. test_thirdparty_libraries.py compares it with
+   the answers of SQLite 3.51.3, and of SQLite's built-in math functions.
+   Built with the SQLite of thirdparty/libsqlite. With the argument
+   "extensions", SQL may load an extension (load_extension()), as on a
+   connection that revOpenDatabase opens with its option of that name. */
 
 #include <stdio.h>
 #include <string.h>
 #include "sqlite3.h"
+#ifdef OXT_SQLITE_FUNCTIONS
+#include "sqlitefunctions.h"
+#endif
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	sqlite3 *db;
 	char line[8192];
@@ -33,6 +40,14 @@ int main(void)
 #ifdef SQLITE_DBCONFIG_FP_DIGITS
 	sqlite3_db_config(db, SQLITE_DBCONFIG_FP_DIGITS, 15, (int *) 0);
 #endif
+#ifdef OXT_SQLITE_FUNCTIONS
+	if (oxt_sqlite_add_functions(db) != SQLITE_OK)
+		return 1;
+#endif
+	/* revDB enables extensions after the driver has opened the connection
+	   (revdb/src/sqlite_connection.cpp) */
+	if (argc > 1 && strcmp(argv[1], "extensions") == 0)
+		sqlite3_enable_load_extension(db, 1);
 	while (fgets(line, sizeof line, stdin))
 	{
 		const char *tail = line;

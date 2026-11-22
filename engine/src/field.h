@@ -249,6 +249,10 @@ private:
 
     // MM-2014-08-11: [[ Bug 13149 ]] Used to flag if a recompute is required during the next draw.
     bool m_recompute : 1;
+
+	// OXT-Beyond: the colour of a paragraph's or a text run's own that the
+	// words being drawn or read are on (getwordsback), else nil
+	const MCColor *m_words_back;
 	
 	static int2 clickx;
 	static int2 clicky;
@@ -291,6 +295,22 @@ public:
 
 	MCField();
 	MCField(const MCField &fref);
+
+	// OXT-Beyond: the colour of a paragraph's or a text run's own that the
+	// words being drawn or read are on: MCParagraph::draw and MCBlock::draw
+	// set it for the time they draw them, MCBlock::GetEffectiveForeColor
+	// for the time it reads them; nil otherwise. getlegacywords judges the
+	// words on it. setwordsback returns the colour it replaces
+	const MCColor *getwordsback(void) const
+	{
+		return m_words_back;
+	}
+	const MCColor *setwordsback(const MCColor *p_back)
+	{
+		const MCColor *t_old = m_words_back;
+		m_words_back = p_back;
+		return t_old;
+	}
 	// virtual functions from MCObject
 	virtual ~MCField();
 	virtual Chunk_term gettype() const;

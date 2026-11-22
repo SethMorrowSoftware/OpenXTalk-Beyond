@@ -102,7 +102,7 @@ licence text are in `thirdparty/`.
 | Skia | revision `20471894`, with one change (see [`thirdparty/libskia/ORIGIN`](thirdparty/libskia/ORIGIN)) | engine, libgraphics | BSD 3-clause | [upstream](https://github.com/google/skia/blob/main/LICENSE); file headers in `thirdparty/libskia/` |
 | libxml2 | 2.15.4, with local changes and the HTTP and FTP clients of 2.14.6 and 2.13.9 (see [`thirdparty/libxml/ORIGIN`](thirdparty/libxml/ORIGIN)) | revXML, web engine | MIT | [`thirdparty/libxml/docs/COPYING`](thirdparty/libxml/docs/COPYING) |
 | libxslt | 1.1.45, with local changes (see [`thirdparty/libxslt/ORIGIN`](thirdparty/libxslt/ORIGIN)) | revXML, web engine | MIT-style | [`thirdparty/libxslt/docs/COPYING`](thirdparty/libxslt/docs/COPYING) |
-| SQLite | 3.54.1 (with the change described in `thirdparty/libsqlite/ORIGIN`) | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
+| SQLite | 3.54.1 (with the change described in `thirdparty/libsqlite/ORIGIN`), and its regexp extension (`ext/misc/regexp.c`) | `dbsqlite.dll`, web engine | Public domain | header of `thirdparty/libsqlite/include/sqlite3.h`, [sqlite.org/copyright.html](https://www.sqlite.org/copyright.html) |
 | sqlitedataset | 0.1.0 | `dbsqlite.dll`, web engine | MIT | [`thirdparty/libsqlite/docs/LICENSE`](thirdparty/libsqlite/docs/LICENSE) |
 | MariaDB Connector/C | 3.4.11, with local changes (see [`thirdparty/libmysql/ORIGIN`](thirdparty/libmysql/ORIGIN)) | `dbmysql.dll` | GNU LGPL version 2.1 or later | [`thirdparty/libmysql/COPYING.LIB`](thirdparty/libmysql/COPYING.LIB) |
 | libpq (from PostgreSQL) | 17.11, with local changes (see [`thirdparty/libpq/ORIGIN`](thirdparty/libpq/ORIGIN)) | `dbpostgresql.dll` | PostgreSQL licence | [`thirdparty/libpq/COPYRIGHT`](thirdparty/libpq/COPYRIGHT) |
@@ -503,8 +503,12 @@ below.
 | `nostrxt`, `nostr-relay` | `NostrXT` | MIT, © 2026 Seth Morrow | none (LiveCode Script only) | `LICENSE` |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | `xtalk-suite` (`curlxt/`) | MIT, © 2026 Seth Morrow | libcurl 8.22.0: the curl licence (MIT-style), © Daniel Stenberg and many contributors. libssh2 1.11.1: BSD 3-clause, © Sara Golemon and others. OpenSSL 3.5.9, statically linked into the macOS and the Linux x86-64 and arm64 libraries: Apache License 2.0; the Linux x86 library uses the system's OpenSSL (`libssl.so.3`) and the Windows libraries Windows' own Schannel instead. The Windows libraries link the Visual C++ runtime statically. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (libcurl's and libssh2's texts), `OpenSSL-LICENSE.txt` |
 | `org.openxtalk.library.boxthreed` | `xtalk-suite` (`box3dxt/`) | MIT, © 2026 Seth Morrow | Box3D (a pinned commit, before its first release): MIT, © 2026 Erin Catto. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with Box3D's notice) |
+| `org.openxtalk.library.audioxt` | `xtalk-suite` (`audioxt/`) | MIT, © 2026 Seth Morrow | miniaudio 0.11.26, compiled into each library with its WAV, FLAC and MP3 decoders (dr_wav, dr_flac and dr_mp3): public domain (Unlicense) or MIT No Attribution, at the user's choice, © 2026 David Reid. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with miniaudio's notice) |
+| `org.openxtalk.library.xlsxt` | `xtalk-suite` (`xlsxt/`) | MIT, © 2026 Seth Morrow | libxlsxwriter 1.2.4: BSD 2-clause, © 2014-2026 John McNamara; the code it carries has its own terms, given in the member's `THIRD-PARTY-LICENSES.md`: `queue.h` and `tree.h` from FreeBSD (BSD), tmpfileplus (Mozilla Public License 2.0, © David Ireland, unmodified; its source is in libxlsxwriter's repository under `third_party/tmpfileplus`) and Alexander Peslyak's MD5 (public domain). zlib 1.4 with its minizip: the zlib licence, © Jean-loup Gailly and Mark Adler, minizip © Gilles Vollant. Expat 2.10.0: MIT, © Thai Open Source Software Center, Clark Cooper and the Expat maintainers. The same code is linked into the web engine. | `LICENSE`, `THIRD-PARTY-LICENSES.md` (the texts of all of them) |
+| `org.openxtalk.library.gamepadxt` | `xtalk-suite` (`gamepadxt/`) | MIT, © 2026 Seth Morrow | SDL 3.4.20 (its joystick, gamepad and haptic parts, statically linked): the zlib licence, © 1997-2026 Sam Lantinga. The HIDAPI that SDL carries, compiled in to read controllers directly: BSD-style, © 2010 Alan Ott, Signal 11 Software. The Windows libraries link the Visual C++ runtime statically. The web engine links SDL's gamepad layer too. | `LICENSE` (with SDL's and HIDAPI's notices) |
 | `org.openxtalk.library.webpxt` | `xtalk-suite` (`webpxt/`) | MIT, © 2026 Seth Morrow | libwebp 1.6.0: BSD 3-clause, © 2010 Google Inc. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with libwebp's notice) |
 | `org.openxtalk.library.barcodext` | `xtalk-suite` (`barcodext/`) | MIT, © 2026 Seth Morrow | zxing-cpp 3.1.1: Apache License 2.0, © ZXing authors, Nu-book Inc. and Axel Waggershauser. The Zint backend its writer is built on: BSD 3-clause, © Robin Stuart and others. Two fonts inside that backend, for the text under a barcode: a subset of Arimo (Apache License 2.0, © 2013 Steve Matteson) and a subset of OCR-B (© Matthew Skala and Norbert Schwarz, released without limitation). The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with every notice above) |
+| `org.openxtalk.library.renderthreed` | `xtalk-suite` (`render3dxt/`) | MIT, © 2026 Seth Morrow | stb_image 2.34 (the picture reader, built with its PNG, JPEG, BMP and TGA decoders): MIT, © Sean Barrett; offered as MIT or public domain, taken as MIT. fast_obj 1.3 (the OBJ reader): MIT, © 2018 thisistherk. Both are compiled into the library from pinned commits. The Windows libraries link the Visual C++ runtime statically. | `LICENSE` (with the notices of stb_image and fast_obj) |
 
 Notes:
 
@@ -582,8 +586,8 @@ notices.
 Every package carries standalone runtimes for the other platforms that
 the IDE's standalone builder targets, so that it can build standalones
 for them and not only for its own platform. They come from one release
-asset of this repository, `oxt-runtimes-0.2.8-dp.2.zip` (release tag
-`runtimes-0.2.8-dp.2`), listed with its SHA-256 in
+asset of this repository, `oxt-runtimes-0.2.8-dp.2.1.zip` (release tag
+`runtimes-0.2.8-dp.2.1`), listed with its SHA-256 in
 [`tools/oxt/external-assets.json`](tools/oxt/external-assets.json). The
 "Runtimes asset" workflow made it with
 [`tools/oxt/make_runtimes_asset.py`](tools/oxt/make_runtimes_asset.py)
@@ -593,7 +597,7 @@ also carries OXT-Beyond's own Android engine, built here as a whole runtime
 of its own (`Runtime/Android/Beyond`); the rest of the Android runtime, the
 engines the builder uses for a stack that does not ask for that one, is not
 built here. Its `PROVENANCE.md`,
-installed as `PROVENANCE-oxt-runtimes-0.2.8-dp.2.md` at the root of the
+installed as `PROVENANCE-oxt-runtimes-0.2.8-dp.2.1.md` at the root of the
 program folder, names that commit and the CI runs and lists every file
 with its size, SHA-256 and the build it comes from. Each package leaves
 out what its own build makes: the Windows and Linux packages their own
@@ -617,7 +621,7 @@ Licences and corresponding source:
   [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for OXT-Beyond's code, and
   the third-party components of the sections above (OpenSSL, curl, ICU,
   the libraries of `thirdparty/`, CEF). Source: this repository at the
-  commit that `PROVENANCE-oxt-runtimes-0.2.8-dp.2.md` names.
+  commit that `PROVENANCE-oxt-runtimes-0.2.8-dp.2.1.md` names.
 - **Android files identical to LiveCode Community 9.6.3**: GPLv3.
   Source: [livecode/livecode](https://github.com/livecode/livecode), tag
   [`9.6.3`](https://github.com/livecode/livecode/tree/9.6.3). This

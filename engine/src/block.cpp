@@ -1287,8 +1287,14 @@ void MCBlock::draw(MCDC *dc, coord_t x, coord_t lx, coord_t cx, int2 y, findex_t
 		t_foreground_color = atts -> color;
 
 	// MM-2013-11-05: [[ Bug 11547 ]] We now pack alpha values into pixels meaning we shouldn't check against MAXUNIT4. Not sure why this check was here previously.
+	// OXT-Beyond: the run's words are on its own colour until it is drawn
+	//   (MCField::setwordsback, getlegacywords)
+	const MCColor *t_old_words_back = nil;
 	if (flags & F_HAS_BACK_COLOR)
+	{
 		dc->setbackground(*atts->backcolor);
+		t_old_words_back = f -> setwordsback(atts -> backcolor);
+	}
 
     setcolorfornormaltext(dc, t_foreground_color);
 	
@@ -1482,7 +1488,10 @@ void MCBlock::draw(MCDC *dc, coord_t x, coord_t lx, coord_t cx, int2 y, findex_t
 	
 	// MM-2013-11-05: [[ Bug 11547 ]] We now pack alpha values into pixels meaning we shouldn't check against MAXUNIT4. Not sure why this check was here previously.
 	if (flags & F_HAS_BACK_COLOR)
+	{
+		f -> setwordsback(t_old_words_back);
 		dc->setbackground(MCzerocolor);
+	}
 
 	// MM-2013-11-05: [[ Bug 11547 ]] We now pack alpha values into pixels meaning we shouldn't check against MAXUNIT4. Not sure why this check was here previously.
 	if (flags & F_HAS_COLOR || fontstyle & FA_LINK)

@@ -15,9 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
 
-"""Check on Windows that a standard button, an option menu and a combo box
-are drawn for the appearance Windows has (light or dark): when the engine
-starts in it, and when Windows is switched to it while the engine runs.
+"""Check on Windows that a standard button, an option menu, a combo box and
+a field are drawn for the appearance Windows has (light or dark): when the
+engine starts in it, and when Windows is switched to it while the engine
+runs; and that the colours a stack made before the dark appearance sets
+keep its words readable in both appearances.
 
   python tools/ci/dark_switch_check.py (--install DIR | --package FILE)
       [--platform P] [--log FILE] [--timeout SECONDS] [--need-visual-styles]
@@ -25,10 +27,17 @@ starts in it, and when Windows is switched to it while the engine runs.
 
 The layout's standalone runtime is copied to a folder of its own
 (media_check.stage_runtime) and runs tools/ci/dark-switch-check.livecodescript,
-which opens a stack with the three controls, none with a colour of its own,
-and measures each from a snapshot when this script tells it to: its face
-(the colour most of its inside has) and its ink (the colour there that
-differs most from the face: its label). This script sets Windows'
+which opens a stack with the four controls, none with a colour of its own
+(FOLLOWING), and six with the colours of an older stack, none with a text
+colour: a field with a white background of its own, a field with no
+background of its own in a group with a light one, a button with a light
+background of its own, a check box with a white one, checked (LEGACY); a
+field with a dark background of its own, and a field with a white one
+whose line has a dark one, which fills it (DARK_OWN). It measures each
+from a snapshot when this script tells it to: its face (the colour most of
+its inside has) and its ink (the colour there that differs most from the
+face: its label); and the effective foregroundColor of each field and
+button (of the line, for the second of DARK_OWN). This script sets Windows'
 appearance, the value AppsUseLightTheme that applications follow, as
 Settings > Personalization > Colors does, and puts it back when it is done.
 The engine is started twice (RUNS):
@@ -47,8 +56,15 @@ whether it takes wide strings or ANSI ones). "With no notice" writes the
 value and nothing else: a program that only believes the notice then draws
 for the appearance it was last told of. After each step:
 
-  1. each control's face is dark in the dark appearance and light in the
-     light one, and its ink stands out from it;
+  1. each control of FOLLOWING has a face that is dark in the dark
+     appearance and light in the light one, and its ink stands out from
+     it; each of LEGACY keeps its light face and has dark words in both
+     appearances, as LiveCode Community drew them, and an effective
+     foregroundColor that is dark; DARK_OWN keeps its dark face, and in
+     the dark appearance the appearance's light words, and an effective
+     foregroundColor that is light (in the light appearance its words are
+     LiveCode Community's black, on its own dark colour, and nothing is
+     judged);
   2. the systemAppearance is the appearance that was set;
   3. after a switch, the stack was sent systemAppearanceChanged; and after
      a notice that changed nothing, it was not;
@@ -77,6 +93,16 @@ screen's readings were only reported: in the check's first runs the
 stack's window was not shown at all and what was read was the runner's
 console. Since it is shown, the screen and the snapshots have agreed at
 every step, on 0.2.7 and on the fixed engine, on both Windows versions.
+
+Up to OXT-Beyond 0.2.8-dp.2 the words of LEGACY were the dark
+appearance's white in it, white on white in the field and in the checked
+check box (measured with 0.2.8-dp.1 on seth's Windows 11 PC, 2026-11-21,
+where the xTalk Suite's xlsxt and pdfxt demos showed it: the check box's
+face 255,255,255 and its ink 255,255,255), and their effective
+foregroundColor was 255,255,255; the engine now draws them black there
+(MCObject::getlegacywords), and DARK_OWN's as before: the words of a line
+with a dark colour of its own are judged on that colour, not on the
+field's white (MCField::getwordsback).
 
 Up to OXT-Beyond 0.2.7 the dark appearance filled a button and an option
 menu with a background colour the engine kept from its start, under words
@@ -117,7 +143,18 @@ import run_livecode_check as rlc  # noqa: E402
 import media_check  # noqa: E402
 
 SCRIPT = os.path.join(HERE, 'dark-switch-check.livecodescript')
-CONTROLS = ('Push', 'Option', 'Combo')
+# No colour of their own: drawn as the appearance has it
+FOLLOWING = ('Push', 'Option', 'Combo', 'Plain')
+# A light background of their own (or their group's) and no text colour:
+# dark words in both appearances, as LiveCode Community drew them. Tick is a
+# check box, checked: its box is not measured
+LEGACY = ('Paper', 'Label', 'Key', 'Tick')
+# A dark background of its own and no text colour: the dark appearance's
+# light words in it. Shade is a field with a white background of its own
+# whose line has a dark one, which its words are on (its effective
+# foregroundColor is its line's)
+DARK_OWN = ('Night', 'Shade')
+CONTROLS = FOLLOWING + LEGACY + DARK_OWN
 PERSONALIZE = r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
 VALUE = 'AppsUseLightTheme'
 
@@ -145,6 +182,7 @@ DARK_FACE, LIGHT_FACE, CONTRAST = 100, 160, 90
 
 MEASURE = re.compile(r'^(MEASURE|SCREEN) (\S+) (\S+) face=(\d+),(\d+),(\d+) ink=(\d+),(\d+),(\d+) '
                      r'size=(\d+)x(\d+)$')
+EFFECTIVE = re.compile(r'^EFFECTIVE (\S+) (\S+) (\d+),(\d+),(\d+)$')
 
 
 def gha():
@@ -165,6 +203,17 @@ def measurements(log, label, word='MEASURE'):
         if m and m.group(1) == word and m.group(2) == label:
             n = [int(v) for v in m.groups()[3:9]]
             out[m.group(3)] = (tuple(n[:3]), tuple(n[3:]))
+    return out
+
+
+def effective(log, label):
+    """{control: (r, g, b)} of a label's EFFECTIVE lines: the effective
+    foregroundColor of each field and button."""
+    out = {}
+    for x in log:
+        m = EFFECTIVE.match(x)
+        if m and m.group(1) == label:
+            out[m.group(2)] = tuple(int(v) for v in m.groups()[2:5])
     return out
 
 
@@ -191,6 +240,45 @@ def judge(appearance, face, ink):
     return True, detail
 
 
+def judge_legacy(face, ink):
+    """Whether a control with a light colour of its own and no text colour
+    keeps its light face and has dark words, as LiveCode Community drew
+    them, whatever the appearance: (ok, what was found)."""
+    f, i = luma(face), luma(ink)
+    detail = 'face %d,%d,%d, ink %d,%d,%d' % (face + ink)
+    if f <= LIGHT_FACE:
+        return False, detail + ': its light colour is not its face'
+    if i >= DARK_FACE:
+        return False, detail + ': light words on its light colour'
+    if abs(f - i) < CONTRAST:
+        return False, detail + ': the ink does not stand out from the face'
+    return True, detail
+
+
+def judged(appearance):
+    """The controls whose drawing is judged in an appearance: all of them in
+    the dark one; in the light one DARK_OWN's words are LiveCode Community's
+    black on its own dark colour, and it is left out."""
+    return CONTROLS if appearance == 'dark' else FOLLOWING + LEGACY
+
+
+def judge_control(control, appearance, face, ink):
+    """judge_legacy for a control of LEGACY, else judge."""
+    if control in LEGACY:
+        return judge_legacy(face, ink)
+    return judge(appearance, face, ink)
+
+
+def judge_effective(control, rgb):
+    """Whether the effective foregroundColor of a control of LEGACY or
+    DARK_OWN is the colour its words are drawn in: dark for LEGACY, light
+    for DARK_OWN (in the dark appearance): (ok, what was found)."""
+    detail = 'it is %d,%d,%d' % rgb
+    if control in LEGACY:
+        return luma(rgb) < DARK_FACE, detail
+    return luma(rgb) > LIGHT_FACE, detail
+
+
 def is_count(text):
     return bool(text) and text.isdigit()
 
@@ -201,12 +289,21 @@ def check_step(log, run, label, appearance, switched, check, told=False):
     notice."""
     name = '%s, %s' % (run, label)
     found = measurements(log, label)
-    for control in CONTROLS:
+    for control in judged(appearance):
+        what = '%s is drawn for the %s appearance' % (control, appearance)
         if control not in found:
-            check(name, '%s is drawn for the %s appearance' % (control, appearance), False, 'not measured')
+            check(name, what, False, 'not measured')
             continue
-        ok, detail = judge(appearance, *found[control])
-        check(name, '%s is drawn for the %s appearance' % (control, appearance), ok, detail)
+        check(name, what, *judge_control(control, appearance, *found[control]))
+    colours = effective(log, label)
+    for control in judged(appearance):
+        if control in FOLLOWING:
+            continue
+        what = 'the effective foregroundColor of %s is the colour of its words' % control
+        if control not in colours:
+            check(name, what, False, 'not logged')
+            continue
+        check(name, what, *judge_effective(control, colours[control]))
     got = value_of(log, 'APPEARANCE', label)
     check(name, 'the systemAppearance is %s' % appearance, got == appearance, 'it is %s' % (got or 'not logged'))
     count = value_of(log, 'CHANGED', label)
@@ -252,13 +349,12 @@ def check_screen(log, run, label, appearance, covered, need_screen, check, lines
                'a window of the class %s is over it there: the screen was not read' % covered)
         return
     found = measurements(log, label, 'SCREEN')
-    for control in CONTROLS:
+    for control in judged(appearance):
         what = 'on the screen %s is drawn for the %s appearance' % (control, appearance)
         if control not in found:
             unread(what, 'not read')
             continue
-        ok, detail = judge(appearance, *found[control])
-        check(name, what, ok, detail)
+        check(name, what, *judge_control(control, appearance, *found[control]))
 
 
 def inside_points(left, top, right, bottom, inset=8):
@@ -492,8 +588,9 @@ def run_engine(w, engine, work, run, start, steps, timeout, lines, problems, che
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='Check that buttons are drawn for Windows\' appearance, at the '
-                                             'engine\'s start and when it is switched (Windows).')
+    ap = argparse.ArgumentParser(description='Check that buttons and fields are drawn for Windows\' appearance, '
+                                             'at the engine\'s start and when it is switched, and that an older '
+                                             'stack\'s colours keep its words readable (Windows).')
     ap.add_argument('--install', metavar='DIR', help='installed layout')
     ap.add_argument('--package', metavar='FILE', help='a package to extract and check like --install')
     ap.add_argument('--platform', choices=list(package.PLATFORMS),

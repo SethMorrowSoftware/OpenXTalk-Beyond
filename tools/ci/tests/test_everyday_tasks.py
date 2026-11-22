@@ -1231,6 +1231,148 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
         self.assertIn('edRecord "INFO the system\'s keyboard reaches the IDE:" && tWorks', works)
 
 
+class ShortcutCopyPaste(BuildTasks, unittest.TestCase):
+    """shortcut-copy-paste presses Cmd+C and Cmd+V (Ctrl on Windows and
+    Linux), each once. On macOS 15.2 a person found that the two "don't
+    work the first time. The second time I do this it works fine"
+    (CamelCaps, openxtalk.org p=26676, in 0.2.7 and 0.2.8-dp.2). The menu
+    bar built its menus a millisecond after the mouseDown the engine sends
+    it before an accelerator, and the engine picks the item as soon as
+    that mouseDown returns: Copy was still disabled as the last build left
+    it. The menu bar now builds at once for the mouseDown sent to its group
+    itself (revmenubar.livecodescript, generateMenuGroup)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.menubar = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'))
+        cls.body = cls.handlers['ed_shortcut_copy_paste']
+        # (its code alone: a comment of it says what the task asks)
+        cls.code = '\n'.join(line for line in cls.body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_the_task_follows_copy_paste(self):
+        names = tasks(self.text)
+        self.assertEqual(names.index('shortcut-copy-paste'), names.index('copy-paste') + 1)
+        # (duplicate, after it, works on the button copy-paste pasted, so
+        # the task takes away only what its own keys pasted)
+        self.assertEqual(names.index('duplicate'), names.index('shortcut-copy-paste') + 1)
+        self.assertIn('put the number of buttons of card 1 of stack sStack into tCount', self.code)
+        self.assertIn('repeat while the number of buttons of card 1 of stack sStack > tCount\n'
+                      '      delete last button of card 1 of stack sStack\n', self.code)
+
+    def test_the_letters_are_the_menu_items(self):
+        copy = re.search(r'enableMenuItem\("&Copy" && tSelectionLabel & "/(\w)\|copy"', self.menubar)
+        paste = re.search(r'enableMenuItem\("&Paste"&& tClipboardLabel & "/(\w)\|paste"', self.menubar)
+        self.assertIsNotNone(copy, 'Edit > Copy has no shortcut')
+        self.assertIsNotNone(paste, 'Edit > Paste has no shortcut')
+        c, v = copy.group(1).lower(), paste.group(1).lower()
+        # a button, then text in a field
+        self.assertEqual(self.code.count('edPressedOnce("%s",' % c), 2)
+        self.assertEqual(self.code.count('edPressedOnce("%s",' % v), 2)
+        # and no other key: each press is one the task asks about
+        self.assertEqual(self.code.count('edShortcut('), 0)
+        self.assertEqual(self.code.count('edPressedOnce('), 4)
+
+    def test_a_mac_presses_c_and_v(self):
+        codes = self.function('edMacKeyCode')
+        # (kVK_ANSI_C and kVK_ANSI_V)
+        self.assertRegex(codes, r'case "c"\n\s*return 8\n')
+        self.assertRegex(codes, r'case "v"\n\s*return 9\n')
+
+    def test_each_key_must_work_the_first_time(self):
+        once = self.function('edPressedOnce')
+        first = once.index('put edShortcut(pLetter) into tVia')
+        done = once.index('if edWaitFor(pTrue, 3000, pAx, pBx) then return empty')
+        self.assertLess(first, done)
+        # a miss is a miss of the first press, whatever a second does
+        missed = once.index('&& pDid && "the first time it was pressed" into tMiss')
+        self.assertLess(done, missed)
+        second = once.index('get edShortcut(pLetter)')
+        self.assertLess(missed, second)
+        self.assertIn('put "; pressed a second time, it did" after tMiss', once)
+        self.assertIn('put "; nor did a second press" after tMiss', once)
+        self.assertRegex(once, r'\n\s*return tMiss\n\s*$')
+        # (the task throws what the presses missed)
+        self.assertIn('if tMiss is not empty then throw tMiss', self.code)
+
+    def test_what_each_key_did_is_asked(self):
+        # the button: Copy put objects on the clipboard over text the task
+        # put there, and Paste made one copy of the button, not two
+        self.assertLess(self.code.index('set the clipboardData["text"] to "OXT Everyday clipboard"'),
+                        self.code.index('edPressedOnce("c", "with the button selected'))
+        self.assertIn('"the clipboard is " & quote & "objects" & quote) into tMiss', self.code)
+        self.assertIn('if the number of buttons of card 1 of stack sStack is not tCount + 1 then', self.code)
+        self.assertIn('if the label of last button of card 1 of stack sStack is not the label of tButton then', self.code)
+        # the field: Copy copied its text, and Paste put it after the text
+        self.assertIn('"the clipboardData[" & quote & "text" & quote & "] is pAx", tFirst) into tMiss', self.code)
+        self.assertIn('"the text of pAx is pBx", tField, tFirst & tFirst) into tMiss', self.code)
+
+    def test_the_button_is_the_copy_on_top(self):
+        # copy-paste's paste lies over the button it copied: a click there
+        # is on the paste, so the task selects the paste
+        self.assertIn('put the long id of last button of card 1 of stack sStack into tButton\n', self.code)
+        self.assertLess(self.code.index('into tButton'), self.code.index('edSelect tButton'))
+
+    def test_the_fields_keys_find_their_items_disabled(self):
+        # A click in a field and a selection of its text build nothing: the
+        # menus are as the last build left them. Before each of the field's
+        # keys they are built with nothing selected, so that the item is
+        # disabled in them, and the key must find it enabled all the same
+        copy_built = self.code.index('put edMenusBuiltBare("Copy") into tMiss')
+        copy_pressed = self.code.index('edPressedOnce("c", "with the field\'s text selected')
+        self.assertLess(copy_built, self.code.index('select text of tField'))
+        self.assertLess(self.code.index('select text of tField'), copy_pressed)
+        paste_built = self.code.index('put edMenusBuiltBare("Paste") into tMiss')
+        self.assertLess(copy_pressed, paste_built)
+        self.assertLess(paste_built, self.code.index('select after text of tField'))
+        self.assertLess(self.code.index('select after text of tField'), self.code.index('edPressedOnce("v", "did not paste'))
+        # (in Run mode, where a person types and selects text)
+        self.assertLess(self.code.index('edToolTile "com.livecode.tool.Browse"'), copy_built)
+        bare = self.function('edMenusBuiltBare')
+        for step in ('select empty', 'revIDEDeselectAll', 'focus on nothing'):
+            self.assertLess(bare.index(step), bare.index('send "revMenubarBuildMenus" to stack "revMenuBar"'))
+        self.assertIn('if edWaitFor("edBuiltOff(pAx)", 3000, pItem) then return empty', bare)
+        # disabled is how the menu bar writes it: the item in parentheses
+        enable = re.search(r'^function enableMenuItem pItem, pEnabled\n(.*?)^end enableMenuItem', self.menubar, re.M | re.S)
+        self.assertIsNotNone(enable)
+        self.assertIn('return "(" & pItem', enable.group(1))
+        self.assertIn('return ("(&" & pItem) is in the text of button "Edit" of group "revMenuBar" of stack "revMenuBar"',
+                      self.function('edBuiltOff'))
+
+    def test_the_stack_and_the_tool_are_as_they_were(self):
+        kept = self.code.index('put the text of tField into tKept')
+        self.assertLess(kept, self.code.index('set the text of tField to tFirst'))
+        throw = self.code.index('if tMiss is not empty then throw tMiss')
+        tail = self.code[self.code.index('edShotStack sStack, "22c-shortcut-pasted-text"'):throw]
+        for step in ('select empty', 'if tField is not empty then set the text of tField to tKept',
+                     'edToolTile "com.livecode.tool.Pointer"',
+                     'get edWaitFor("the tool is " & quote & "pointer tool" & quote, 3000)'):
+            self.assertIn(step, tail)
+        self.assertNotIn('throw', tail, 'a throw here would leave the field and the tool for the tasks after')
+        # (and no key held for the clicks after)
+        self.assertIn('if tMiss is empty then put edKeysHeld(edShortcutName("v")) into tMiss', tail)
+
+    def test_the_menu_bar_builds_at_once_for_its_groups_own_mousedown(self):
+        group = re.search(r'^on generateMenuGroup\n(.*?)^end generateMenuGroup', self.menubar, re.M | re.S)
+        self.assertIsNotNone(group, 'generateMenuGroup not found')
+        script = group.group(1)
+        down = script.index('put "on mouseDown" & return &')
+        built = script.index('"if the long id of the target is the long id of me then" & return &', down)
+        now = script.index('"revMenubarBuildMenus true" & return &', built)
+        later = script.index('"else" & return &', now)
+        sent = script.index('"send revMenubarBuildMenus to this stack in 1 millisecond" & return &', later)
+        ended = script.index('"end if" & return &', sent)
+        self.assertLess(ended, script.index('"pass mousedown" & return &', down))
+        # and a build for it is not skipped for one already waiting, which
+        # would build later; every other build still is
+        build = re.search(r'^command revMenubarBuildMenus pNow\n(.*?)^end revMenubarBuildMenus', self.menubar, re.M | re.S)
+        self.assertIsNotNone(build, 'revMenubarBuildMenus takes no pNow')
+        self.assertRegex(build.group(1), r'^\s*if pNow is not true and the pendingmessages contains "revMenubarBuildMenus" '
+                                         r'then exit revMenubarBuildMenus')
+        # (pNow is passed by the group alone: the other builds wait their turn)
+        self.assertEqual(self.menubar.count('revMenubarBuildMenus true'), 1)
+
+
 class QuickStartFirstLesson(BuildTasks, unittest.TestCase):
     """quick-start-first-lesson does the Quick Start Guide's first lesson
     as its notes say: the first example Learn offers. A newcomer could not

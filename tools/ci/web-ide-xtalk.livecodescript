@@ -14,12 +14,14 @@ script "oxtwebxtalk"
 --       --add <suite>/datachannelxt/tests/datachannel-selftest.livecodescript \
 --       --replace boot/Extensions/nostr-relay/nostr-relay.livecodescript=<suite>/nostrxt/src/nostr-relay.livecodescript
 --
--- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, CoinXT,
--- DataChannelXT (a shim over the browser's WebRTC), webpxt and barcodext
--- into itself (engine/src/em-xtalk-web.cpp), and the extensions the IDE
--- ships call them unchanged. Each step calls one of them, or an app built
--- on them, as a user's script does, and checks what comes back against a
--- value known from elsewhere (a published test vector, or what the desktop
+-- The web IDE's engine links SodiumXT, Box2Dxt, box3dxt, render3dxt,
+-- CoinXT, xlsxt, DataChannelXT (a shim over the browser's WebRTC),
+-- audioxt, gamepadxt (SDL's gamepad layer, over the browser's Gamepad
+-- API), webpxt and barcodext into itself
+-- (engine/src/em-xtalk-web.cpp), and the extensions the IDE ships call
+-- them unchanged. Each step calls one of them, or an app built on them,
+-- as a user's script does, and checks what comes back against a value
+-- known from elsewhere (a published test vector, or what the desktop
 -- gives):
 --    sodium      SodiumXT: its version, BLAKE2b-256 of "abc", secretbox,
 --                signatures, and its Boolean results (the CBool fix)
@@ -32,8 +34,22 @@ script "oxtwebxtalk"
 --                drawn by the library's renderer into a picture whose
 --                middle pixel shows it; the picture set as an image's
 --                imageData
+--    gamepad     gamepadxt: a virtual pad (SDL's, which needs no
+--                controller; CI's browser has none) attached, a button
+--                pressed and a stick tilted, each read back as state and
+--                as events after a poll, rumbled and lit as the pad saw
+--                it, then unplugged
+--    render3d    render3dxt: a box drawn into a picture (its colour at the
+--                middle, the background at a corner) and found there by a
+--                click; drawn again lit and textured, begun and taken as
+--                a frame loop does (ready at once: the web build draws on
+--                one thread); the picture set as an image's imageData
 --    coinxt      CoinXT: SHA-256, Keccak-256, a public key and BIP-340's
 --                first vector
+--    xlsx        xlsxt: a workbook with a table, a formula, a date, a
+--                chart and text outside ASCII is written into the page's
+--                file system and read back cell for cell; a file that is
+--                no workbook is refused in words
 --    webp        webpxt: a picture written as a lossless and as a lossy
 --                WebP file and read back, with its transparency; an
 --                animation of three frames written and read; a refusal;
@@ -57,6 +73,11 @@ script "oxtwebxtalk"
 --                own harness (datachannelxt/tests/datachannel-selftest.
 --                livecodescript, --add) runs to its summary, the live
 --                in-page loopback included, with nothing failing
+--    audio       audioxt: a tone mixed with no device, its samples the
+--                desktop's bit for bit, made into a WAV file and read
+--                back the same; then the browser's own playback device
+--                opened (or refused with a reason: nothing may throw)
+--                and everything closed
 --    unavailable TorrentXT and ENetXT, which need raw TCP and UDP that a
 --                page cannot open, are not in the web engine: a call to
 --                each throws an error the script can catch, and the IDE
@@ -74,10 +95,14 @@ Runs the xTalk Suite's libraries and apps in the web IDE for its CI job
 (tools/ci/web_ide_tour.py --tour). Only CI's copy of the site has it.
 */
 
-constant kSteps = "start,sodium,pwhash,box2d,box3d,coinxt,webp,barcode,nostr,chat,holdem,platformer,datachannel,unavailable"
+constant kSteps = "start,sodium,pwhash,box2d,box3d,render3d,gamepad,coinxt,xlsx,webp,barcode,nostr,chat,holdem,platformer,datachannel,audio,unavailable"
 constant kBlake2bAbc = "bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319"
 constant kSha256Abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 constant kKeccakEmpty = "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+-- SHA-1 of audioxt's mix of a 440 Hz sine of amplitude 0.5, 800 frames
+-- of 16-bit stereo at 8000 Hz: the desktop's (OXT-Beyond 0.2.7-rc.6's
+-- server engine, Linux x86-64), which the WebAssembly build gives too
+constant kAudioMixSha1 = "6057c40db065f7ab02a05917470c3423288100f4"
 constant kSecp256k1G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
 -- BIP-340's test vector 0
 constant kBip340Pub = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
@@ -238,7 +263,7 @@ end xt_box2d
 on xt_box3d
    local tWorld, tFloor, tBall, tShape, tRay, tData, tWas
    tourRecord "INFO b3LibraryVersion()" && b3LibraryVersion()
-   xtExpect "the library's ABI", word 1 to 3 of b3LibraryVersion(), "box3dxt ABI 2;"
+   xtExpect "the library's ABI", word 1 to 3 of b3LibraryVersion(), "box3dxt ABI 3;"
    put b3WorldCreate(0, -10, 0, 1) into tWorld
    put b3BodyCreate(tWorld, 0, 0, -0.5, 0) into tFloor
    get b3ShapeAddBox(tFloor, 5, 0.5, 5, 0, 0.6, 0)
@@ -269,6 +294,18 @@ on xt_box3d
    put b3RenderRay(32.5, 24.5) into tRay
    xtExpect "the ray through that pixel finds it too", b3CastRayClosest(tWorld, item 1 of tRay, item 2 of tRay, item 3 of tRay, \
          50 * item 4 of tRay, 50 * item 5 of tRay, 50 * item 6 of tRay) && (b3HitShape(1) is tShape), "1 true"
+   -- The sky (ABI 3): the background is a sky of one colour; a sky of
+   -- two paints the picture's top row in the first, a colour out of
+   -- range is refused and leaves both, and the ball is drawn as before
+   xtExpect "the background is a sky of one colour", b3RenderSky(), "32,36,42,32,36,42"
+   b3RenderSetSky 40, 80, 160, 200, 210, 220
+   xtExpect "a sky of two colours", b3RenderSky(), "40,80,160,200,210,220"
+   b3RenderSetSky 300, 0, 0, 0, 0, 0
+   xtExpect "a colour out of range leaves it", b3RenderSky(), "40,80,160,200,210,220"
+   xtExpect "a picture under the sky is drawn", b3RenderWorld(tWorld, 64, 48, 0), "true"
+   xtExpect "the top corner is the sky's top colour", b3RenderPixel(0, 0), 40 * 65536 + 80 * 256 + 160
+   xtExpect "the middle pixel still shows the ball", b3RenderShapeAt(32, 24) is tShape, "true"
+   put b3RenderPixels() into tData
    -- An image takes the picture as its imageData and gives it back
    put the defaultStack into tWas
    create invisible stack "oxtWebBox3d"
@@ -282,6 +319,47 @@ on xt_box3d
    delete stack "oxtWebBox3d"
    b3WorldDestroy tWorld
 end xt_box3d
+
+on xt_gamepad
+   local tBefore, tPad, tStick
+   tourRecord "INFO gpLibraryVersion()" && gpLibraryVersion()
+   xtExpect "the library's ABI", gpABIVersion(), 1
+   xtExpect "SDL 3", word 1 of gpLibraryVersion() && char 1 to 2 of word 2 of gpLibraryVersion(), "SDL 3."
+   xtExpect "start", gpStart(), true
+   -- A browser shows a page a controller only after a button on it is
+   -- pressed, and CI's has none: what is there is only reported
+   put gpPadCount() into tBefore
+   tourRecord "INFO the browser's own pads:" && tBefore
+   get gpEvents()
+   put gpVirtualAttach("Web Pad") into tPad
+   xtExpect "a virtual pad", tPad > 0 and gpPadIsVirtual(tPad) and gpPadCount() is tBefore + 1, true
+   xtExpect "its name", gpPadName(tPad), "Web Pad"
+   xtExpect "its arrival is an event", ("connected," & tPad) is among the lines of gpEvents(), true
+   -- A button: seen after a poll, as state and as one event
+   xtExpect "press south", gpVirtualSetButton(tPad, "south", true), true
+   xtExpect "the poll's events", gpPoll(), 1
+   xtExpect "south held", gpPadButton(tPad, "south"), true
+   xtExpect "the event", gpEvents(), "button," & tPad & ",south,down"
+   xtExpect "its printed label", gpPadButtonLabel(tPad, "south"), "a"
+   -- A stick, with the round dead zone (0.15) taken out
+   get gpVirtualSetAxis(tPad, "leftx", 0.1)
+   get gpVirtualSetAxis(tPad, "lefty", 0)
+   get gpPoll()
+   xtExpect "a stick inside the dead zone", gpPadStick(tPad, "left"), "0,0"
+   get gpVirtualSetAxis(tPad, "leftx", 1)
+   get gpPoll()
+   put gpPadStick(tPad, "left") into tStick
+   xtExpect "a stick at full tilt", (item 1 of tStick is 1) && (item 2 of tStick is 0), "true true"
+   -- Rumble and light, as the pad saw them
+   xtExpect "rumble", gpPadRumble(tPad, 0.5, 1, 200) && (item 2 of gpVirtualRumble(tPad) is 1), "true true"
+   xtExpect "the light", gpPadSetLED(tPad, 10, 128, 255) && gpVirtualLED(tPad), "true 10,128,255"
+   -- Unplugged: its handle dies and says so
+   gpVirtualDetach tPad
+   xtExpect "unplugged", gpPadIsConnected(tPad) && (("disconnected," & tPad) is among the lines of gpEvents()), "false true"
+   xtExpect "SDL's assertions", gpAssertCount(), 0
+   gpStop
+   xtExpect "stopped", gpIsStarted(), false
+end xt_gamepad
 
 on xt_webp
    local tPixels, tAlpha, tRow, tFile, tInfo, tBack, tWriter, tAnim, tFrame, tWas, tN
@@ -407,6 +485,66 @@ on xt_barcode
    delete stack "oxtWebBarcode"
 end xt_barcode
 
+on xt_render3d
+   local tScene, tBox, tRed, tNode, tTexture, tPlain, tLit, tBytes, tWas
+   tourRecord "INFO r3LibraryVersion()" && r3LibraryVersion()
+   xtExpect "the library's ABI", r3ABIVersion(), 1
+   -- The web build has no threads: any count asked for draws on one
+   r3SetThreadCount 4
+   xtExpect "the threads it draws on", r3ThreadCount(), 1
+   put r3SceneCreate() into tScene
+   xtExpect "the camera a scene starts with", r3SceneCamera(tScene), "0,2,8,0,0,0,50"
+   put r3MeshBox(0.5, 0.5, 0.5) into tBox
+   put r3MaterialCreate(255, 0, 0) into tRed
+   r3MaterialSetUnlit tRed, true
+   put r3NodeCreate(tScene, tBox) into tNode
+   r3NodeSetMaterial tNode, tRed
+   r3SceneSetCamera tScene, 0, 0, 5, 0, 0, 0, 50
+   -- The desktop's numbers (render3dxt's tests/engine-selftest.lc)
+   put r3SceneRender(tScene, 64, 48) into tPlain
+   xtExpect "the picture's bytes", the number of bytes in tPlain, 64 * 48 * 4
+   xtExpect "the box's colour at the middle", xtPixel(tPlain, 64, 32, 24), "255,0,0"
+   xtExpect "the background at the corner", xtPixel(tPlain, 64, 1, 1), "31,33,41"
+   xtExpect "a click at the middle finds the box", r3ScenePick(tScene, 64, 48, 32, 24) is tNode, "true"
+   xtExpect "how far the click went", format("%.4f", item 4 of r3HitText()), "4.5000"
+   xtExpect "a click at the corner finds nothing", r3ScenePick(tScene, 64, 48, 1, 1), 0
+   -- Lit and textured, then begun and taken as a frame loop does: with
+   -- one thread the picture is drawn in the call, so it is ready at once
+   r3MaterialSetUnlit tRed, false
+   put r3TextureChecker(64, 8, 255, 255, 255, 0, 0, 0) into tTexture
+   r3MaterialSetTexture tRed, tTexture
+   put r3SceneRender(tScene, 64, 48) into tLit
+   xtExpect "the lit, textured box is drawn", tLit is not tPlain and xtPixel(tLit, 64, 1, 1) is "31,33,41", "true"
+   put r3SceneRenderBegin(tScene, 64, 48) into tBytes
+   xtExpect "a picture begun says its bytes", tBytes, 64 * 48 * 4
+   xtExpect "and is ready at once", r3SceneIsRenderReady(tScene), "true"
+   xtExpect "and is the picture drawn in one call", r3SceneFrame(tScene) is tLit, "true"
+   -- An image takes the picture as its imageData and gives it back
+   put the defaultStack into tWas
+   create invisible stack "oxtWebRender3d"
+   set the defaultStack to "oxtWebRender3d"
+   create image "picture"
+   set the defaultStack to tWas
+   set the width of image "picture" of stack "oxtWebRender3d" to 64
+   set the height of image "picture" of stack "oxtWebRender3d" to 48
+   set the imageData of image "picture" of stack "oxtWebRender3d" to tLit
+   xtExpect "an image takes the picture", the number of bytes in the imageData of image "picture" of stack "oxtWebRender3d", 64 * 48 * 4
+   delete stack "oxtWebRender3d"
+   r3SceneDestroy tScene
+   r3MeshDestroy tBox
+   r3MaterialDestroy tRed
+   r3TextureDestroy tTexture
+   xtExpect "nothing is left", r3LiveCounts(), "0,0,0,0,0,0"
+end xt_render3d
+
+-- "R,G,B" of the pixel at (pX, pY) of a picture pWidth wide, as imageData
+-- lays it out: four bytes a pixel, the first unused
+function xtPixel pData, pWidth, pX, pY
+   local tAt
+   put (pY * pWidth + pX) * 4 into tAt
+   return byteToNum(byte tAt + 2 of pData) & comma & byteToNum(byte tAt + 3 of pData) & comma & byteToNum(byte tAt + 4 of pData)
+end xtPixel
+
 on xt_coinxt
    local tSec, tSig
    cxCheckABI
@@ -421,6 +559,54 @@ on xt_coinxt
    xtExpect "it verifies", cxSchnorrVerify(xtBytes(kBip340Pub), xtBytes(xtZeros(32)), tSig), true
    xtExpect "a changed message does not", cxSchnorrVerify(xtBytes(kBip340Pub), xtBytes(xtZeros(31) & "01"), tSig), false
 end xt_coinxt
+
+on xt_xlsx
+   local tPath, tBook, tSheet, tBold, tChart, tTable, tReader, tWide
+   -- xlsxt: libxlsxwriter, zlib and Expat. A workbook is written into the
+   -- page's own file system (a browser has no other) and read back
+   tourRecord "INFO xlLibraryVersion()" && xlLibraryVersion()
+   xtExpect "the ABI the binding wants", xlABIVersion(), 1
+   put the temporary folder & "/oxt-web-xlsx.xlsx" into tPath
+   put xlWorkbookNew(tPath) into tBook
+   xtExpect "a workbook", tBook > 0 and xlWorkbookIsValid(tBook), true
+   put xlWorkbookAddSheet(tBook, "Sales") into tSheet
+   put xlWorkbookAddFormat(tBook) into tBold
+   xlFormatSetBold tBold, true
+   put "Month" & tab & "Units" & tab & "Price" & return & \
+         "January" & tab & "12" & tab & "9.5" & return & \
+         "February" & tab & "7" & tab & "10.25" into tTable
+   xtExpect "cells written from a table", xlSheetWriteGrid(tSheet, 1, 1, tTable, "numbers", 0), 9
+   xlSheetWriteText tSheet, 1, 1, "Month", tBold
+   xlSheetWriteFormulaValue tSheet, 4, 3, "=SUM(C2:C3)", 19.75, 0
+   xlSheetWriteDate tSheet, 5, 1, xlDateToSerial(2026, 11, 20, 0, 0, 0), 0
+   xlSheetWriteBoolean tSheet, 5, 2, true, 0
+   -- text outside ASCII: Latin-1, three bytes of UTF-8, and four
+   put "caf" & numToCodepoint(233) && numToCodepoint(9731) && numToCodepoint(128512) into tWide
+   xlSheetWriteText tSheet, 6, 1, tWide, 0
+   put xlWorkbookAddChart(tBook, "column") into tChart
+   xtExpect "a chart series", xlChartAddSeries(tChart, xlRangeFormula("Sales", 2, 1, 3, 1), xlRangeFormula("Sales", 2, 3, 3, 3)), 1
+   xlSheetInsertChart tSheet, 2, 5, tChart, 1, 1
+   xtExpect "nothing was refused", xlWorkbookErrorCount(tBook) && xlLastError(), "0 "
+   -- Boolean results cross the web engine's FFI as a C int here
+   xtExpect "close writes the file", xlWorkbookClose(tBook) & comma & (there is a file tPath), "true,true"
+   xtExpect "the file is a zip", byte 1 to 2 of URL ("binfile:" & tPath), "PK"
+   put xlReadOpen(tPath) into tReader
+   xtExpect "a reader", tReader > 0 and xlReadIsValid(tReader), true
+   xtExpect "its sheet", xlReadSheetCount(tReader) && xlReadSheetName(tReader, 1), "1 Sales"
+   xtExpect "the sheet loads", xlReadLoad(tReader, 1), true
+   xtExpect "the table read back", xlReadGrid(tReader, 1, 1, 1, 3, 3) is tTable, true
+   xtExpect "a number", xlReadCellNumber(tReader, 1, 3, 3), 10.25
+   xtExpect "a formula and its stored result", xlReadCellFormula(tReader, 1, 4, 3) && xlReadCellNumber(tReader, 1, 4, 3), "=SUM(C2:C3) 19.75"
+   xtExpect "a date", xlReadCell(tReader, 1, 5, 1) && xlReadCellKind(tReader, 1, 5, 1), "2026-11-20 date"
+   xtExpect "a boolean", xlReadCell(tReader, 1, 5, 2), "true"
+   xtExpect "text outside ASCII", xlReadCell(tReader, 1, 6, 1) is tWide, true
+   xlReadClose tReader
+   -- A file that is no workbook is refused in words, not by a trap
+   put "not a workbook" into URL ("binfile:" & tPath)
+   xtExpect "a file that is no workbook", xlReadOpen(tPath) & comma & (xlLastError() is not empty), "0,true"
+   delete file tPath
+   xtExpect "nothing is left open", xlWorkbookCount() && xlReadCount(), "0 0"
+end xt_xlsx
 
 on xt_nostr
    local tUrl, tRelay, tSk, tEvent, tFilter
@@ -654,6 +840,44 @@ function oxtWebDcDone
    put the result into tReport
    return "== summary ==" is in tReport and "RUN NOT FINISHED" is not in tReport
 end oxtWebDcDone
+
+on xt_audio
+   local tEngine, tTone, tBlock, tWav, tPeak
+   tourRecord "INFO auLibraryVersion()" && auLibraryVersion()
+   xtExpect "the library's ABI", word 1 to 3 of auLibraryVersion(), "audioxt ABI 1;"
+   xtExpect "the audio system", auBackendName(), "Web Audio"
+   -- An engine with no device, whose mix is read as samples: the same
+   -- bytes as on the desktop
+   put auEngineCreateOffline(8000, 2) into tEngine
+   put auSoundTone(tEngine, "sine", 440, 0.5) into tTone
+   auSoundStart tTone
+   put auEngineRender(tEngine, 800, "s16") into tBlock
+   xtExpect "800 frames of two 16-bit channels", the number of bytes in tBlock, 3200
+   xtExpect "the mix, bit for bit", xtHex(sha1Digest(tBlock)), kAudioMixSha1
+   xtExpect "the clock counts them", format("%.4f", auEngineTime(tEngine)), "0.1000"
+   put auEnginePeak(tEngine) into tPeak
+   xtExpect "the meter reads half scale", format("%.2f,%.2f", item 1 of tPeak, item 2 of tPeak), "0.50,0.50"
+   -- A WAV file made of the mix, and read back
+   put auWAVEncode(tBlock, "s16", 8000, 2) into tWav
+   xtExpect "a WAV file", byte 1 to 4 of tWav && the number of bytes in tWav, "RIFF 3244"
+   xtExpect "read back bit for bit", auDecodeData(tWav, "s16", 0, 0) is tBlock, "true"
+   auEngineFree tEngine
+   -- The browser's own device: it opens, or it is refused with a reason,
+   -- and nothing throws (miniaudio's JavaScript once threw through the
+   -- whole engine on a page with no Web Audio). A browser holds a page's
+   -- sound until the visitor's first gesture, so its clock is not asked.
+   put auEngineCreate(0, 0, 0) into tEngine
+   if tEngine > 0 then
+      put auSoundTone(tEngine, "sine", 440, 0.1) into tTone
+      auSoundStart tTone
+      tourRecord "INFO a playback device opened at" && auEngineSampleRate(tEngine) && "Hz; a tone on it plays:" && auSoundIsPlaying(tTone)
+   else
+      tourRecord "INFO no playback device here:" && auLastError()
+      xtExpect "and it says why", auLastError() is not empty, "true"
+   end if
+   auShutDown
+   xtExpect "everything closed", auEngineIsValid(tEngine), "false"
+end xt_audio
 
 on xt_unavailable
    local tError, tGot
