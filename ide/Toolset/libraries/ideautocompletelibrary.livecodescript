@@ -598,9 +598,20 @@ private command ideAutocomplete_CreatePopup
    set the style of stack kPopupName to "palette"
    set the decorations of stack kPopupName to empty
    set the resizable of stack kPopupName to false
+   -- OXT-Beyond: on Windows a palette has no owner window, and the IDE
+   -- leaves raisePalettes off, so giving the keyboard back to the editor
+   -- (ideAutocomplete_RefocusEditor) brought the editor in front of the
+   -- list: the list was there, and worked from the keys, but could not be
+   -- seen (found on Windows 11, November 2026). A system window stays on
+   -- top. It does not stay over another program: switching away takes the
+   -- keyboard from the editor's field, whose exitField or closeField hides
+   -- the list (ideAutocompleteCancelFind).
+   if the platform is "Win32" then
+      set the systemWindow of stack kPopupName to true
+   end if
    set the width of stack kPopupName to kPopupWidth
    set the height of stack kPopupName to kItemHeight
-   
+
    create field "completions" in card 1 of stack kPopupName
    --   set the style of field "completions" of stack kPopupName to "list"
    set the listBehavior of field "completions" of stack kPopupName to TRUE

@@ -23,14 +23,17 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- does what it always did for everyone else: these check that it is off
 -- by default, that the editor's calls do nothing when it is off or not
 -- loaded, and that Tab, Return, the arrows and Help keep their usual jobs
--- while no list is showing. (The list itself, a window by the caret, is
--- checked by hand in the IDE; see the pull request.)
+-- while no list is showing. One test shows the list for a word, moves
+-- through it, closes it and takes a completion with Tab, as the editor's
+-- calls do. (Where the window appears, and that it is in front of the
+-- editor, is checked by hand in the IDE; see the pull request.)
 --
 -- The editor's behavior has syntax that compiles only in the IDE
 -- (_internal), so its handlers are compiled on their own, from its file,
 -- as the script of a button, beside stand-ins for what they call.
 
 constant kLibrary = "ideautocompletelibrary"
+constant kPopup = "ideAutoCompletePopup"
 
 local sEditor, sLibraryFound
 
@@ -55,7 +58,11 @@ on TestSetup
          "return pDefault" & return & "end __GetPreference" & return & \
          "command textReplace pOffset, pOld, pNew" & return & \
          "set the cReplaced of me to pOffset & comma & pOld & comma & pNew" & return & \
-         "end textReplace" & return into tStubs
+         "end textReplace" & return & \
+         "command getCaretToken" & return & "return the cToken of me" & return & \
+         "end getCaretToken" & return & \
+         "function getScriptField" & return & "return the cScriptField of me" & return & \
+         "end getScriptField" & return into tStubs
 
    create stack "TestCompletionsListStack"
    set the defaultStack to "TestCompletionsListStack"
@@ -66,6 +73,9 @@ on TestSetup
 end TestSetup
 
 on TestTeardown
+   if there is a button "standIns" of stack "TestCompletionsListStack" then
+      remove the script of button "standIns" of stack "TestCompletionsListStack" from back
+   end if
    if there is a stack "TestCompletionsListStack" then
       delete stack "TestCompletionsListStack"
    end if
@@ -74,6 +84,9 @@ on TestTeardown
          remove the script of stack kLibrary from back
       end if
       delete stack kLibrary
+      if there is a stack kPopup then
+         delete stack kPopup
+      end if
    end if
 end TestTeardown
 
@@ -149,6 +162,51 @@ on TestLibraryLoadsOnce
    send "extensionFinalize" to stack kLibrary
    TestAssert "out of the back when finalized", the long id of stack kLibrary is not among the lines of the backScripts
 end TestLibraryLoadsOnce
+
+on TestTheListForAWord
+   __LoadLibrary
+   -- The editor's script field, with the caret after a word being typed
+   -- (a field takes a selection only on an open stack)
+   local tField, tFirst
+   go stack "TestCompletionsListStack"
+   create field "script"
+   put the long id of field "script" into tField
+   set the text of tField to "on mouseUp" & return & "   rep"
+   select after text of tField
+   set the cToken of sEditor to "rep"
+   set the cScriptField of sEditor to tField
+   -- The IDE's, which the library asks for the object's key
+   create button "standIns"
+   set the script of button "standIns" to \
+         "function revRuggedId pObject" & return & "return pObject" & return & "end revRuggedId"
+   insert the script of button "standIns" into back
+
+   -- The update the editor asks for on each key, run without waiting for
+   -- its timer
+   get __Command("ideAutocompleteUpdate", sEditor, sEditor, empty)
+   send "ideAutocomplete_DoUpdate" to stack kLibrary
+   TestAssert "the list shows", there is a stack kPopup and the visible of stack kPopup
+   TestAssert "it has the commands the word begins", "replace" is among the lines of the text of field "completions" of stack kPopup
+   TestAssert "it is a palette", the style of stack kPopup is "palette"
+   -- On Windows the editor, taking the keyboard back, came in front of a
+   -- palette (raisePalettes is off in the IDE): a system window stays on top
+   if the platform is "Win32" then
+      TestAssert "a system window on Windows", the systemWindow of stack kPopup is true
+   else
+      TestAssert "not a system window here", the systemWindow of stack kPopup is false
+   end if
+   TestAssert "down moves through the list", __Command("ideAutocompleteHandleArrow", sEditor, "down", sEditor) is false
+   TestAssert "to the second word", the hilitedLine of field "completions" of stack kPopup is 2
+   get __Command("ideAutocompleteCancelFind", sEditor, true)
+   TestAssert "Escape closes it", not the visible of stack kPopup
+
+   -- Tab takes the first completion, through the editor
+   get __Command("ideAutocompleteUpdate", sEditor, sEditor, empty)
+   TestAssert "Tab is taken", __Command("ideAutocompleteHandleTab", sEditor, sEditor) is false
+   put line 1 of the text of field "completions" of stack kPopup into tFirst
+   TestAssert "the first word replaces the one typed", the cReplaced of sEditor is "15,rep," & tFirst
+   TestAssert "the list closes", not the visible of stack kPopup
+end TestTheListForAWord
 
 on TestInsertGoesThroughTheEditor
    get __Command("ideAutocompleteInsertCompletion", 12, "rep", "repeat")
