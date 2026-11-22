@@ -315,6 +315,34 @@ void MCSocketsRemoveFromSocketList(uint32_t p_socket_no)
     MCSocketsPollInterrupt();
 }
 
+// OXT-Beyond: X_close's teardown of the socket list, which it did without
+// the lock while the socket thread could still be reading the list.
+void MCSocketsDeleteAll(void)
+{
+    MCSocketsLockSocketList();
+
+    while (MCnsockets)
+        delete MCsockets[--MCnsockets];
+    if (MCsockets != NULL)
+        delete MCsockets;
+    MCsockets = NULL;
+
+    MCSocketsUnlockSocketList();
+}
+
+// OXT-Beyond: the system no longer knows this descriptor (it was closed).
+// select() fails at once, with EBADF, for a set that holds one, so the
+// socket thread would call it again and again without waiting, and the
+// main loop would never wait on its sockets.
+static bool MCSocketsIsClosedDescriptor(int p_fd)
+{
+#if defined(_WINDOWS_DESKTOP) || defined(_WINDOWS_SERVER)
+    return false;
+#else
+    return fcntl(p_fd, F_GETFD) == -1 && errno == EBADF;
+#endif
+}
+
 // MM-2015-07-07: [[ MobileSockets ]] Refactored socket polling code that was common accross all the platforms into 2 function calls.
 // MCSocketsAddToFileDescriptorSets adds the required socket file decriptors to the given sets.
 // MCSocketsHandleFileDescriptorSets deals with any pending sockets in the given file descriptor sets.
@@ -331,19 +359,37 @@ bool MCSocketsAddToFileDescriptorSets(int4 &r_maxfd, fd_set &r_rmaskfd, fd_set &
         if (!fd || MCsockets[i]->resolve_state == kMCSocketStateResolving ||
             MCsockets[i]->resolve_state == kMCSocketStateError)
             continue;
-        if ((MCsockets[i]->connected && !MCsockets[i]->closing
-             && !MCsockets[i]->shared) || MCsockets[i]->accepting)
-            FD_SET(fd, &r_rmaskfd);
-        if (!MCsockets[i]->connected || MCsockets[i]->wevents != NULL)
-            FD_SET(fd, &r_wmaskfd);
-        FD_SET(fd, &r_emaskfd);
-        if (fd > r_maxfd)
-            r_maxfd = fd;
+
+        // OXT-Beyond: a socket that has something to say (a message it
+        // posted) is handled whether or not its descriptor is watched
         if (MCsockets[i]->added)
         {
             MCsockets[i]->added = False;
             t_handled = true;
         }
+
+        // OXT-Beyond: an orphan's descriptor was its listener's, and is
+        // closed (or by now someone else's): never put it in a set. In
+        // LiveCode it went into the exception set, which made select() fail
+        // at once, so the socket thread spun a processor core until quit.
+        if (MCsockets[i]->orphaned)
+            continue;
+        // ... nor any other descriptor the system no longer knows
+        if (MCSocketsIsClosedDescriptor(fd))
+            continue;
+
+        if ((MCsockets[i]->connected && !MCsockets[i]->closing
+             && !MCsockets[i]->shared) || MCsockets[i]->accepting)
+            FD_SET(fd, &r_rmaskfd);
+        if (!MCsockets[i]->connected || MCsockets[i]->wevents != NULL)
+            FD_SET(fd, &r_wmaskfd);
+        // OXT-Beyond: a shared socket's descriptor is its listener's, which
+        // the listener puts in the exception set itself (the read set
+        // already left shared sockets out)
+        if (!MCsockets[i]->shared)
+            FD_SET(fd, &r_emaskfd);
+        if (fd > r_maxfd)
+            r_maxfd = fd;
     }
 
     return t_handled;
@@ -354,6 +400,10 @@ void MCSocketsHandleFileDescriptorSets(fd_set &p_rmaskfd, fd_set &p_wmaskfd, fd_
     uint2 i;
     for (i = 0 ; i < MCnsockets ; i++)
     {
+        // OXT-Beyond: an orphan's descriptor number may be someone else's
+        // by now; what select() said of it is not about this socket
+        if (MCsockets[i]->orphaned)
+            continue;
         if (FD_ISSET(MCsockets[i]->fd, &p_emaskfd))
         {
             if (!MCsockets[i]->waiting)
@@ -1047,7 +1097,16 @@ void MCS_write_socket(const MCStringRef d, MCSocket *s, MCObject *optr, MCNameRe
         MCAutoStringRefAsCString temp_d;
         /* UNCHECKED */ temp_d.Lock(d);
 
-        if (s->shared)
+        // OXT-Beyond: a sender's name whose listener has closed answers
+        // with the error a closed descriptor gave in LiveCode, without
+        // touching the descriptor: its number may be someone else's by now
+        // (LiveCode sent the datagram through whatever held it)
+        if (s->shared && s->orphaned)
+        {
+            mptr = NULL;
+            MCresult->sets("error sending datagram");
+        }
+        else if (s->shared)
 		{
             MCAutoCustomPointer<char,MCMemoryDeleteArray> t_name_copy;
             /* UNCHECKED */ MCStringConvertToCString(MCNameGetString(s->name),
@@ -1461,6 +1520,7 @@ MCSocket::MCSocket(MCNameRef n, MCNameRef f, MCObject *o, MCNameRef m, Boolean d
 	accepting = a;
 	connected = datagram;
 	shared = s;
+	orphaned = False;
 	fd = sock;
 	closing = doread = added = waiting = False;
 	revents = NULL;
@@ -1515,8 +1575,28 @@ void MCSocket::deletewrites()
 	if (fd != 0)
 	{
 		if (!shared)
+		{
+			// OXT-Beyond: a datagram listener's descriptor is shared with
+			// the sockets readsome() named after the senders it heard. They
+			// keep their names, as they did in LiveCode, but are orphaned:
+			// the descriptor they would poll and write through is closing.
+			if (datagram && accepting)
+				orphansharers();
 			close();
+		}
 		fd = 0;
+	}
+}
+
+// OXT-Beyond: see deletewrites. Runs on the main thread, as every other
+// change to a listed socket does; the socket thread only reads the flag.
+void MCSocket::orphansharers()
+{
+	for (uint32_t i = 0 ; i < MCnsockets ; i++)
+	{
+		MCSocket *t_socket = MCsockets[i];
+		if (t_socket != this && t_socket->shared && t_socket->fd == fd)
+			t_socket->orphaned = True;
 	}
 }
 
@@ -1663,6 +1743,19 @@ void MCSocket::readsome()
                     t_socket = new (nothrow) MCSocket(*t_name, NULL, object, NULL, True, fd, False, True,False);
                     if (t_socket != NULL)
                         MCSocketsAppendToSocketList(t_socket);
+				}
+				else if (accepting && MCsockets[index]->shared
+				         && MCsockets[index]->orphaned)
+				{
+					// OXT-Beyond: the sender's name was left by a listener
+					// that has closed. Answering it goes through this one
+					// now. (In LiveCode a write to it went through whatever
+					// held the closed listener's descriptor number, which
+					// was this listener only when it happened to be given
+					// the same number.)
+					MCsockets[index]->fd = fd;
+					MCsockets[index]->object = object;
+					MCsockets[index]->orphaned = False;
 				}
 				
 				MCAutoDataRef t_data;
