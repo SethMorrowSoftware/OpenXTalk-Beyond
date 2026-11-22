@@ -1,0 +1,30 @@
+<script>
+/* Who gets a copy: show the answer for the case picked. Without this
+   script every answer shows, one after another, and the page still reads. */
+(function () {
+  'use strict';
+  var who = document.getElementById('who');
+  var card = document.getElementById('who-card');
+  if (!who || !card) return;
+  var panels = card.querySelectorAll('[data-answer]');
+  function show(value, light) {
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-answer') !== value; });
+    if (light) {
+      card.classList.remove('lit');
+      void card.offsetWidth; // so the rim goes round again
+      card.classList.add('lit');
+    }
+  }
+  who.addEventListener('change', function (e) {
+    if (!e.target || e.target.name !== 'who') return;
+    show(e.target.value, true);
+    // on a narrow screen the answer is below the list: bring it into view
+    if (window.matchMedia && window.matchMedia('(max-width: 980px)').matches) {
+      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'nearest' });
+    }
+  });
+  var checked = who.querySelector('input[name="who"]:checked');
+  show(checked ? checked.value : 'staff', false);
+})();
+</script>

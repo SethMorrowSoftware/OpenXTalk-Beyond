@@ -1,0 +1,138 @@
+<main id="main">
+<!--@sky-->
+    <div class="hero checker-hero">
+      <div>
+        <p class="eyebrow">Stack checker</p>
+        <h1>Will it open? <span class="beyond">Ask the file.</span></h1>
+        <p class="lead">Drop a LiveCode stack, a script-only stack, a HyperCard stack or a .zip of them. The checker reads the file the way OXT-Beyond&rsquo;s engine starts to, and says what will work, what differs, and what to do next.</p>
+        <ul class="proof" aria-label="How it reads your file">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Read in this page: nothing is uploaded</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 18 18 6"/></svg>Nothing in the stack runs</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Free, no account</li>
+        </ul>
+      </div>
+      <div class="scene">
+        <div class="orbit" aria-hidden="true"></div>
+        <span class="hero-logo" role="img" aria-label="The OXT-Beyond logo: OXT struck by lightning">
+          <img class="still" src="../brand/logo.svg" alt="" width="124" height="124">
+          <img class="moving" src="../brand/logo-animated.svg" alt="" width="124" height="124">
+        </span>
+        <figure class="window wide" aria-label="The stack checker: drop a stack here">
+          <div class="titlebar" aria-hidden="true"><i></i><i></i><i></i><span>Stack Checker.oxtstack</span></div>
+          <div class="card-face">
+            <div class="bigdrop" id="drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="13" height="16" rx="2"/><path d="M4 6v13.5A2.5 2.5 0 0 0 6.5 22H15"/><path d="M12.5 7v7M9.5 11l3 3 3-3"/></svg>
+              <strong>Drop a stack here</strong>
+              <div class="row"><button class="stack-button" type="button" id="pick">Choose a file&hellip;</button></div>
+              <small>.livecode, .rev, .oxtstack, .livecodescript, HyperCard stacks and .zip files</small>
+              <div class="samples" role="group" aria-label="Or try a sample stack">
+                <button type="button" data-sample="0">Try: Book Library</button>
+                <button type="button" data-sample="1">Try: Balls</button>
+              </div>
+              <input id="file" type="file" hidden accept=".livecode,.livecodescript,.rev,.oxtstack,.mc,.stack,.zip,application/zip,*/*">
+            </div>
+          </div>
+          <pre class="script" aria-label="The card's script"><span class="k">on</span> <span class="h">dragDrop</span>
+   <span class="h">checkStack</span> <span class="k">the</span> dragData[<span class="s">"files"</span>]
+   <span class="c">-- reads it; runs nothing</span>
+<span class="k">end</span> <span class="h">dragDrop</span></pre>
+        </figure>
+      </div>
+    </div>
+<!--@/sky-->
+
+  <section class="section glow" aria-labelledby="reports-title">
+    <div class="wrap">
+      <div class="reports-head">
+        <h2 id="reports-title" tabindex="-1">The report</h2>
+        <span class="busy" id="busy" role="status"><i aria-hidden="true"></i>Reading the file&hellip;</span>
+      </div>
+      <div id="reports" aria-live="polite">
+        <div class="empty-report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14.5l2 2 4-4.5"/></svg>
+          <strong>No stack yet</strong>
+          <p>Drop one on the window above, or anywhere on this page. Or see a report on one of LiveCode Community&rsquo;s own sample stacks:</p>
+          <div class="samples on-page">
+            <button type="button" data-sample="0">Book Library: a 5.5 stack with SQLite</button>
+            <button type="button" data-sample="1">Balls: a 5.5 stack set up for phones</button>
+          </div>
+        </div>
+      </div>
+      <noscript><p class="lede" style="margin-top:24px">The checker reads your file with this page&rsquo;s script, so it needs JavaScript. Without it, the <a href="guide.html#opens">guide&rsquo;s table of formats</a> says what opens.</p></noscript>
+    </div>
+  </section>
+
+  <section class="section alt" aria-labelledby="reads-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">What it reads</p>
+        <h2 id="reads-title">Everything the file <span class="flame">says about itself</span></h2>
+        <p>The checker reads the stack&rsquo;s bytes the way the engine starts to read them, and stops before anything could run.</p>
+      </div>
+      <div class="tiles four">
+        <div class="tile spot reveal"><span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span>
+          <div><h3>Its format</h3><p>From the header: format 2.4 to 8.1, and so the LiveCode that saved it, or a format newer than OXT-Beyond reads.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+          <div><h3>Its widgets</h3><p>Each kind of widget in it, and whether OXT-Beyond has that widget.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg></span>
+          <div><h3>The libraries it calls</h3><p>tsNet, mergJSON, revDB, revBrowser, the Data Grid, mobile and iOS calls, mergExt, and the stacks it starts using.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="13" height="10" rx="1.5"/><path d="M6 18h5M8.5 14v4"/><rect x="17" y="8" width="5" height="11" rx="1.2"/></svg></span>
+          <div><h3>Where it was meant to run</h3><p>The platforms ticked in its Standalone Application Settings: Windows, macOS, Linux, Android, iOS or HTML5.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg></span>
+          <div><h3>Its scripts</h3><p>Roughly how many handlers it has, and some of their names, without running one.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+          <div><h3>Passwords and damage</h3><p>A password-protected stack, a file cut short, or one a text-mode transfer has damaged.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="14" height="13" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/></svg></span>
+          <div><h3>HyperCard stacks</h3><p>HyperCard 1 or 2, how many cards and backgrounds, and the mark the Merryxmas virus leaves.</p></div></div>
+        <div class="tile spot reveal"><span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1zM10 12h4"/></svg></span>
+          <div><h3>.zip files</h3><p>Every stack inside, each with a report of its own.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="limits-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">Honest about it</p>
+        <h2 id="limits-title">What it <span class="flame">can&rsquo;t tell you</span></h2>
+        <p>The checker reads; it never runs. Here is where that stops it, and why your file is safe with it.</p>
+      </div>
+      <div class="split">
+        <div class="panel reveal">
+          <h3>Out of its reach</h3>
+          <ul class="ticks dot">
+            <li><strong>How the stack behaves when it runs.</strong> It reads the file and runs nothing, so a script can still do something different. The <a href="{{PLAYER}}">Stack Player</a> is the next step.</li>
+            <li><strong>Which LiveCode saved an 8.1 stack.</strong> LiveCode 8.1 and 9 both save that format, so the file can&rsquo;t say. Stacks from LiveCode 10 and 11 haven&rsquo;t been tested yet.</li>
+            <li><strong>Libraries it doesn&rsquo;t know.</strong> It knows the common ones; any other shows only as a name a script calls.</li>
+            <li><strong>What&rsquo;s behind a password.</strong> It sees that a stack has one, and no further.</li>
+          </ul>
+        </div>
+        <div class="panel reveal">
+          <h3>Your file stays yours</h3>
+          <ul class="ticks">
+            <li><strong>Nothing is uploaded.</strong> Your browser hands this page the file&rsquo;s bytes; there is no server to send them to, and the page asks none for anything once it has loaded.</li>
+            <li><strong>Nothing runs.</strong> The checker reads bytes. It never loads the stack into an engine.</li>
+            <li><strong>Gone with the tab.</strong> A report from the front page&rsquo;s stack window waits in this tab&rsquo;s session storage so this page can show it, and goes when the tab closes.</li>
+            <li><strong>One script you can read.</strong> The whole checker is <a href="assets/stackcheck.js">stackcheck.js</a>, plain JavaScript with comments.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight" aria-labelledby="go-title">
+    <div class="wrap">
+      <div class="pledge band reveal">
+        <div class="stars" aria-hidden="true"></div>
+        <img src="../brand/logo.svg" alt="" width="104" height="104">
+        <h2 id="go-title">It opens? <span class="beyond">Play it.</span></h2>
+        <p>The Stack Player runs your stack in a browser tab, with nothing to install. The desktop IDE installs next to the LiveCode you have.</p>
+        <div class="ctas">
+          <a class="cta primary" href="{{PLAYER}}">Open the Stack Player</a>
+          <a class="cta ghost" href="index.html#download">Download OXT-Beyond</a>
+          <a class="cta ghost" href="guide.html">Coming from LiveCode</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>

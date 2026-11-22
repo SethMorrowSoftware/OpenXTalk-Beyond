@@ -17,8 +17,8 @@
 """Check in a browser that the site's other pages rest as its front page
 does (tools/pages/check_front_page.py): the web stacks gallery, the
 extensions page, the Stack Player's home, the bare player (play/, with no
-stack), the codebase map, and the lessons (their front page and one lesson),
-those of them the site has:
+stack), the codebase map, the lessons (their front page and one lesson)
+and the welcome section's front page, those of them the site has:
 
   python3 tools/pages/check_site_rest.py --site DIR [--out DIR]
       [--browser chromium|firefox|webkit] [--timeout S]
@@ -68,6 +68,8 @@ PAGES = (
     # the lessons' front page, and a lesson with pictures and code
     ('the lessons', 'lessons/', 'lessons'),
     ('a lesson', 'lessons/animation-games/', 'lesson'),
+    # the welcome section's front page, for people coming from LiveCode
+    ('the welcome pages', 'welcome/', 'welcome'),
 )
 
 # The map's sparks flow for 12 seconds and land within about 4 more; the

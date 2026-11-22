@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<!-- OXT-Beyond, for people coming from LiveCode: the front page.
+     A static page: it asks no other host for anything, and works without
+     its script. Facts are from the OpenXTalk-Beyond repository and its
+     releases as of 2026-11-21; README.md beside this page lists the
+     sources, and what to change with each release. -->
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OXT-Beyond: another road for your stacks</title>
+<meta name="description" content="For LiveCode users: LiveCode Community's GPL code lives on as OXT-Beyond, free and open source. Check your stack in your browser, play it with nothing to install, and build in-house tools at no cost.">
+<meta name="theme-color" content="#070b14">
+<link rel="icon" type="image/svg+xml" href="../brand/icon.svg">
+<link rel="canonical" href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/welcome/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OXT-Beyond">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/welcome/">
+<meta property="og:title" content="OXT-Beyond: another road for your stacks">
+<meta property="og:description" content="LiveCode Community's GPL code lives on, and it's still free. Check your stack in your browser.">
+<meta property="og:image" content="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/welcome/share/home.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="OXT-Beyond, for LiveCode users. There's another road for your stacks: LiveCode Community's GPL code lives on as OXT-Beyond, free, open source and still moving. Free and open source, nothing to install to try it, on Windows, macOS, Linux and the web.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OXT-Beyond: another road for your stacks">
+<meta name="twitter:description" content="LiveCode Community's GPL code lives on, and it's still free. Check your stack in your browser.">
+<meta name="twitter:image" content="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/welcome/share/home.jpg">
+<meta name="twitter:image:alt" content="OXT-Beyond, for LiveCode users. There's another road for your stacks: LiveCode Community's GPL code lives on as OXT-Beyond, free, open source and still moving. Free and open source, nothing to install to try it, on Windows, macOS, Linux and the web.">
+<script>(function(d){d.className=d.className.replace('no-js','js');try{var t=localStorage.getItem('oxtb-theme');if(t==='light'||t==='dark')d.setAttribute('data-theme',t);}catch(e){}setTimeout(function(){if(!window.OXTB)d.classList.add('reveal-all');},2500);})(document.documentElement);</script>
+<link rel="preload" href="assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img class="brand-mark" src="../brand/icon.svg" alt="" width="34" height="34"><span>OXT-<b>Beyond</b></span><small>for LiveCode users</small></a>
+    <nav class="nav" aria-label="Site">
+      <a href="guide.html">Coming from LiveCode</a>
+      <a href="in-house.html">In-house tools</a>
+      <a href="check.html">Stack checker</a>
+    </nav>
+    <div class="topbar-actions">
+      <button class="theme" type="button" aria-label="Switch between light and dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="nav-cta" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</a>
+      <details class="menu">
+        <summary aria-label="Menu"><span></span></summary>
+        <nav class="menu-panel" aria-label="Site, on a small screen">
+          <a href="index.html" aria-current="page">Home</a>
+          <a href="guide.html">Coming from LiveCode</a>
+          <a href="in-house.html">In-house tools and the GPL</a>
+          <a href="check.html">Stack checker</a>
+          <a class="menu-cta" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download OXT-Beyond</a>
+        </nav>
+      </details>
+    </div>
+  </div>
+  <span class="progress" aria-hidden="true"></span>
+</header>
+
+<main id="main">
+<div class="sky">
+  <div class="stars" aria-hidden="true"></div>
+  <div class="horizon" aria-hidden="true"></div>
+  <svg class="road" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <defs>
+      <radialGradient id="road-glow" cx="500" cy="0" r="160" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffd08a" stop-opacity=".9"/>
+        <stop offset=".35" stop-color="#ff7a00" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#ff7a00" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="road-fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff"/>
+        <stop offset=".55" stop-color="#fff" stop-opacity=".7"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <mask id="road-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="150">
+        <rect x="0" y="0" width="1000" height="150" fill="url(#road-fade)"/>
+      </mask>
+    </defs>
+    <g mask="url(#road-mask)">
+      <path class="surface" d="M497 0 L503 0 L860 150 L140 150 Z"/>
+      <path class="edge" d="M497 0 L140 150"/>
+      <path class="edge" d="M503 0 L860 150"/>
+      <path class="lane" d="M500 6 L500 10 M500 18 L500 27 M500 37 L500 52 M500 64 L500 86 M500 101 L500 136"/>
+    </g>
+    <ellipse class="glow" cx="500" cy="0" rx="170" ry="34"/>
+  </svg>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <a class="announce" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/v0.2.8-dp.2.1"><span class="tag">New preview</span><span class="txt">0.2.8-dp.2.1: 3D, sound, Excel and more, built in</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <h1>There&rsquo;s <span class="beyond">another road</span> <span class="soft">for your stacks.</span></h1>
+        <p class="lead">LiveCode Community&rsquo;s GPL code lives on as OXT-Beyond: free, open source and still moving. The stacks you made in LiveCode Community 9 open as they are, and the tools you build for your own team <a href="in-house.html">cost nothing to build or to run</a>.</p>
+        <div class="ctas">
+          <a class="cta primary" href="check.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14.5l2 2 4-4.5"/></svg>Check your stack</a>
+          <a class="cta ghost" href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Play it in your browser</a>
+        </div>
+        <ul class="proof" aria-label="In short">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Free and open source</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Nothing to install to try it</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Windows, macOS, Linux, the web</li>
+        </ul>
+      </div>
+      <div class="scene">
+        <div class="orbit" aria-hidden="true"></div>
+        <span class="hero-logo" role="img" aria-label="The OXT-Beyond logo: OXT struck by lightning">
+          <img class="still" src="../brand/logo.svg" alt="" width="124" height="124">
+          <img class="moving" src="../brand/logo-animated.svg" alt="" width="124" height="124">
+        </span>
+        <figure class="window" aria-label="A stack window you can drop a stack on, and its script">
+          <div class="titlebar" aria-hidden="true"><i></i><i></i><i></i><span>Will It Open.oxtstack</span></div>
+          <div class="card-face">
+            <div class="drop" id="hero-drop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="13" height="16" rx="2"/><path d="M4 6v13.5A2.5 2.5 0 0 0 6.5 22H15"/><path d="M12.5 7v7M9.5 11l3 3 3-3"/></svg>
+              <span>Drop a stack here</span>
+              <button class="stack-button" type="button" id="hero-pick">Choose a stack&hellip;</button>
+              <small>Read in this page. Nothing is uploaded.</small>
+              <input id="hero-file" type="file" hidden accept=".livecode,.livecodescript,.rev,.oxtstack,.mc,.stack,.zip,application/zip,*/*">
+            </div>
+            <div class="answer" id="answer" role="status" aria-live="polite">
+              <div id="answer-text"></div>
+              <div class="row"><a id="answer-more" href="check.html?from=home">Full report</a><button type="button" class="plain" id="answer-ok">OK</button></div>
+            </div>
+          </div>
+          <pre class="script" aria-label="The card's script"><span class="k">on</span> <span class="h">dragDrop</span>
+   <span class="h">checkStack</span> <span class="k">the</span> dragData[<span class="s">"files"</span>]
+<span class="k">end</span> <span class="h">dragDrop</span></pre>
+        </figure>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <section class="section tight" aria-label="OXT-Beyond in four numbers">
+    <div class="wrap">
+      <ul class="stats reveal">
+        <li><strong>2.4&ndash;8.1</strong><span>Every stack format, from MetaCard to LiveCode 9</span></li>
+        <li><strong>0</strong><span>Fees or royalties for the tools your own team uses</span></li>
+        <li><strong>~1,800</strong><span>Scripts compared on the old and new libraries, for a single update</span></li>
+        <li><strong>3<small> + web</small></strong><span>Windows, macOS and Linux, and any modern browser</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section rays glow" aria-labelledby="ways-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">Start here</p>
+        <h2 id="ways-title">Try it on <span class="flame">your own stack</span></h2>
+        <p>Five minutes, nothing to install, and nothing changes in the LiveCode you already have.</p>
+      </div>
+      <div class="cards">
+        <article class="card featured spot reveal">
+          <div>
+            <div class="card-head">
+              <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14.5l2 2 4-4.5"/></svg></div>
+              <div><h3>The stack checker</h3><span class="pill info">Runs in your browser</span></div>
+            </div>
+            <p class="text">Drop a stack on it and it reads the file the way OXT-Beyond&rsquo;s engine starts to: its format and the LiveCode that saved it, its widgets, the libraries its scripts call, and the platforms it was set up for. It says what will work, what differs and what to do next. Nothing is uploaded, and nothing in the stack runs.</p>
+            <div class="actions"><a class="button" href="check.html">Check a stack</a><a class="link-arrow" href="check.html?sample=0">See a sample report</a></div>
+          </div>
+          <a class="mini-report" href="check.html?sample=0" aria-label="The checker's report on Book Library, one of LiveCode Community's sample stacks: it opens in OXT-Beyond">
+            <span class="mr-head">
+              <span class="mr-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>
+              <span><small>Book Library.livecode &middot; 24 KB</small><b>Opens in OXT-Beyond</b></span>
+            </span>
+            <dl>
+              <dt>Format</dt><dd>5.5</dd>
+              <dt>Saved by</dt><dd>LiveCode 5.5 or 6</dd>
+              <dt>Its scripts</dt><dd>About 29 handlers</dd>
+            </dl>
+            <span class="mr-finding"><span class="chip ok">Works</span>Databases (revDB)</span>
+            <span class="mr-caption"><span>A sample: LiveCode Community&rsquo;s Book Library</span><span>Full report</span></span>
+          </a>
+        </article>
+        <article class="card numbered spot reveal">
+          <div class="card-head">
+            <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="14" height="17" rx="2"/><path d="M4 6v13.5A2.5 2.5 0 0 0 6.5 22H16"/><path d="M11 8v7l5-3.5z" fill="currentColor"/></svg></div>
+            <div><h3>Play it in your browser</h3><span class="pill ready">Ready <i>0.2.7</i></span></div>
+          </div>
+          <p class="text">The Stack Player opens a stack from your computer, or a .zip of a stack and its files, and runs it in the page. HyperCard stacks open there too.</p>
+          <a class="button" href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/">Open the Stack Player</a>
+        </article>
+        <article class="card numbered spot reveal">
+          <div class="card-head">
+            <div class="icon teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M8 13l-2 2 2 2M12.5 17h4"/></svg></div>
+            <div><h3>Edit it in the web IDE</h3><span class="pill ready">Ready <i>0.2.7</i></span></div>
+          </div>
+          <p class="text">The whole OXT-Beyond IDE in a browser tab: the Tools palette, the Property Inspector, the Script Editor and the Dictionary. The first visit downloads about 62 MB; your stacks stay in your browser.</p>
+          <a class="button" href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/">Open the web IDE</a>
+        </article>
+        <article class="card numbered spot reveal">
+          <div class="card-head">
+            <div class="icon slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M3 21h18"/></svg></div>
+            <div><h3>Build for your own team</h3><span class="pill ready">Nothing owed</span></div>
+          </div>
+          <p class="text">Building tools for people inside your organisation? Under the GPL that costs nothing, and nothing has to be published. Here is where the line is, in plain words, with the sources.</p>
+          <a class="button" href="in-house.html">Read the licence guide</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="formats-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">What opens</p>
+        <h2 id="formats-title">Every stack format, <span class="flame">up to 8.1</span></h2>
+        <p>OXT-Beyond carries on LiveCode Community 9.7 and OpenXTalk Lite 1.15, and its first rule is <strong>no breaking changes</strong>: old stacks keep opening, and old scripts keep giving the answers they gave before.</p>
+      </div>
+      <ol class="formats reveal" aria-label="Stack file formats, oldest first">
+        <li><span class="dot">2.4</span><div class="label"><h4>MetaCard</h4><p>and Revolution before 2.6.1</p></div></li>
+        <li><span class="dot">2.7</span><div class="label"><h4>Revolution 2.6.1</h4><p>to LiveCode 5.0</p></div></li>
+        <li><span class="dot">5.5</span><div class="label"><h4>LiveCode 5.5</h4><p>and LiveCode 6</p></div></li>
+        <li><span class="dot">7.0</span><div class="label"><h4>LiveCode 7</h4><p>Unicode everywhere</p></div></li>
+        <li><span class="dot">8.0</span><div class="label"><h4>LiveCode 8.0</h4><p>widgets arrive</p></div></li>
+        <li class="now"><span class="dot">8.1</span><div class="label"><h4>LiveCode 8.1&nbsp;and&nbsp;9</h4><p>and what OXT-Beyond saves</p></div></li>
+        <li class="later"><span class="dot">10&middot;11</span><div class="label"><h4>Not tested yet</h4><p>Stacks from LiveCode 10 and 11 haven&rsquo;t been tried. Have one? The checker says what it can see.</p></div></li>
+      </ol>
+      <div class="tiles" style="margin-top:60px">
+        <div class="tile spot reveal">
+          <span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span>
+          <div><h3>Script-only stacks</h3><p>Plain-text stacks open as they do in LiveCode 8 and later, so libraries kept in version control come along as they are.</p></div>
+        </div>
+        <div class="tile spot reveal">
+          <span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="14" height="13" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/></svg></span>
+          <div><h3>HyperCard stacks</h3><p>File &gt; Import Stack &gt; HyperCard Stack brings in cards, scripts, pictures, colour and sound, reads Mac disk images, and makes the scripts compile and run.</p></div>
+        </div>
+        <div class="tile spot reveal">
+          <span class="icon small slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <div><h3>Checked against the release</h3><p>When a change could alter what a script sees, the old and new builds run the same scripts and the answers are compared. One change was checked that way with about 1,800 scripts.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" aria-labelledby="gain-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">What&rsquo;s in it</p>
+        <h2 id="gain-title">What you get, <span class="flame">and since when</span></h2>
+        <p>Each feature shows the release it arrived in. <span class="pill ready">Ready <i>0.2.7</i></span> is the stable release, from 10 November 2026. <span class="pill preview">Preview <i>dp.2.1</i></span> is the next release while it is being made, from 21 November.</p>
+      </div>
+      <div class="bento">
+        <article class="b b-ide spot reveal">
+          <div class="b-row"><span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="pill ready">Ready <i>0.2.7</i></span></div>
+          <h3>The whole IDE, in a browser tab</h3>
+          <p>The web IDE and the Stack Player, with nothing to install, on any computer with a modern browser: the Tools palette, the Property Inspector, the Script Editor and the Dictionary, as on the desktop.</p>
+          <div class="b-shot" aria-hidden="true"><div class="bar"><i></i><i></i><i></i></div><img src="media/web-ide.jpg" width="1400" height="900" loading="lazy" alt=""></div>
+        </article>
+        <article class="b b-c156 spot reveal">
+          <span class="num">156</span>
+          <h3>A current browser widget</h3>
+          <p>The browser widget and revBrowser run Chromium 156 on Windows and Linux x86-64. Before, they ran Chromium 74, from 2019.</p>
+          <div class="pills"><span class="pill preview">Preview <i>dp.2</i></span></div>
+        </article>
+        <article class="b b-a36 spot reveal">
+          <span class="num">36</span>
+          <h3>Android apps for Google Play</h3>
+          <p>Target API 36 and App Bundles, as Google Play asks of new apps and updates.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+        <article class="b b-tsnet spot reveal">
+          <span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg></span>
+          <h3>tsNet&rsquo;s calls, by name</h3>
+          <p>tsNetCompat answers tsNetGet, tsNetPost, tsNetGetSync and the rest, with tsNet&rsquo;s parameters and callbacks, over libcurl.</p>
+          <div class="pills"><span class="pill preview">Preview <i>dp.2</i></span></div>
+        </article>
+        <article class="b b-web spot reveal">
+          <span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+          <h3>On your own intranet</h3>
+          <p>The web bundle puts the IDE and the Player on any web server, and the web host keeps your stacks there, behind a password.</p>
+          <div class="pills"><span class="pill preview">Preview <i>dp.1</i></span></div>
+        </article>
+        <article class="b b-html spot reveal">
+          <span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M9 13l-2 2 2 2M15 13l2 2-2 2"/></svg></span>
+          <h3>HTML5 standalones</h3>
+          <p>A stack built into a web page, tested automatically in Chromium, Firefox and WebKit.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+        <article class="b b-pi spot reveal">
+          <span class="icon small slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></span>
+          <h3>Raspberry Pi and 64-bit ARM</h3>
+          <p>A package for 64-bit ARM Linux, such as a Raspberry Pi 3, 4 or 5 on a 64-bit system.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+        <article class="b b-suite spot reveal">
+          <div class="b-row"><span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.4 11H18V7a2 2 0 0 0-2-2h-4V3.6a2 2 0 1 0-4 0V5H4a2 2 0 0 0-2 2v3.8h1.5a2.4 2.4 0 1 1 0 4.8H2V19a2 2 0 0 0 2 2h3.8v-1.5a2.4 2.4 0 1 1 4.8 0V21H16a2 2 0 0 0 2-2v-4h1.4a2 2 0 1 0 0-4z"/></svg></span><span class="pill ready">Ready <i>0.2.7</i></span></div>
+          <h3>The xTalk Suite, built in</h3>
+          <p>Extensions you call as ordinary handlers, each over a proven library, under the MIT licence.</p>
+          <ul class="suite-grid">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Cryptography<small>libsodium</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg><span>BitTorrent<small>libtorrent</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg><span>Reliable UDP<small>ENet</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5 21.5 7v10l-6-3.5"/></svg><span>WebRTC<small>libdatachannel</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><circle cx="12" cy="13" r="4.5"/><circle cx="12" cy="13" r="1.2"/><path d="M12 5c0-1.5 1-2.5 2.5-3"/></svg><span>Tor<small>pure script, over tor</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.7 7.1L4 20.5l1.4-5A8 8 0 1 1 21 12z"/></svg><span>Nostr<small>pure script</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 8h4a2 2 0 0 1 0 4h-4m0 0h4.5a2 2 0 0 1 0 4H9.5zm0-4V8m0 4v4M11 6.5V8m0 8v1.5"/></svg><span>Bitcoin and Ethereum primitives<small>libsecp256k1, trezor-crypto</small></span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4.5"/><path d="M3 21h18M15.5 17.5l3-3"/></svg><span>2D physics<small>Box2D v3</small></span></li>
+          </ul>
+          <p class="suite-more"><span class="pill preview">Preview <i>dp.2.1</i></span> Seven more: 3D physics and drawing, sound, game controllers, Excel workbooks, WebP pictures, and QR codes and barcodes.</p>
+        </article>
+        <article class="b b-merg spot reveal">
+          <span class="icon small slate" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg></span>
+          <h3>mergJSON and literal arrays</h3>
+          <p>JSONToArray and ArrayToJSON, built from mergJSON&rsquo;s source, and literal arrays as in LiveCode 10.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+        <article class="b b-l74 spot reveal">
+          <span class="num">74</span>
+          <h3>Lessons, a course, dark mode</h3>
+          <p>74 how-to lessons in Learn, the xTalk Academy for complete beginners, and a dark appearance throughout.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+        <article class="b b-db spot reveal">
+          <div class="b-row"><span class="icon small" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5"/><path d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg></span><h3>Today&rsquo;s databases</h3></div>
+          <p>revDB with its four drivers, MySQL over TLS 1.2 and 1.3, and, in the preview, MySQL 8.4 and PostgreSQL SCRAM logins.</p>
+          <div class="db-row" aria-label="Drivers"><span>SQLite</span><span>MySQL</span><span>PostgreSQL</span><span>ODBC</span></div>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span><span class="pill preview">8.4 and SCRAM <i>dp.1</i></span></div>
+        </article>
+        <article class="b b-ai spot reveal">
+          <div class="b-row"><span class="icon small teal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/></svg></span><h3>AI help that stays yours</h3></div>
+          <p>The xTalk Assistant works with the model you choose, a local one included, and the xTalk MCP Bridge lets an agent build in the IDE. Both are off until you turn them on.</p>
+          <div class="pills"><span class="pill ready">Ready <i>0.2.7</i></span></div>
+        </article>
+      </div>
+      <p class="more-link reveal"><a class="link-arrow" href="guide.html#compare">See where every feature stands, and what isn&rsquo;t there yet</a></p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="see-title">
+    <div class="wrap">
+      <div class="split center">
+        <div class="reveal">
+          <div class="section-head" style="margin-bottom:28px">
+            <p class="eyebrow">See it</p>
+            <h2 id="see-title">Stacks, <span class="flame">in the page</span></h2>
+            <p>The Stack Player wears the website&rsquo;s night sky. Open your own stack, or play the ones it comes with: a beat studio, a drum machine, games, a photo lab, a Kanban board.</p>
+          </div>
+          <ul class="ticks">
+            <li><strong>Your files stay in your browser.</strong> A stack&rsquo;s files go into the browser&rsquo;s own storage for the site, not to a server.</li>
+            <li><strong>It carries what a standalone would:</strong> the Data Grid and the other script libraries, revXML, revZip, revDB with SQLite, and the widgets made for the web.</li>
+            <li><strong>It tells you plainly</strong> what works on the web, what works differently, and what does not.</li>
+          </ul>
+          <p style="margin:28px 0 0"><a class="button" href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/">Open the Stack Player</a></p>
+        </div>
+        <figure class="browser-frame tilted reveal">
+          <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>Stack Player</span></div>
+          <img src="media/stack-player.jpg" width="1280" height="900" loading="lazy" alt="The Stack Player playing Beat Box, a 16-step drum machine stack, under the website's night sky">
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" aria-labelledby="gaps-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">Honest about it</p>
+        <h2 id="gaps-title">What it <span class="flame">isn&rsquo;t</span>, yet</h2>
+        <p>Better to read it here than to find it out later.</p>
+      </div>
+      <div class="split">
+        <div class="panel reveal">
+          <h3>Not available</h3>
+          <ul class="ticks cross">
+            <li><strong>iOS.</strong> OXT-Beyond has no iOS build. A stack set up for iOS keeps its settings and builds for its other platforms.</li>
+            <li><strong>Signed and notarized builds.</strong> The Windows builds are not signed and the Mac app is not notarized, which matters to IT departments: Windows may warn, and macOS asks you to allow it once.</li>
+            <li><strong>Commercial-only widgets and libraries.</strong> A widget that isn&rsquo;t installed opens as a placeholder and keeps its settings.</li>
+            <li><strong>Password-protected stacks.</strong> LiveCode Community never opened them either. Remove the password in the LiveCode that set it.</li>
+            <li><strong>Closed apps for customers.</strong> OXT-Beyond is GPL only. For a closed app shipped to customers, look at LiveCode&rsquo;s commercial licence.</li>
+          </ul>
+        </div>
+        <div class="panel reveal">
+          <h3>Not tested yet</h3>
+          <ul class="ticks dot">
+            <li><strong>Stacks saved by LiveCode 10 and 11.</strong> They may use syntax and widgets that LiveCode 9 never had. LiveCode 11&rsquo;s kinds of array, sequences and dictionaries, are in the preview, 0.2.8-dp.2.1.</li>
+            <li><strong>Going back.</strong> OXT-Beyond saves in the 8.1 format that LiveCode 8.1 and later read, but round trips have not been tested. Keep a copy, and remember that Beyond-only syntax, such as literal arrays, won&rsquo;t compile in LiveCode 9.</li>
+            <li><strong>Your stack.</strong> That&rsquo;s what the checker and the Stack Player are for. If something breaks, <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new?template=bug_report.yml">report it on GitHub</a> or ask on the <a href="https://openxtalk.org/forum/">OpenXTalk forum</a>: reports like that become fixes, and often tests.</li>
+          </ul>
+          <p style="margin:24px 0 0"><a class="button quiet" href="guide.html#compare">Where every feature stands</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section rays" aria-labelledby="bench-title">
+    <div class="wrap">
+      <div class="section-head duo reveal">
+        <p class="eyebrow">New in the preview</p>
+        <h2 id="bench-title"><span class="flame">3D</span>, from plain script</h2>
+        <p>box3dxt binds Box3D, Erin Catto&rsquo;s 3D physics engine and the successor of Box2D, and render3dxt draws lit, textured 3D scenes into an ordinary image. Both are built into the preview, 0.2.8-dp.2.1, on Windows, macOS, Linux and Android, and in the web IDE and the Stack Player. Point at a clip, or tap it, to play.</p>
+      </div>
+      <div class="clips">
+        <figure class="clip big reveal" data-title="Render3D Tour">
+          <button class="frame" type="button">
+            <video muted loop playsinline preload="none" poster="media/render3d-tour.jpg" width="720" height="420" style="--ar: 720 / 420"><source src="media/render3d-tour.mp4" type="video/mp4"></video>
+            <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
+          </button>
+          <figcaption><strong>Render3D Tour</strong><span>A sun with a lamp inside it, planets wearing pictures the stack works out pixel by pixel, moons, a ring and a comet, all drawn by render3dxt into an ordinary image. Click a planet to fly to it. One of the Stack Player&rsquo;s samples.</span><span class="chips"><span class="chip">render3dxt</span><span class="chip">Preview dp.2.1</span></span></figcaption>
+        </figure>
+        <figure class="clip reveal" data-title="render3dxt and box3dxt: a simulation, drawn">
+          <button class="frame" type="button">
+            <video muted loop playsinline preload="none" poster="media/render3d-physics.jpg" width="720" height="456" style="--ar: 720 / 456"><source src="media/render3d-physics.mp4" type="video/mp4"></video>
+            <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
+          </button>
+          <figcaption><strong>A simulation, drawn</strong><span>Crates, balls and gems dropped by box3dxt and drawn, textured, by render3dxt.</span><span class="chips"><span class="chip">box3dxt + render3dxt</span><span class="chip">Preview dp.2.1</span></span></figcaption>
+        </figure>
+        <figure class="clip reveal" data-title="Box3D Playground">
+          <button class="frame" type="button">
+            <video muted loop playsinline preload="none" poster="media/box3d-playground.jpg" width="600" height="544" style="--ar: 600 / 544"><source src="media/box3d-playground.mp4" type="video/mp4"></video>
+            <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
+          </button>
+          <figcaption><strong>Box3D Playground</strong><span>Every kind of shape, joints and a height field, shown by the small renderer inside box3dxt.</span><span class="chips"><span class="chip">box3dxt</span><span class="chip">Preview dp.2.1</span></span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="good-title">
+    <div class="wrap">
+      <div class="pledge reveal">
+        <div class="stars" aria-hidden="true"></div>
+        <img src="../brand/logo.svg" alt="" width="150" height="150">
+        <div>
+          <h2 id="good-title">Free <span class="beyond">for good</span></h2>
+          <p>OXT-Beyond is GPLv3, and nobody, us included, can take that back. Every copy carries the same rights, and the whole project, with the workflows that build and test it, is on GitHub for anyone to fork and carry on. That is how OXT-Beyond itself began.</p>
+          <p>The downloads always offer the stable release and a preview of the next. And thank you to LiveCode Ltd: releasing LiveCode Community under the GPL is the reason OXT-Beyond, and OpenXTalk before it, can exist.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" class="downloads" aria-labelledby="download-title">
+    <div class="stars" aria-hidden="true"></div>
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Download</p>
+        <h2 id="download-title">Take it to your desktop</h2>
+        <p>The whole IDE for Windows, macOS and Linux. It keeps its preferences in its own folders, so it installs next to the LiveCode you have.</p>
+      </div>
+      <p class="os-note" id="os-note" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><span></span></p>
+      <div class="channels">
+        <article class="channel" id="downloads-stable" aria-labelledby="ch-stable">
+          <div class="channel-head">
+            <h3 id="ch-stable">Stable release</h3>
+            <span class="release">v0.2.7</span>
+            <span class="when">10 November 2026</span>
+            <p>The finished version, and the one to use for your own work.</p>
+          </div>
+          <ul class="platforms">
+            <li class="platform" data-os="windows">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+              <h4>Windows</h4><p>64-bit Windows 10 or later</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-win-x86_64-setup.exe">Installer <small>454 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-win-x86_64-portable.zip">Portable zip <small>626 MB</small></a></div>
+            </li>
+            <li class="platform" data-os="mac">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="11" rx="1.8"/><path d="M2 19.5h20l-1.5-4h-17z"/></svg></span>
+              <h4>macOS</h4><p>macOS 11 or later, one universal app for Apple Silicon and Intel</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-mac-universal.dmg">Disk image <small>631 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-mac-universal.zip">Zip <small>633 MB</small></a></div>
+            </li>
+            <li class="platform" data-os="linux">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12.5 15H17"/></svg></span>
+              <h4>Linux</h4><p>x86-64 and 64-bit ARM, glibc 2.31 or later</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-linux-x86_64.tar.xz">x86-64 <small>395 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-linux-arm64.tar.xz">64-bit ARM <small>405 MB</small></a></div>
+            </li>
+            <li class="platform" data-os="web">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+              <h4>Web, on your own server</h4><p>The web IDE and the Stack Player as folders to serve</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-web-ide.zip">Web IDE zip <small>44 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.7/OXT-Beyond-0.2.7-web-player.zip">Stack Player zip <small>17 MB</small></a></div>
+            </li>
+          </ul>
+          <p class="more"><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/v0.2.7">Every file, install notes and checksums of v0.2.7</a></p>
+        </article>
+        <article class="channel next" id="downloads-preview" aria-labelledby="ch-preview">
+          <div class="channel-head">
+            <h3 id="ch-preview">Developer preview</h3>
+            <span class="release">v0.2.8-dp.2.1</span>
+            <span class="when">21 November 2026</span>
+            <p>The next version while it is being made: the newest features and fixes, less tested than the stable release, so keep copies of your stacks.</p>
+          </div>
+          <ul class="platforms">
+            <li class="platform" data-os="windows">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+              <h4>Windows</h4><p>64-bit Windows 10 or later</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-win-x86_64-setup.exe">Installer <small>819 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-win-x86_64-portable.zip">Portable zip <small>1.10 GB</small></a></div>
+            </li>
+            <li class="platform" data-os="mac">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="11" rx="1.8"/><path d="M2 19.5h20l-1.5-4h-17z"/></svg></span>
+              <h4>macOS</h4><p>macOS 11 or later, one universal app for Apple Silicon and Intel</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-mac-universal.dmg">Disk image <small>1007 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-mac-universal.zip">Zip <small>1009 MB</small></a></div>
+            </li>
+            <li class="platform" data-os="linux">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12.5 15H17"/></svg></span>
+              <h4>Linux</h4><p>x86-64 and 64-bit ARM, glibc 2.31 or later</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-linux-x86_64.tar.xz">x86-64 <small>674 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-linux-arm64.tar.xz">64-bit ARM <small>683 MB</small></a></div>
+            </li>
+            <li class="platform" data-os="web">
+              <span class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+              <h4>Web, on your own server</h4><p>The web bundle for any web host, or the two folders on their own</p>
+              <div class="files"><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-web-bundle.zip">Web bundle <small>174 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-web-ide.zip">Web IDE zip <small>47 MB</small></a><a class="file" href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/download/v0.2.8-dp.2.1/OXT-Beyond-0.2.8-dp.2.1-web-player.zip">Stack Player zip <small>22 MB</small></a></div>
+            </li>
+          </ul>
+          <p class="more"><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases/tag/v0.2.8-dp.2.1">Every file, install notes and checksums of v0.2.8-dp.2.1</a></p>
+        </article>
+      </div>
+      <p class="more">
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases">Earlier releases</a>
+        <a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new?template=bug_report.yml">Report a bug</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="index.html"><img class="brand-mark" src="../brand/icon.svg" alt="" width="34" height="34"><span>OXT-<b>Beyond</b></span></a>
+        <p>LiveCode Community&rsquo;s GPL code, carried on in the open. Free and open source, under the GPLv3.</p>
+        <a class="button" href="check.html">Check a stack</a>
+      </div>
+      <div class="foot-col">
+        <h2>This site</h2>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="guide.html">Coming from LiveCode</a></li>
+          <li><a href="in-house.html">In-house tools and the GPL</a></li>
+          <li><a href="check.html">Stack checker</a></li>
+          <li><a href="#download">Download</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h2>The project</h2>
+        <ul>
+          <li><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond">Source on GitHub</a></li>
+          <li><a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/">The OXT-Beyond website</a></li>
+          <li><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/releases">Releases</a></li>
+          <li><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h2>Help and more</h2>
+        <ul>
+          <li><a href="https://openxtalk.org/forum/">OpenXTalk forum</a></li>
+          <li><a href="https://github.com/SethMorrowSoftware/OpenXTalk-Beyond/issues/new?template=bug_report.yml">Report a bug</a></li>
+          <li><a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/player/">Stack Player</a></li>
+          <li><a href="https://sethmorrowsoftware.github.io/OpenXTalk-Beyond/ide/">Web IDE</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="legal">LiveCode is a trademark of LiveCode Ltd. OXT-Beyond is not affiliated with, sponsored by or endorsed by LiveCode Ltd, and is an independent continuation of OpenXTalk Lite. Feature facts as of 21 November 2026, from the project&rsquo;s README, changelog and releases.</p>
+  </div>
+  <div class="wordmark" aria-hidden="true">OXT-Beyond</div>
+</footer>
+
+<script src="assets/stackcheck.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
