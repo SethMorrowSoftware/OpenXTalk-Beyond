@@ -554,8 +554,23 @@ on generateMenuGroup
    local tButtonScript, tGroupScript, tLeft
    put "on menuPick pWhich; revMenubarMenuPick pWhich; end menuPick" into tButtonScript
    set the script of the templatebutton to tButtonScript
+   -- OXT-Beyond: a mouseDown sent to the group itself builds the menus
+   -- at once, as LiveCode's built them for every mouseDown. The engine
+   -- sends one to the group before a menu bar accelerator (Cmd or Ctrl and
+   -- a letter) and before macOS shows a menu of the menu bar, and picks
+   -- the item or shows the menu as soon as it returns: built a millisecond
+   -- later, the items were still as the last build left them. Cmd+C with a
+   -- button or text selected since then found Copy disabled and did
+   -- nothing, and the build that followed enabled it for the second press
+   -- (CamelCaps, openxtalk.org p=26676). A click on one of the group's
+   -- buttons (its target is the button) builds a millisecond later, as
+   -- since OpenXTalk Lite 1.10
    put "on mouseDown" & return &¬
+   "if the long id of the target is the long id of me then" & return &¬
+   "revMenubarBuildMenus true" & return &¬
+   "else" & return &¬
    "send revMenubarBuildMenus to this stack in 1 millisecond" & return &¬
+   "end if" & return &¬
    "set the cursor to busy" & return &¬
    "pass mousedown" & return &¬
    "end mouseDown" & return &¬
@@ -1637,8 +1652,11 @@ on highlightMenuItem pMenu, pSubMenus
    put the text of button pMenu of group "revMenuBar" of me into tMenuText
 end highlightMenuItem
 
-command revMenubarBuildMenus
-   if the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus  --tp 24-11
+-- OXT-Beyond: pNow true builds them though a build is waiting to be
+-- sent (an accelerator or a macOS menu, which use them at once: the menu
+-- bar group's mouseDown); the build that was waiting is still sent
+command revMenubarBuildMenus pNow
+   if pNow is not true and the pendingmessages contains "revMenubarBuildMenus" then exit revMenubarBuildMenus  --tp 24-11
    if the platform contains "linux" then set the acceleratedRendering of this stack to true  --tp 24-11
    local tContext
    put buildMenuContext() into tContext

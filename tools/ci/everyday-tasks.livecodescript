@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
+constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,shortcut-copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -668,6 +668,125 @@ on ed_copy_paste
    if the script of last button of card 1 of stack sStack is not the script of tButton then throw "the pasted button has not the button's script"
    edShotStack sStack, "22-pasted"
 end ed_copy_paste
+
+-- Copy and Paste by their shortcuts, Cmd+C and Cmd+V (Ctrl on Windows
+-- and Linux), pressed on the system's keyboard where its keys reach the
+-- IDE: the button copy-paste made selected, copied and pasted, then text
+-- in the stack's field copied and pasted. Each must work the first time
+-- it is pressed: on macOS 15.2 a person found that the two "don't work
+-- the first time. The second time I do this it works fine" (CamelCaps,
+-- openxtalk.org p=26676, in 0.2.7 and 0.2.8-dp.2). A press that does
+-- nothing is pressed again, so that the failure says whether a second
+-- press does what the first did not
+on ed_shortcut_copy_paste
+   local tButton, tCount, tMiss, tField, tFirst, tKept
+   -- (the copy that copy-paste made, which lies on the button: a click
+   -- there is on it)
+   get edControl("button")
+   put the long id of last button of card 1 of stack sStack into tButton
+   put the number of buttons of card 1 of stack sStack into tCount
+   -- the button
+   edSelect tButton
+   set the clipboardData["text"] to "OXT Everyday clipboard"
+   put edPressedOnce("c", "with the button selected did not copy it", "the clipboard is " & quote & "objects" & quote) into tMiss
+   if tMiss is empty then
+      put edPressedOnce("v", "pasted no button", "the number of buttons of card 1 of stack sStack > pAx", tCount) into tMiss
+   end if
+   if tMiss is empty then
+      if the number of buttons of card 1 of stack sStack is not tCount + 1 then put "one press of" && edShortcutName("v") && "pasted" && the number of buttons of card 1 of stack sStack - tCount && "buttons" into tMiss
+   end if
+   if tMiss is empty then
+      if the label of last button of card 1 of stack sStack is not the label of tButton then put "what" && edShortcutName("v") && "pasted is not a copy of the button (" & the label of last button of card 1 of stack sStack & ")" into tMiss
+   end if
+   if tMiss is empty then edShotStack sStack, "22b-shortcut-pasted"
+   -- (the pastes taken away: the tasks after work on the buttons there
+   -- were before)
+   revIDEDeselectAll
+   repeat while the number of buttons of card 1 of stack sStack > tCount
+      delete last button of card 1 of stack sStack
+   end repeat
+   -- text in the stack's field, in Run mode: copied, then pasted at its
+   -- end after a click elsewhere and a click back in it, as a person
+   -- copies a line and pastes it. Before each key the menus are as the
+   -- IDE builds them with no text selected and no field focused (the
+   -- build a click elsewhere makes), so that Copy and Paste are disabled
+   -- in them: a click in a field or a selection of text in it builds
+   -- nothing, as it never has, and each key must find its item enabled
+   -- all the same. (The Script Editor answers both keys itself, before
+   -- the menu bar's accelerator: Copy and Paste there worked the first
+   -- time before this, and are not the menu bar's to test)
+   if tMiss is empty then
+      put edControl("field") into tField
+      put the text of tField into tKept
+      put "Copy me" into tFirst
+      set the text of tField to tFirst
+      edToolTile "com.livecode.tool.Browse"
+      if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then put "Run in the Tools palette did not choose the Browse tool (" & the tool & ")" into tMiss
+   end if
+   if tMiss is empty then
+      set the clipboardData["text"] to "OXT Everyday clipboard"
+      put edMenusBuiltBare("Copy") into tMiss
+   end if
+   if tMiss is empty then
+      edClickAt sStack, the loc of tField
+      select text of tField
+      put edPressedOnce("c", "with the field's text selected did not copy it", "the clipboardData[" & quote & "text" & quote & "] is pAx", tFirst) into tMiss
+   end if
+   if tMiss is empty then put edMenusBuiltBare("Paste") into tMiss
+   if tMiss is empty then
+      edClickAt sStack, the loc of tField
+      select after text of tField
+      put edPressedOnce("v", "did not paste the copied text into the field", "the text of pAx is pBx", tField, tFirst & tFirst) into tMiss
+   end if
+   if tMiss is empty then edShotStack sStack, "22c-shortcut-pasted-text"
+   -- (the field and the tool as they were, whatever happened)
+   select empty
+   if tField is not empty then set the text of tField to tKept
+   edToolTile "com.livecode.tool.Pointer"
+   get edWaitFor("the tool is " & quote & "pointer tool" & quote, 3000)
+   -- (and the keys let go: the clicks of the tasks after are plain)
+   if tMiss is empty then put edKeysHeld(edShortcutName("v")) into tMiss
+   if tMiss is not empty then throw tMiss
+   edRecord "INFO" && edShortcutName("c") && "and" && edShortcutName("v") && "copied and pasted the button, and text in its field, each the first time it was pressed"
+end ed_shortcut_copy_paste
+
+-- No text selected and no field focused, nothing selected, and the
+-- menus built as the IDE builds them then (as a click elsewhere builds
+-- them): empty if the item pItem of the Edit menu (Copy or Paste) is
+-- disabled in them, as it must be for the key after to test anything;
+-- else why not, for a throw
+function edMenusBuiltBare pItem
+   select empty
+   revIDEDeselectAll
+   focus on nothing
+   send "revMenubarBuildMenus" to stack "revMenuBar"
+   if edWaitFor("edBuiltOff(pAx)", 3000, pItem) then return empty
+   return "with no text selected the menus were built with" && pItem && "enabled (" & edJoin(the text of button "Edit" of group "revMenuBar" of stack "revMenuBar") & ")"
+end edMenusBuiltBare
+
+-- whether the Edit menu as the IDE last built it has pItem disabled
+function edBuiltOff pItem
+   return ("(&" & pItem) is in the text of button "Edit" of group "revMenuBar" of stack "revMenuBar"
+end edBuiltOff
+
+-- The shortcut Cmd (Ctrl) and pLetter pressed once, and empty if pTrue
+-- (an expression of pAx and pBx, as edWaitFor takes them) is then true.
+-- If not, what it did not do (pDid) in words, for a throw, and whether a
+-- second press made pTrue true: a person found Cmd+C and Cmd+V doing
+-- nothing the first time and working the second (openxtalk.org p=26676)
+function edPressedOnce pLetter, pDid, pTrue, pAx, pBx
+   local tVia, tMiss
+   put edShortcut(pLetter) into tVia
+   if edWaitFor(pTrue, 3000, pAx, pBx) then return empty
+   put edShortcutName(pLetter) && "(" & tVia & ")" && pDid && "the first time it was pressed" into tMiss
+   get edShortcut(pLetter)
+   if edWaitFor(pTrue, 3000, pAx, pBx) then
+      put "; pressed a second time, it did" after tMiss
+   else
+      put "; nor did a second press" after tMiss
+   end if
+   return tMiss
+end edPressedOnce
 
 -- Edit > Duplicate on the pasted one: a third, offset from it
 on ed_duplicate
@@ -4446,7 +4565,7 @@ command edToolsBack pMB
    get edWaitFor("edOpen(" & quote & "revTools" & quote & ")", 5000)
 end edToolsBack
 
--- a key's virtual key code on macOS (Down, Up, Return, Escape, m, x)
+-- a key's virtual key code on macOS (Down, Up, Return, Escape, m, x, c, v)
 function edMacKeyCode pKey
    switch pKey
       case "Down"
@@ -4461,6 +4580,10 @@ function edMacKeyCode pKey
          return 46
       case "x"
          return 7
+      case "c"
+         return 8
+      case "v"
+         return 9
    end switch
    return empty
 end edMacKeyCode
