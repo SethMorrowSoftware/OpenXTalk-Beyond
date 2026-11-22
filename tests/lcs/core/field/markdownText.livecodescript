@@ -192,6 +192,22 @@ on TestLists
    TestAssert "back to Markdown", line 1 of the markdownText of field "md" is "- one"
 end TestLists
 
+on TestListNumbersGoOn
+   -- an item after one with a listIndex goes on from it, as the field shows
+   local tMarkdown
+   put "a" & return & "b" & return & "c" into field "md"
+   set the listStyle of line 1 to 3 of field "md" to "decimal"
+   set the listIndex of line 1 of field "md" to 5
+   put the markdownText of field "md" into tMarkdown
+   filter tMarkdown without empty
+   TestAssert "numbered as shown", tMarkdown is "5. a" & return & "6. b" & return & "7. c"
+   set the markdownText of field "md" to the markdownText of field "md"
+   put the markdownText of field "md" into tMarkdown
+   filter tMarkdown without empty
+   TestAssert "and the same after a round trip", tMarkdown is "5. a" & return & "6. b" & return & "7. c"
+   TestAssert "a list after it", the listStyle of line 3 of field "md" is "decimal"
+end TestListNumbersGoOn
+
 on TestQuoteAndCode
    set the markdownText of field "md" to "> quoted" & return & return & "```" & return & "if x then *y*" & return & "```"
    TestAssert "the text", field "md" is "quoted" & return & "if x then *y*"
@@ -227,6 +243,28 @@ on TestEscapes
    TestAssert "escaped stars are stars", field "md" is "*not italic* and 2 * 3"
    TestAssert "and no style", the textStyle of line 1 of field "md" is empty
 end TestEscapes
+
+on TestEscapedStarInEmphasis
+   -- an escaped star closes no span: italic "a*b" comes back as it was
+   put "a*b c" into field "md"
+   set the textStyle of char 1 to 3 of field "md" to "italic"
+   TestAssert "written with the star escaped", line 1 of the markdownText of field "md" is "*a\*b* c"
+   set the markdownText of field "md" to the markdownText of field "md"
+   TestAssert "the same text", field "md" is "a*b c"
+   TestAssert "italic to the end of the word", the textStyle of char 1 to 3 of field "md" is "italic"
+   TestAssert "and plain after it", the textStyle of char 5 of field "md" is empty
+   set the markdownText of field "md" to "*x \* y* z"
+   TestAssert "read the same way", field "md" is "x * y z" and the textStyle of char 1 to 5 of field "md" is "italic"
+end TestEscapedStarInEmphasis
+
+on TestCodeInEmphasis
+   -- a code span is read whole before emphasis around it is closed
+   set the markdownText of field "md" to "*`a*b` c* d"
+   TestAssert "the text", field "md" is "a*b c d"
+   TestAssert "the code in Courier", the textFont of char 1 to 3 of field "md" is "Courier"
+   TestAssert "italic to the closing star", the textStyle of char 1 to 5 of field "md" is "italic"
+   TestAssert "and plain after it", the textStyle of char 7 of field "md" is empty
+end TestCodeInEmphasis
 
 on TestPlainTextComesBackPlain
    -- what would start a block at the start of a line is escaped

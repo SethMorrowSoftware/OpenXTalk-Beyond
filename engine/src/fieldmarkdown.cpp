@@ -59,6 +59,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 //     export writes code that holds backticks with a longer run around it
 //   - the export gives an immutable string, and the import a paragraph
 //     even when the text cannot be converted
+//   - an escaped star or underscore, or one inside a code span, closes no
+//     emphasis, so italic "a*b" comes back as it was
+//   - the export numbers a list as the field shows it, going on from an
+//     item's listIndex ("5." then "6.", not "5." then "1.")
 
 #include "prefix.h"
 
@@ -276,12 +280,46 @@ static uint32_t count_repeat(const char *p, const char *end, char ch)
 
 // Find the closing delimiter sequence (p_delim, p_delim_len) starting from
 // p_search, returning a pointer to its start or nil if not found.
+// OXT-Beyond: a backslash and the character after it are passed over, so an
+//   escaped delimiter never closes a span (HyperXTalk closed "*a\*b*", the
+//   exporter's own "a*b" in italic, at the escaped star), and so is a whole
+//   code span, which import_md_inline reads before any emphasis inside it
+//   ("*`a*b`*", italic code, closed at the star in the code). The scan
+//   starts right after the opening run, so that a code span there is seen
+//   whole, and a delimiter before p_earliest closes nothing
 static const char *find_closing(const char *p_search, const char *p_end,
-                                 const char *p_delim, uint32_t p_delim_len)
+                                 const char *p_delim, uint32_t p_delim_len,
+                                 const char *p_earliest)
 {
     while (p_search + p_delim_len <= p_end)
     {
-        if (memcmp(p_search, p_delim, p_delim_len) == 0)
+        if (*p_search == '\\' && p_search + 1 < p_end)
+        {
+            p_search += 2;
+            continue;
+        }
+        if (*p_search == '`')
+        {
+            // the run that opens a span, and the first run of the same
+            // length after it, which closes it; with none, the run is text
+            uint32_t t_ticks = count_repeat(p_search, p_end, '`');
+            const char *t_code = p_search + t_ticks;
+            while (t_code < p_end)
+            {
+                if (*t_code == '`')
+                {
+                    uint32_t t_run = count_repeat(t_code, p_end, '`');
+                    if (t_run == t_ticks)
+                        break;
+                    t_code += t_run;
+                    continue;
+                }
+                t_code++;
+            }
+            p_search = t_code < p_end ? t_code + t_ticks : p_search + t_ticks;
+            continue;
+        }
+        if (p_search >= p_earliest && memcmp(p_search, p_delim, p_delim_len) == 0)
             return p_search;
         p_search++;
     }
@@ -389,7 +427,7 @@ static void import_md_inline(import_md_t& ctxt,
                 //   second "*" of an opening "**" closed a "*" round nothing)
                 const char *close = nil;
                 if (p + try_len < end)
-                    close = find_closing(p + try_len + 1, end, delim_buf, (uint32_t)try_len);
+                    close = find_closing(p + try_len, end, delim_buf, (uint32_t)try_len, p + try_len + 1);
                 if (close == nil)
                     continue;
 
@@ -1083,7 +1121,20 @@ static bool export_md_emit_paragraphs(void *p_context,
                 ps.list_style == kMCParagraphListStyleLowerRoman ||
                 ps.list_style == kMCParagraphListStyleUpperRoman)
             {
-                uint32_t idx = ps.has_list_index ? ps.list_index : ++ctxt.ordered_index;
+                // OXT-Beyond: the number the field shows (the engine's own
+                //   count, kMCFieldExportNumbering), so an item after one
+                //   with a listIndex goes on from it: HyperXTalk counted
+                //   from 1 past an explicit index ("5." then "1."). With no
+                //   number from the engine (a chunk that starts within a
+                //   paragraph), an explicit index restarts the count here too
+                uint32_t idx;
+                if (p_data.paragraph_number != 0)
+                    idx = p_data.paragraph_number;
+                else if (ps.has_list_index)
+                    idx = ps.list_index;
+                else
+                    idx = ctxt.ordered_index + 1;
+                ctxt.ordered_index = idx;
                 /* UNCHECKED */ MCStringAppendFormat(ctxt.m_text, "%u. ", idx);
             }
             else // disc, circle, square → unordered
@@ -1199,7 +1250,8 @@ bool MCField::exportasmarkdowntext(MCParagraph *p_paragraphs,
     ctxt.is_first_para = true;
 
     uint32_t t_flags = kMCFieldExportParagraphs | kMCFieldExportRuns |
-                       kMCFieldExportParagraphStyles | kMCFieldExportCharacterStyles;
+                       kMCFieldExportParagraphStyles | kMCFieldExportCharacterStyles |
+                       kMCFieldExportNumbering;
 
     doexport(t_flags, p_paragraphs, p_start, p_finish,
              export_md_emit_paragraphs, &ctxt);
