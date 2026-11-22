@@ -52,7 +52,10 @@ It starts another program, so it needs both the disk and the processes
 that the <secureMode> takes away.
 
 The path is never an object's reference: "show button 1 in finder"
-shows the button, as it did before this command came.
+shows the button and stops, as it did before this command came. A
+variable that holds an object's name or long id is read as a path like
+any other, so "show tObject in finder" gives "file not found", where
+earlier versions showed the object and then stopped with an error.
 
 >*Note:* "finder" and "explorer" are no words of the language. A
 > variable, control or custom property with either name means what it

@@ -104,6 +104,20 @@ on __ShowObjectInFinder
    show button "TestShowFinderButton" in finder
 end __ShowObjectInFinder
 
+on TestShowVariableHoldingAnObject
+   -- A difference, listed in the pull request and the dictionary: a
+   -- variable is a path, even when it holds an object's long id. Before,
+   -- the object was shown and the script stopped
+   TestSkipIfNot "desktop"
+   local tObject
+   create invisible button "TestShowFinderVariable"
+   put the long id of button "TestShowFinderVariable" into tObject
+   show tObject in finder
+   TestAssert "the long id is no file", the result is "file not found"
+   TestAssert "and the object is not shown", not the visible of button "TestShowFinderVariable"
+   delete button "TestShowFinderVariable"
+end TestShowVariableHoldingAnObject
+
 --------------------------------------------------------------------------------
 -- What the commands do
 
