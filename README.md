@@ -4993,10 +4993,17 @@ repositories at pinned commits when OXT-Beyond is packaged (see
   (arm64-v8a, armeabi-v7a, x86_64 and x86), which the Android builder
   packs into an app; the four that open sockets (TorrentXT, enetxt,
   DataChannelXT and curlxt) add the INTERNET permission to an app that
-  includes them. Each one's smoke test runs in an Android app on the
-  Android builder workflow's x86_64 emulators (Android 13, and Android 16
-  with 16 KB pages); the ARM libraries have not run on a device yet. An
-  app that records with audioxt must ask for the RECORD_AUDIO permission
+  includes them. TorrentXT's Android libraries need Android 7.0 or
+  later, where the others run from Android 5.0: built for an older
+  Android, libtorrent asks for a netlink socket that Android 11 and
+  later refuse an app, and a session started paused there, listening
+  nowhere. Android 5.0 and 6.0 lack a call the newer library asks for
+  and will not load it (not tried on one), so give an app that needs
+  torrents a minimum Android version of 7.0. Each one's smoke test runs
+  in an Android app on the Android builder workflow's x86_64 emulators
+  (Android 13, and Android 16 with 16 KB pages); the ARM libraries have
+  not run on a device yet. An app that records with audioxt must ask
+  for the RECORD_AUDIO permission
   itself. gamepadxt has no Android libraries: SDL reaches controllers
   there through a Java activity of its own, which an OXT-Beyond app does
   not have. The standalone builder never adds the script libraries by
