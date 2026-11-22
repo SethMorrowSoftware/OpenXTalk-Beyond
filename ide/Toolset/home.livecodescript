@@ -1,8 +1,9 @@
 ﻿script "home"
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
--- Seth Morrow (2026) and Tom Perry (2023-2026); its Git history and
--- CHANGELOG.md say what changed.
+-- Seth Morrow (2026), Tom Perry (2023-2026), Emily-Elizabeth Howard (2026)
+-- and Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+-- changed.
 
 constant kImportantTextColor = "#FF8B00"
 global tForkName
@@ -1579,6 +1580,14 @@ command revInternal__InstallFileAssociations
       -- only there
       if revEnvironmentIsWeb() then
          put return & "revWebIDELibrary" after tLoadList
+      end if
+
+      -- OXT-Beyond: the script editor's list of completions, from
+      -- HyperXTalk (ideautocompletelibrary), on the desktop. It shows
+      -- nothing until the user turns it on (Edit > Options > Autocomplete
+      -- in the script editor)
+      if not revEnvironmentIsWeb() then
+         put return & "ideAutoCompleteLibrary" after tLoadList
       end if
 
       if revEnvironmentEditionProperty("autocomplete_pro") then

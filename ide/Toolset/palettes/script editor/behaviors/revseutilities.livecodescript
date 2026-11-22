@@ -1,8 +1,9 @@
 ﻿script "revseutilities"
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
--- Seth Morrow (2026), Tom Perry (2023-2026) and
--- Emily-Elizabeth Howard (2026); its Git history and CHANGELOG.md say what
+-- Seth Morrow (2026), Tom Perry (2023-2026), Emily-Elizabeth Howard (2026)
+-- and Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+-- changed.
 -- changed.
 
 ################################################################################
@@ -746,6 +747,9 @@ command sePrefGetDefaults
    put true into tPrefs["editor,autocomplete"]
    -- autocomplete is completions list
    put true into tPrefs["editor,providercompletion"]
+   -- OXT-Beyond: the list of completions from HyperXTalk
+   -- (ideautocompletelibrary) shows only when the user turns it on
+   put false into tPrefs["editor,showautocomplete"]
    
    return tPrefs
 end sePrefGetDefaults

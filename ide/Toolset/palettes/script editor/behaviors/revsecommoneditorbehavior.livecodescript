@@ -2,8 +2,100 @@
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
 -- Seth Morrow (2026), Tom Perry (2026), Bernd Niggemann (2026),
--- Emily-Elizabeth Howard (2026) and Paul McClernan (2026); its Git history
--- and CHANGELOG.md say what changed.
+-- Emily-Elizabeth Howard (2026), Paul McClernan (2026) and
+-- Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+-- changed.
+
+--------------------------------------------------------------------------------
+-- OXT-Beyond: the list of completions, from HyperXTalk (Emily-Elizabeth
+-- Howard; keyboard selection by Stam Kapetanakis, HyperXTalk e251ec02). The
+-- library is ideautocompletelibrary; this editor asks it for nothing until
+-- the user ticks Edit > Options > Autocomplete (the preference
+-- "editor,showautocomplete", false until then), so typing is what it always
+-- was for everyone else. The calls below stood behind
+-- revEnvironmentEditionProperty("autocomplete"), which is false in this
+-- edition, so they ran for no one before.
+--------------------------------------------------------------------------------
+
+function ideAutocompleteIsEnabled
+   return __GetPreference("editor,showautocomplete", false) is true
+end ideAutocompleteIsEnabled
+
+-- The editor's calls go to the library stack directly, so they do not
+-- depend on where it is in the message path, and each does nothing when
+-- the library is not loaded. Tab, Return and the arrow keys carry on to
+-- their usual job unless the library took them (it answers false then).
+command ideAutocompleteCancelFind pEditorId, pImmediate
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteCancelFind" to stack "ideautocompletelibrary" with pEditorId, pImmediate
+   end if
+end ideAutocompleteCancelFind
+
+command ideAutocompleteClearObjectCache pObject
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteClearObjectCache" to stack "ideautocompletelibrary" with pObject
+   end if
+end ideAutocompleteClearObjectCache
+
+command ideAutocompleteUpdate pEditorId, pObjectId, pClasses
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteUpdate" to stack "ideautocompletelibrary" with pEditorId, pObjectId, pClasses
+   end if
+end ideAutocompleteUpdate
+
+command ideAutocompleteIntrospectMessagePath pObjectId
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteIntrospectMessagePath" to stack "ideautocompletelibrary" with pObjectId
+   end if
+end ideAutocompleteIntrospectMessagePath
+
+command ideAutocompleteHandleTab pEditorId, pObjectId
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteHandleTab" to stack "ideautocompletelibrary" with pEditorId, pObjectId
+      if it is "handled" then
+         return the result
+      end if
+   end if
+   return true
+end ideAutocompleteHandleTab
+
+command ideAutocompleteHandleReturn pEditorId
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteHandleReturn" to stack "ideautocompletelibrary" with pEditorId
+      if it is "handled" then
+         return the result
+      end if
+   end if
+   return true
+end ideAutocompleteHandleReturn
+
+command ideAutocompleteHandleArrow pEditorId, pKeyName, pObjectId
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteHandleArrow" to stack "ideautocompletelibrary" with pEditorId, pKeyName, pObjectId
+      if it is "handled" then
+         return the result
+      end if
+   end if
+   return true
+end ideAutocompleteHandleArrow
+
+-- True when the library opened the dictionary for the completion picked
+-- in the list, so the Help key goes no further
+command ideAutocompleteHandleHelp pEditorId, pObjectId
+   if there is a stack "ideautocompletelibrary" then
+      dispatch "ideAutocompleteHandleHelp" to stack "ideautocompletelibrary" with pEditorId, pObjectId
+      if it is "handled" then
+         return the result
+      end if
+   end if
+   return false
+end ideAutocompleteHandleHelp
+
+-- The library inserts a completion through this, so that textReplace runs
+-- in the editor's own context (and its undo records the change)
+command ideAutocompleteInsertCompletion pOffset, pOldText, pNewText
+   textReplace pOffset, pOldText, pNewText
+end ideAutocompleteInsertCompletion
 
 local sObjectId
 
@@ -81,7 +173,7 @@ command setObjectID pObjectID
       if tRuggedID is not sObjectID then
          put tRuggedID into sObjectID
          if exists(sObjectId) and \
-               revEnvironmentEditionProperty("autocomplete") then
+               ideAutocompleteIsEnabled() then
             ideAutocompleteIntrospectMessagePath sObjectId
          end if
       end if
@@ -133,7 +225,7 @@ command clearCache pObject, pDontCheckId
    end if
    delete variable sScriptCache[tObject]
 
-   if revEnvironmentEditionProperty("autocomplete") then
+   if ideAutocompleteIsEnabled() then
       ideAutocompleteClearObjectCache tObject
    end if
 end clearCache
@@ -1411,42 +1503,45 @@ on selectionUpdate
 end selectionUpdate
 
 on mouseMove
-   if revEnvironmentEditionProperty("autocomplete") then
+   if ideAutocompleteIsEnabled() then
       ideAutocompleteCancelFind the long id of me
    end if
    pass mouseMove
 end mouseMove
 
 on closeField
-   if revEnvironmentEditionProperty("autocomplete") then
+   if ideAutocompleteIsEnabled() then
       ideAutocompleteCancelFind the long id of me
    end if
    pass closeField
 end closeField
 
 on exitField
-   if revEnvironmentEditionProperty("autocomplete") then
+   if ideAutocompleteIsEnabled() then
       ideAutocompleteCancelFind the long id of me
    end if
    pass exitField
 end exitField
 
 on escapeKey
-   if revEnvironmentEditionProperty("autocomplete") then
-      ideAutocompleteCancelFind the long id of me
+   if ideAutocompleteIsEnabled() then
+      -- the list goes at once, as Escape asks
+      ideAutocompleteCancelFind the long id of me, true
    end if
    pass escapeKey
 end escapeKey
 
 on help
-   if revEnvironmentEditionProperty("autocomplete") then
+   -- OXT-Beyond: with the list of completions showing, Help opens the
+   -- dictionary at the word picked in it; otherwise Help does what it
+   -- always did (HyperXTalk's editor passed it only when the list took it)
+   if ideAutocompleteIsEnabled() then
       ideAutocompleteHandleHelp the long id of me, sObjectId
-      if the result then
-         pass help
+      if the result is true then
+         exit help
       end if
-   else
-      pass help
    end if
+   pass help
 end help
 
 -- This calculates the position of the caret based on pPosition where the caret is (hypothetically).
@@ -1627,8 +1722,13 @@ on returnInField
       exit returnInField
    end if
    
-   if revEnvironmentEditionProperty("autocomplete") then
-      ideAutocompleteCancelFind the long id of me
+   if ideAutocompleteIsEnabled() then
+      -- Return takes a completion picked with the arrow keys
+      ideAutocompleteHandleReturn the long id of me
+      if the result is false then
+         exit returnInField
+      end if
+      ideAutocompleteCancelFind the long id of me, true
    end if
    
    local tFrom, tTo
@@ -2595,8 +2695,8 @@ on tabKey
    local tDoTab = true
    
    if tProviderCompletion and \
-         revEnvironmentEditionProperty("autocomplete") then
-      ideAutocompleteHandleTab the long id of me, sObjectId, sPlaceholders, sEditPlaceholder, sEditChunks
+         ideAutocompleteIsEnabled() then
+      ideAutocompleteHandleTab the long id of me, sObjectId
       put the result into tDoTab
    end if
    
@@ -2864,8 +2964,8 @@ on rawKeyDown pKey
    end switch
    
    local tPass = true
-   if revEnvironmentEditionProperty("autocomplete") then
-      ideAutocompleteHandleArrow the long id of me, tKeyName, sObjectId, sPlaceholders, sEditPlaceholder, sEditChunks
+   if ideAutocompleteIsEnabled() then
+      ideAutocompleteHandleArrow the long id of me, tKeyName, sObjectId
       put the result into tPass
    end if
    
@@ -3905,7 +4005,7 @@ end __LookForPair
 private command __UpdateAutoCompleteList pUUID
    local tProviderCompletion
    put __GetPreference("editor,providercompletion", true) into tProviderCompletion
-   if tProviderCompletion and revEnvironmentEditionProperty("autocomplete") then
+   if tProviderCompletion and ideAutocompleteIsEnabled() then
       ideAutocompleteUpdate the long id of me, sObjectID, sPlaceholders[pUUID]["classes"]
    end if
 end __UpdateAutoCompleteList
