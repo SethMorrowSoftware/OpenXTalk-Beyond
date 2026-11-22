@@ -14,6 +14,11 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -734,6 +739,16 @@ Exec_stat MCField::setrtf(uint4 parid, MCStringRef data)
 	state |= CS_NO_FILE; // prevent interactions while downloading images
 	MCParagraph *htmlpgptr = rtftoparagraphs(data);
 	setparagraphs(htmlpgptr, parid);
+	state &= ~CS_NO_FILE;
+	return ES_NORMAL;
+}
+
+// OXT-Beyond: from HyperXTalk (Emily-Elizabeth Howard, commit 6d114085)
+Exec_stat MCField::setmarkdown(uint4 parid, MCStringRef data)
+{
+	state |= CS_NO_FILE;
+	MCParagraph *t_paragraphs = importmarkdowntext(data);
+	setparagraphs(t_paragraphs, parid);
 	state &= ~CS_NO_FILE;
 	return ES_NORMAL;
 }

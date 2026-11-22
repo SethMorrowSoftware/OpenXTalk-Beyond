@@ -16,8 +16,8 @@
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Brian Milby (2026); its Git history and
-   CHANGELOG.md say what changed. */
+   Seth Morrow (2026), Brian Milby (2026) and Stam Kapetanakis (2026); its
+   Git history and CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -374,6 +374,45 @@ static void lookup_name_for_prop(Properties p_which, MCNameRef& r_name)
     assert(false);
 }
 
+// OXT-Beyond: the graphic effects (dropShadow, innerShadow, outerGlow,
+// innerGlow and colorOverlay) are the engine's on a widget, as on every
+// other control: MCControl holds them, MCWidget::draw draws them, and a
+// stack file keeps them with the object. Before, the engine passed them to
+// the widget, and a widget whose module has no property of that name kept
+// what was set as a custom property, which nothing drew. So a property of
+// that name stays the widget's, or the custom property, when:
+//   - the widget's module declares it (the module keeps it, as before), or
+//   - the widget already holds a custom property of that name in its
+//     current set (an older stack's, or one a script set before: it reads
+//     back and is kept as before, and draws nothing, as before).
+// From HyperXTalk (Stam Kapetanakis, pull request #604, "Make graphic
+// effects work on widgets"), with the second case added for older stacks
+static bool is_engine_effect_prop(MCWidget *p_widget, MCWidgetRef p_widget_ref, Properties p_which)
+{
+    switch(p_which)
+    {
+        case P_BITMAP_EFFECT_DROP_SHADOW:
+        case P_BITMAP_EFFECT_INNER_SHADOW:
+        case P_BITMAP_EFFECT_OUTER_GLOW:
+        case P_BITMAP_EFFECT_INNER_GLOW:
+        case P_BITMAP_EFFECT_COLOR_OVERLAY:
+            break;
+
+        default:
+            return false;
+    }
+
+    MCNewAutoNameRef t_name;
+    lookup_name_for_prop(p_which, &t_name);
+    if (*t_name == nil)
+        return true;
+
+    if (p_widget_ref != nil && MCWidgetHasProperty(p_widget_ref, *t_name))
+        return false;
+
+    return !p_widget -> hascustomprop(*t_name);
+}
+
 bool MCWidget::getprop(MCExecContext& ctxt, uint32_t p_part_id, Properties p_which, MCNameRef p_index, Boolean p_effective, MCExecValue& r_value)
 {
 	// If we are getting any of the reserved properties, then pass directly
@@ -475,6 +514,9 @@ bool MCWidget::getprop(MCExecContext& ctxt, uint32_t p_part_id, Properties p_whi
         default:
             break;
     }
+
+    if (is_engine_effect_prop(this, m_widget, p_which))
+        return MCControl::getprop(ctxt, p_part_id, p_which, p_index, p_effective, r_value);
 
     MCNewAutoNameRef t_name_for_prop;
     /* UNCHECKED */ lookup_name_for_prop(p_which, &t_name_for_prop);
@@ -581,6 +623,9 @@ bool MCWidget::setprop(MCExecContext& ctxt, uint32_t p_part_id, Properties p_whi
             break;
     }
     
+    if (is_engine_effect_prop(this, m_widget, p_which))
+        return MCControl::setprop(ctxt, p_part_id, p_which, p_index, p_effective, p_value);
+
     MCNewAutoNameRef t_name_for_prop;
     /* UNCHECKED */ lookup_name_for_prop(p_which, &t_name_for_prop);
     

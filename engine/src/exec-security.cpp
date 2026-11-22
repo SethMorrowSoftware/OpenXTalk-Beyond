@@ -16,7 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026) and Stam Kapetanakis (2026); its Git history and
+   CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -71,12 +72,13 @@ void MCSecurityEvalCipherNames(MCExecContext& ctxt, MCStringRef& r_names)
 
 void MCSecurityEvalRandomBytes(MCExecContext& ctxt, uinteger_t p_byte_count, MCDataRef& r_bytes)
 {
-	if (!InitSSLCrypt())
-	{
-		ctxt.LegacyThrow(EE_SECURITY_NOLIBRARY);
-		return;
-	}
-
+	// OXT-Beyond: the bytes come from the system's own cryptographic source
+	// (MCSRandomData in libfoundation: arc4random_buf, /dev/urandom,
+	// CryptGenRandom...), never from OpenSSL, so randomBytes no longer
+	// needs the security library and no longer throws when it cannot be
+	// loaded (a standalone built without it). From HyperXTalk (Stam
+	// Kapetanakis, pull request #590, "Stop randomBytes depending on the
+	// security library")
 	if (MCSRandomData (p_byte_count, r_bytes))
 	{
 		ctxt.SetTheResultToEmpty();

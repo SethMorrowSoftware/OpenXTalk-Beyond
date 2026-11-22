@@ -16,8 +16,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026), Brian Milby (2026) and Emily-Elizabeth Howard (2026);
-   its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026), Brian Milby (2026), Emily-Elizabeth Howard (2026) and
+   Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+   changed. */
 
 #include "prefix.h"
 
@@ -760,14 +761,21 @@ static const PropList widgetprops[] =
         {"altId", P_ALT_ID},
         {"behavior", P_PARENT_SCRIPT},
         {"blendLevel", P_BLEND_LEVEL},
+        // OXT-Beyond: the graphic effects, which a widget draws now (from
+        // HyperXTalk #604; see is_engine_effect_prop in widget.cpp)
+        {"colorOverlay", P_BITMAP_EFFECT_COLOR_OVERLAY},
         {"disabled", P_DISABLED},
+        {"dropShadow", P_BITMAP_EFFECT_DROP_SHADOW},
         {"id", P_ID},
         {"ink", P_INK},
+        {"innerGlow", P_BITMAP_EFFECT_INNER_GLOW},
+        {"innerShadow", P_BITMAP_EFFECT_INNER_SHADOW},
         {"label", P_LABEL},
         {"layer", P_LAYER},
         {"layerMode", P_LAYER_MODE},
         {"lockLoc", P_LOCK_LOCATION},
         {"name", P_SHORT_NAME},
+        {"outerGlow", P_BITMAP_EFFECT_OUTER_GLOW},
         {"rect", P_RECTANGLE},
         {"visible", P_VISIBLE},
     };

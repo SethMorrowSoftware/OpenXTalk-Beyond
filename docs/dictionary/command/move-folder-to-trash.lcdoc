@@ -1,0 +1,63 @@
+Name: move folder to trash
+
+Synonyms: move directory to trash
+
+Type: command
+
+Syntax: move folder <pathname> to trash
+
+Summary:
+Moves a <folder>, with everything in it, to the user's Trash or Recycle
+Bin, from which it can be put back.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: desktop
+
+Security: disk
+
+Example:
+move folder "/Users/me/Desktop/old-project" to trash
+
+Example:
+move folder tFolderPath to trash
+if the result is not empty then
+   answer "Could not move the folder to the trash:" && the result
+end if
+
+Parameters:
+pathname:
+Specifies the name and location of the folder. If you specify a name
+but not a location, the engine looks for the folder in the
+<defaultFolder>.
+
+The result:
+Empty when the folder went to the trash. If there is no file or folder
+at <pathname>, the result is "can't find that file". If it cannot go
+to the trash for any other reason (on a phone or a server, where there
+is no trash, or when the system refuses), the result is "can't move to
+trash" and the folder is where it was.
+
+Description:
+Use the <move folder to trash> <command> to remove a folder the way the
+desktop's own file manager does. Unlike <delete folder>, which removes
+only an empty folder and for good, it moves the whole folder, with what
+it holds, to the Trash (on macOS and Linux) or the Recycle Bin (on
+Windows), from which the user can put it back or empty it.
+
+It goes to the trash as <move file to trash> describes. A symbolic link
+to a folder goes to the trash itself, and the folder it points to stays
+where it is.
+
+>*Note:* "trash" is no word of the language: a variable, a control or
+> a custom property called trash means what it always did. This command
+> is new in OXT-Beyond 0.2.8-dp.3, from HyperXTalk, where
+> Emily-Elizabeth Howard wrote it.
+
+References: move file to trash (command), delete folder (command),
+revDeleteFolder (command), show in finder (command),
+defaultFolder (property), folder (keyword), command (glossary)
+
+Tags: file system

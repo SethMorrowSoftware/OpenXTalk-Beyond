@@ -16,8 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
-   say what changed. */
+   Seth Morrow (2026), Tom Perry (2026) and Emily-Elizabeth Howard (2026);
+   its Git history and CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -1493,6 +1493,23 @@ void MCField::SetRtfTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int
 
     setparagraphs(rtftoparagraphs(value), p_part_id, p_start, p_finish);
 
+    state &= ~CS_NO_FILE;
+}
+
+// OXT-Beyond: the markdownText of a chunk, from HyperXTalk (Emily-Elizabeth
+//   Howard, commit 6d114085), called from MCChunk::getsetmarkdowntext
+void MCField::GetMarkdownTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef& r_value)
+{
+    if (exportasmarkdowntext(p_part_id, p_start, p_finish, r_value))
+        return;
+
+    ctxt . Throw();
+}
+
+void MCField::SetMarkdownTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef p_value)
+{
+    state |= CS_NO_FILE;
+    setparagraphs(importmarkdowntext(p_value), p_part_id, p_start, p_finish);
     state &= ~CS_NO_FILE;
 }
 

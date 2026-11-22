@@ -16,8 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
-   say what changed. */
+   Seth Morrow (2026), Tom Perry (2026) and Emily-Elizabeth Howard (2026);
+   its Git history and CHANGELOG.md say what changed. */
 
 #ifndef	COMMANDS_H
 #define	COMMANDS_H
@@ -1126,6 +1126,9 @@ class MCMove : public MCStatement
 	Boolean relative;
 	Boolean messages;
 	Boolean waiting;
+	// OXT-Beyond: "move file|folder <path> to trash": the path, which is
+	// set only for that form (from HyperXTalk #538)
+	MCExpression *trash_path;
 public:
 	MCMove()
 	{
@@ -1133,6 +1136,7 @@ public:
 		startloc = endloc = durationexp = NULL;
 		relative = False;
 		messages = waiting = True;
+		trash_path = NULL;
 	}
 	virtual ~MCMove();
 	virtual Parse_stat parse(MCScriptPoint &);
@@ -1885,6 +1889,9 @@ class MCShow : public MCStatement
 	MCChunk *ton;
 	MCExpression *location;
 	MCVisualEffect *effect;
+	// OXT-Beyond: "show <path> in finder|explorer": ton is the path (from
+	// HyperXTalk #539)
+	bool reveal;
 public:
 	MCShow()
 	{
@@ -1892,6 +1899,7 @@ public:
 		ton = NULL;
 		location = NULL;
 		effect = NULL;
+		reveal = false;
 	}
 	virtual ~MCShow();
 	virtual Parse_stat parse(MCScriptPoint &);

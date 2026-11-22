@@ -1,4 +1,9 @@
 ﻿script "com.livecode.pi.customprops.behavior"
+-- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+-- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+-- Seth Morrow (2026) and Bernd Niggemann (2026); its Git history and
+-- CHANGELOG.md say what changed.
+
 local sPropSet, sHilitePath, sReselect
 
 on editorInitialize
@@ -406,3 +411,13 @@ function arrayKeysAreNumeric pArrayA
    end repeat
    return true
 end arrayKeysAreNumeric
+
+-- OXT-Beyond: a click into a custom property's value leaves the caret
+-- where it lands. revInspectorEditorBehavior's "after openField", which
+-- every editor of the inspector has, selects all of a field's text, and
+-- the next key typed replaced the whole value; this one, empty, keeps that
+-- one from running for this editor only. From HyperXTalk (BerndN, commit
+-- 973afeb0, #601)
+after openfield
+   ## blocks "after openfield" in "revInspectorEditorBehavior"
+end openfield

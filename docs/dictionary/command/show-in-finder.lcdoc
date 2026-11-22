@@ -1,0 +1,71 @@
+Name: show in finder
+
+Synonyms: show in explorer
+
+Type: command
+
+Syntax: show <pathname> in {finder | explorer}
+
+Summary:
+Opens the folder that holds a file or folder in the desktop's file
+manager, with the file or folder selected.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: desktop
+
+Security: disk, process
+
+Example:
+show "/Users/me/Documents/report.pdf" in finder
+
+Example:
+show tExportedFile in explorer
+if the result is not empty then
+   answer "Could not show the file:" && the result
+end if
+
+Parameters:
+pathname:
+The name and location of a file or folder. If you specify a name but
+not a location, the engine looks for it in the <defaultFolder>.
+
+The result:
+Empty when the file manager was asked to show it. If there is no file
+or folder at <pathname>, the result is "file not found". If no file
+manager could be started (on a phone or a server, or on a Linux system
+with none), the result is "can't show that file".
+
+Description:
+Use the <show in finder> <command> to point the user at a file your
+stack wrote, or one they asked about, in the file manager they know.
+
+"finder" and "explorer" are the same command on every system: the
+Finder opens on macOS, File Explorer on Windows, and on Linux the
+desktop's own file manager (asked over D-Bus, as other applications
+ask it, or started with the file selected), or failing that whatever
+opens the folder that holds the file.
+
+It starts another program, so it needs both the disk and the processes
+that the <secureMode> takes away.
+
+The path is never an object's reference: "show button 1 in finder"
+shows the button and stops, as it did before this command came. A
+variable that holds an object's name or long id is read as a path like
+any other, so "show tObject in finder" gives "file not found", where
+earlier versions showed the object and then stopped with an error.
+
+>*Note:* "finder" and "explorer" are no words of the language. A
+> variable, control or custom property with either name means what it
+> always did, and <show> reads them this way only after "in" at the end
+> of the command. This command is new in OXT-Beyond 0.2.8-dp.3, from
+> HyperXTalk, where Emily-Elizabeth Howard wrote it. In earlier versions
+> "show <pathname> in finder" stopped the script with an error.
+
+References: show (command), move file to trash (command),
+launch document (command), defaultFolder (property),
+secureMode (property), command (glossary)
+
+Tags: file system

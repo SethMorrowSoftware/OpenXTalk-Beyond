@@ -14,6 +14,12 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026), Stam Kapetanakis (2026) and
+   Emily-Elizabeth Howard (2026); its Git history and CHANGELOG.md say what
+   changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -243,6 +249,26 @@ bool MCObject::findpropset(MCNameRef p_name, bool p_empty_is_default, MCObjectPr
 	}
 
 	return false;
+}
+
+// OXT-Beyond: whether the object's current custom property set holds a
+// property of this name (the name compared as custom property names are,
+// ignoring case). A widget asks, to keep reading the effect properties it
+// stored as custom properties before it drew them (MCWidget), and so does
+// "the markdownText of <field>", to keep a custom property of that name
+// (MCChunk::getsetmarkdowntext)
+bool MCObject::hascustomprop(MCNameRef p_name)
+{
+	MCObjectPropertySet *t_set;
+	if (!findpropset(kMCEmptyName, true, t_set))
+		return false;
+
+	MCAutoArrayRef t_props;
+	if (!t_set -> fetch(&t_props))
+		return false;
+
+	MCValueRef t_value;
+	return MCArrayFetchValue(*t_props, false, p_name, t_value);
 }
 
 bool MCObject::ensurepropset(MCNameRef p_name, bool p_empty_is_default, MCObjectPropertySet*& r_set)

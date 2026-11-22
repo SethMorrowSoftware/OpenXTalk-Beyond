@@ -2420,6 +2420,39 @@ void MCMacPlatformShowMessageDialog(MCStringRef p_title,
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// OXT-Beyond: "move file <path> to trash" and "show <path> in finder", for
+// MCMacDesktop's MoveToTrash and RevealInFileManager (dskmac.cpp). From
+// HyperXTalk (Emily-Elizabeth Howard, #538 and #539): the Finder's own Move
+// to Trash, which can be put back from the Trash, and its reveal, which
+// opens the folder that holds the file with the file selected
+
+bool MCMacPlatformMoveToTrash(MCStringRef p_path)
+{
+    NSAutoreleasePool *t_pool = [[NSAutoreleasePool alloc] init];
+    NSURL *t_url = [NSURL fileURLWithPath: MCStringConvertToAutoreleasedNSString(p_path)];
+    NSError *t_error = nil;
+    bool t_moved = t_url != nil &&
+        [[NSFileManager defaultManager] trashItemAtURL: t_url resultingItemURL: nil error: &t_error];
+    [t_pool release];
+    return t_moved;
+}
+
+bool MCMacPlatformRevealInFinder(MCStringRef p_path)
+{
+    NSAutoreleasePool *t_pool = [[NSAutoreleasePool alloc] init];
+    NSURL *t_url = [NSURL fileURLWithPath: MCStringConvertToAutoreleasedNSString(p_path)];
+    bool t_shown = false;
+    if (t_url != nil)
+    {
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs: [NSArray arrayWithObject: t_url]];
+        t_shown = true;
+    }
+    [t_pool release];
+    return t_shown;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static void display_reconfiguration_callback(CGDirectDisplayID display, CGDisplayChangeSummaryFlags flags, void *userInfo)
 {
 	// COCOA-TODO: Make this is a little more discerning (only need to reset if

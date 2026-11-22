@@ -111,7 +111,10 @@ class Deciding(unittest.TestCase):
         self.assertNotIn('docs/x.lcdoc', why[0])
 
     def test_nothing_else_runs_anything(self):
-        for path in ('docs/dictionary/command/go.lcdoc', 'ide/Toolset/home.livecodescript',
+        # (not ide/Toolset/home.livecodescript, which a test reads:
+        # tests/lcs/ext/folder-externals)
+        for path in ('docs/dictionary/command/go.lcdoc',
+                     'ide/Toolset/libraries/revinitialisationlibrary.livecodescript',
                      'ide/Toolset/libraries/revbackscriptlibrary.livecodescript',
                      'tools/web-player/ember-bricks/sounds/hit.wav',
                      'tools/ci/web_ide_soak.py', 'README.md', 'changelog/1.md'):

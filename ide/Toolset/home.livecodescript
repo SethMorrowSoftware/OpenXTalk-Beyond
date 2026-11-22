@@ -1,8 +1,9 @@
 ﻿script "home"
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
--- Seth Morrow (2026) and Tom Perry (2023-2026); its Git history and
--- CHANGELOG.md say what changed.
+-- Seth Morrow (2026), Tom Perry (2023-2026), Emily-Elizabeth Howard (2026)
+-- and Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+-- changed.
 
 constant kImportantTextColor = "#FF8B00"
 global tForkName
@@ -1581,6 +1582,14 @@ command revInternal__InstallFileAssociations
          put return & "revWebIDELibrary" after tLoadList
       end if
 
+      -- OXT-Beyond: the script editor's list of completions, from
+      -- HyperXTalk (ideautocompletelibrary), on the desktop. It shows
+      -- nothing until the user turns it on (Edit > Options > Autocomplete
+      -- in the script editor)
+      if not revEnvironmentIsWeb() then
+         put return & "ideAutoCompleteLibrary" after tLoadList
+      end if
+
       if revEnvironmentEditionProperty("autocomplete_pro") then
          put return & "autocomplete-pro" after tLoadList
       end if
@@ -1732,6 +1741,9 @@ command revInternal__InstallFileAssociations
          end repeat
       end if
       
+      -- OXT-Beyond: and the externals in folders of their own
+      put revInternal__FolderExternals(tExtension, tExternals) after tExternals
+      
       set the folder to tOldFolder
       
       filter tExternals with ("*." & tExtension)
@@ -1754,6 +1766,119 @@ command revInternal__InstallFileAssociations
       
       revInternal__Log "Leave", "Externals Setup"
    end revInternal__SetupExternals
+   
+   -- OXT-Beyond: an external may live in a folder of its own, with its docs
+   -- beside it (an api.lcdoc, which the Dictionary already reads:
+   -- ideDocsUserExternalsDocs), as Externals/blur/blur.so or, laid out as
+   -- an extension's code is, Externals/blur/code/x86_64-linux/blur.so (a
+   -- universal-mac folder serves a Mac with none for its processor). Before,
+   -- such a folder was passed over and its external never loaded. Adapted
+   -- from HyperXTalk (Stam Kapetanakis, HyperXTalk #575), with one change:
+   -- only a binary named after its folder is loaded, so a folder of other
+   -- libraries (the browser's CEF folder in the IDE's Externals folder, or
+   -- a folder of the libraries an external needs) is never loaded as
+   -- externals, as it never was. The folders of the IDE's Externals folder
+   -- (the binaries folder when running from source) and of the user's are
+   -- read. A .bundle is a loose external, already in pLoaded, and a name
+   -- pLoaded has already (a loose blur.so beside a folder blur/) is not
+   -- loaded twice. Returns one path per line, each ending in a return.
+   private function revInternal__FolderExternals pExtension, pLoaded
+      local tLoadedA, tParents, tFound, tName, tBinary
+      set the itemDelimiter to slash
+      repeat for each line tPath in pLoaded
+         if tPath is not empty then
+            put true into tLoadedA[item -1 of tPath]
+         end if
+      end repeat
+      
+      if revEnvironmentIsInstalled() then
+         put revEnvironmentExternalsPath() into tParents
+      else
+         put revEnvironmentBinariesPath() into tParents
+      end if
+      put return & revEnvironmentUserExternalsPath() after tParents
+      
+      repeat for each line tParent in tParents
+         if tParent is empty or there is no folder tParent then
+            next repeat
+         end if
+         repeat for each line tFolder in folders(tParent)
+            if tFolder is empty or tFolder begins with "." or \
+                  tFolder ends with ".bundle" then
+               next repeat
+            end if
+            put tFolder & "." & pExtension into tName
+            if tLoadedA[tName] then
+               next repeat
+            end if
+            put revInternal__FolderExternalBinary(tParent & slash & tFolder, tName) \
+                  into tBinary
+            if tBinary is not empty then
+               put tBinary & return after tFound
+               put true into tLoadedA[tName]
+            end if
+         end repeat
+      end repeat
+      return tFound
+   end revInternal__FolderExternals
+   
+   -- The external pName in the folder pFolder, directly or in the code
+   -- folder for this processor and platform, or empty. Names are compared
+   -- without regard to case, on every platform.
+   private function revInternal__FolderExternalBinary pFolder, pName
+      local tBinary, tCodeFolder, tPlatform, tUniversal
+      put revInternal__FolderEntryNamed(pFolder, pName) into tBinary
+      if tBinary is not empty then
+         return tBinary
+      end if
+      
+      put pFolder & "/code" into tCodeFolder
+      if there is no folder tCodeFolder then
+         return empty
+      end if
+      switch the platform
+         case "MacOS"
+            put "mac" into tPlatform
+            break
+         case "Win32"
+            put "win32" into tPlatform
+            break
+         default
+            put toLower(the platform) into tPlatform
+            break
+      end switch
+      
+      set the itemDelimiter to "-"
+      repeat for each line tFolder in folders(tCodeFolder)
+         if item 2 of tFolder is not tPlatform then
+            next repeat
+         end if
+         if item 1 of tFolder is the processor then
+            put revInternal__FolderEntryNamed(tCodeFolder & "/" & tFolder, pName) \
+                  into tBinary
+            if tBinary is not empty then
+               return tBinary
+            end if
+         else if item 1 of tFolder is "universal" and the platform is "MacOS" then
+            put tCodeFolder & "/" & tFolder into tUniversal
+         end if
+      end repeat
+      if tUniversal is not empty then
+         return revInternal__FolderEntryNamed(tUniversal, pName)
+      end if
+      return empty
+   end revInternal__FolderExternalBinary
+   
+   -- The path of the file or folder (a .bundle is a folder) in pFolder
+   -- named pName, or empty
+   private function revInternal__FolderEntryNamed pFolder, pName
+      repeat for each line tEntry in files(pFolder) & return & folders(pFolder)
+         if tEntry is pName then
+            return pFolder & "/" & tEntry
+         end if
+      end repeat
+      return empty
+   end revInternal__FolderEntryNamed
    
    private command revInternal__SetupStackFiles
       revInternal__Log "Enter", "Stack Files Setup"

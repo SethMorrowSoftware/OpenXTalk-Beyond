@@ -1,0 +1,23 @@
+widget com.livecode.lcs_tests.core.engine_lcb.widget_effects
+
+-- OXT-Beyond: a widget for widget-effects.livecodescript. It draws a filled
+-- square, so that an effect has something to draw around, and its module
+-- declares a property named outerGlow of its own, which it keeps: the
+-- engine's outerGlow is not used for a widget whose module has one.
+
+use com.livecode.canvas
+
+private variable mOuterGlow as String
+
+property outerGlow get mOuterGlow set mOuterGlow
+
+public handler OnCreate()
+	put "the module's" into mOuterGlow
+end handler
+
+public handler OnPaint()
+	set the paint of this canvas to solid paint with color [1, 0, 0]
+	fill rectangle path of rectangle [10, 10, 30, 30] on this canvas
+end handler
+
+end widget

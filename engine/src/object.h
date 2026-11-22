@@ -16,8 +16,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
-   CHANGELOG.md say what changed. */
+   Seth Morrow (2026), Emily-Elizabeth Howard (2026) and
+   Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+   changed. */
 
 //
 // Base class for all display objects
@@ -1530,6 +1531,10 @@ public:
 	virtual void SetEffectiveRectangle(MCExecContext& ctxt, MCRectangle p_rect);
 
 	void GetEncoding(MCExecContext& ctxt, intenum_t& r_encoding);
+
+    // OXT-Beyond: whether the current custom property set holds a property
+    // of this name (objectpropsets.cpp)
+    bool hascustomprop(MCNameRef p_name);
 
     void GetCustomKeys(MCExecContext& ctxt, MCStringRef& r_string);
     void SetCustomKeys(MCExecContext& ctxt, MCStringRef p_string);
