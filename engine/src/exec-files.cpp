@@ -16,8 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Tom Perry (2026); its Git history and CHANGELOG.md
-   say what changed. */
+   Seth Morrow (2026), Tom Perry (2026) and Emily-Elizabeth Howard (2026);
+   its Git history and CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -829,6 +829,72 @@ void MCFilesExecDeleteFile(MCExecContext& ctxt, MCStringRef p_target)
 		ctxt . SetTheResultToStaticCString("can't delete that file");
 	else
 		ctxt . SetTheResultToEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// OXT-Beyond: "move file <path> to trash" (or folder): the file or folder
+// goes to the user's trash, from which it can be put back, as the file
+// manager's own command does. The result is empty when it went, "can't
+// find that file" when there is nothing at the path, and "can't move to
+// trash" otherwise (no trash where it is, as on a phone or the server, or
+// the system refused): HyperXTalk's words, so a script that checks them
+// reads the same on both. From HyperXTalk (Emily-Elizabeth Howard, commit
+// 72be0fee, #538)
+void MCFilesExecMoveToTrash(MCExecContext& ctxt, MCStringRef p_target)
+{
+	if (!ctxt . EnsureDiskAccessIsAllowed())
+		return;
+
+	bool t_is_file = MCS_exists(p_target, true);
+	if (!t_is_file && !MCS_exists(p_target, false))
+	{
+		ctxt . SetTheResultToStaticCString("can't find that file");
+		return;
+	}
+
+	// As delete file does: an open file is closed first
+	if (t_is_file)
+	{
+		MCNewAutoNameRef t_target_name;
+		if (!MCNameCreate(p_target, &t_target_name))
+		{
+			ctxt . Throw();
+			return;
+		}
+		IO_closefile(*t_target_name);
+	}
+
+	if (MCS_movetotrash(p_target))
+		ctxt . SetTheResultToEmpty();
+	else
+		ctxt . SetTheResultToStaticCString("can't move to trash");
+}
+
+// OXT-Beyond: "show <path> in finder" (or explorer, the same command on
+// every system): the desktop's file manager opens the folder that holds the
+// file or folder, with it selected. The result is empty when it did, "file
+// not found" when there is nothing at the path (HyperXTalk's words), and
+// "can't show that file" otherwise. It starts the file manager, so it needs both the disk
+// and the processes the secureMode can take away. From HyperXTalk (Emily-
+// Elizabeth Howard, commit fa24a0db, #539)
+void MCFilesExecRevealFile(MCExecContext& ctxt, MCStringRef p_target)
+{
+	if (!ctxt . EnsureDiskAccessIsAllowed())
+		return;
+	if (!ctxt . EnsureProcessIsAllowed())
+		return;
+
+	if (!MCS_exists(p_target, true) && !MCS_exists(p_target, false))
+	{
+		ctxt . SetTheResultToStaticCString("file not found");
+		return;
+	}
+
+	if (MCS_revealfile(p_target))
+		ctxt . SetTheResultToEmpty();
+	else
+		ctxt . SetTheResultToStaticCString("can't show that file");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

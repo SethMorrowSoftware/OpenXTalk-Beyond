@@ -644,6 +644,36 @@ Boolean MCS_unlink(MCStringRef p_path)
 	return MCsystem -> DeleteFile(*t_native_path);
 }
 
+// OXT-Beyond: "move file <path> to trash" and "show <path> in finder"
+// (MCFilesExecMoveToTrash and MCFilesExecRevealFile)
+bool MCS_movetotrash(MCStringRef p_path)
+{
+	MCAutoStringRef t_resolved_path;
+	MCAutoStringRef t_native_path;
+
+	if (!MCS_resolvepath(p_path, &t_resolved_path))
+		return false;
+
+	if (!MCS_pathtonative(*t_resolved_path, &t_native_path))
+		return false;
+
+	return MCsystem -> MoveToTrash(*t_native_path);
+}
+
+bool MCS_revealfile(MCStringRef p_path)
+{
+	MCAutoStringRef t_resolved_path;
+	MCAutoStringRef t_native_path;
+
+	if (!MCS_resolvepath(p_path, &t_resolved_path))
+		return false;
+
+	if (!MCS_pathtonative(*t_resolved_path, &t_native_path))
+		return false;
+
+	return MCsystem -> RevealInFileManager(*t_native_path);
+}
+
 Boolean MCS_backup(MCStringRef p_old_name, MCStringRef p_new_name)
 {
     MCAutoStringRef t_old_resolved, t_new_resolved;

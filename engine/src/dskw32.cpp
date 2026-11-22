@@ -21,6 +21,9 @@
 
 #include "prefix.h"
 #include <AclAPI.h>
+// OXT-Beyond: SHParseDisplayName and SHOpenFolderAndSelectItems, for
+// RevealInFileManager
+#include <shlobj.h>
 
 #ifdef DeleteFile
 #undef DeleteFile
@@ -1844,6 +1847,75 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
 		return DeleteFileW(*t_path_wstr);
     }
 	
+	// OXT-Beyond: "move file <path> to trash" (from HyperXTalk, Emily-
+	// Elizabeth Howard, #538): the file or folder goes to the Recycle Bin,
+	// as Explorer's Delete does. The shell deletes a file for good, with
+	// no Recycle Bin to put it in (a network drive, a USB stick some
+	// Windows versions do not recycle on, one too big for the bin), unless
+	// it is asked to warn first: with FOF_WANTNUKEWARNING it asks the user
+	// before anything is deleted for good, so the command never deletes
+	// for good without the user's say. The path must be a whole one (a
+	// relative path is never recycled), which MCS_resolvepath makes it
+	virtual bool MoveToTrash(MCStringRef p_native_path)
+	{
+		MCAutoStringRefAsWString t_path_wstr;
+		if (!t_path_wstr.Lock(p_native_path))
+			return false;
+
+		// SHFileOperationW takes a list of paths that ends with two NULs
+		size_t t_length = wcslen(*t_path_wstr);
+		MCAutoArray<WCHAR> t_from;
+		if (!t_from.New(t_length + 2))
+			return false;
+		memcpy(t_from.Ptr(), *t_path_wstr, t_length * sizeof(WCHAR));
+		t_from[t_length] = L'\0';
+		t_from[t_length + 1] = L'\0';
+
+		SHFILEOPSTRUCTW t_operation = {};
+		t_operation.wFunc = FO_DELETE;
+		t_operation.pFrom = t_from.Ptr();
+		t_operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_WANTNUKEWARNING |
+			FOF_NOERRORUI | FOF_SILENT;
+		int t_result = SHFileOperationW(&t_operation);
+		return t_result == 0 && !t_operation.fAnyOperationsAborted;
+	}
+
+	// OXT-Beyond: "show <path> in explorer" (or "in finder"; from
+	// HyperXTalk, Emily-Elizabeth Howard, #539): Explorer opens the folder
+	// that holds the file or folder, with it selected
+	virtual bool RevealInFileManager(MCStringRef p_native_path)
+	{
+		MCAutoStringRefAsWString t_path_wstr;
+		if (!t_path_wstr.Lock(p_native_path))
+			return false;
+
+		// The shell wants backslashes
+		size_t t_length = wcslen(*t_path_wstr);
+		MCAutoArray<WCHAR> t_path;
+		if (!t_path.New(t_length + 1))
+			return false;
+		for (size_t i = 0; i < t_length; i++)
+			t_path[i] = (*t_path_wstr)[i] == L'/' ? L'\\' : (*t_path_wstr)[i];
+		t_path[t_length] = L'\0';
+
+		// The engine's thread has COM (OleInitialize, for drag and drop);
+		// this makes sure of it where it might not, and undoes only its own
+		HRESULT t_com = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+
+		bool t_shown = false;
+		PIDLIST_ABSOLUTE t_item = nullptr;
+		SFGAOF t_attributes = 0;
+		if (SUCCEEDED(SHParseDisplayName(t_path.Ptr(), nullptr, &t_item, 0, &t_attributes)))
+		{
+			t_shown = SUCCEEDED(SHOpenFolderAndSelectItems(t_item, 0, nullptr, 0));
+			CoTaskMemFree(t_item);
+		}
+
+		if (SUCCEEDED(t_com))
+			CoUninitialize();
+		return t_shown;
+	}
+
 	virtual Boolean RenameFileOrFolder(MCStringRef p_old_name, MCStringRef p_new_name)
     {
 		MCAutoStringRefAsWString t_old_wstr, t_new_wstr;

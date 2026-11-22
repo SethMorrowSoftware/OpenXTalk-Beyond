@@ -734,6 +734,328 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+//
+//  OXT-Beyond: moving to the trash and revealing in the file manager
+//
+//  "move file <path> to trash" and "show <path> in finder" (MCSystemInterface's
+//  MoveToTrash and RevealInFileManager), from HyperXTalk (Emily-Elizabeth
+//  Howard, #538 and #539). HyperXTalk's Linux versions ran their commands
+//  through the shell with the path in quotes, which a path holding a quote,
+//  a $ or a backquote broke out of; these run each program directly, with
+//  the path as one argument of its own. The trash follows the
+//  freedesktop.org Trash specification when gio is not there to do it.
+//
+
+#include <spawn.h>
+
+extern char **environ;
+
+// Runs the program argv[0] (found on the PATH) with its input and output
+// thrown away. With p_wait it waits for it and answers whether it exited
+// with 0. Without, it leaves it running on its own and answers whether it
+// started: a short-lived "sh -c" in the middle starts it in the background
+// and exits at once, so that the program is not the engine's child and
+// leaves nothing to reap. The program and its arguments go to sh as sh's
+// own arguments ("$@"), never inside the command's text
+static bool MCLinuxRunProgram(const char *const *p_argv, bool p_wait)
+{
+    const char *t_args[16];
+    const char *const *t_argv = p_argv;
+    if (!p_wait)
+    {
+        int t_count = 0;
+        t_args[t_count++] = "sh";
+        t_args[t_count++] = "-c";
+        t_args[t_count++] = "command -v \"$1\" >/dev/null 2>&1 || exit 127; \"$@\" & exit 0";
+        t_args[t_count++] = "sh";
+        for (int i = 0; p_argv[i] != NULL; i++)
+        {
+            if (t_count == 15)
+                return false;
+            t_args[t_count++] = p_argv[i];
+        }
+        t_args[t_count] = NULL;
+        t_argv = t_args;
+    }
+
+    posix_spawn_file_actions_t t_actions;
+    if (posix_spawn_file_actions_init(&t_actions) != 0)
+        return false;
+    posix_spawn_file_actions_addopen(&t_actions, 0, "/dev/null", O_RDONLY, 0);
+    posix_spawn_file_actions_addopen(&t_actions, 1, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&t_actions, 2, "/dev/null", O_WRONLY, 0);
+
+    pid_t t_pid = -1;
+    bool t_ok = posix_spawnp(&t_pid, t_argv[0], &t_actions, NULL,
+                             const_cast<char *const *>(t_argv), environ) == 0;
+    posix_spawn_file_actions_destroy(&t_actions);
+    if (!t_ok)
+        return false;
+
+    // The engine reaps only the processes it started with open process,
+    // each by its own id, so this wait is the only one for this child
+    int t_status = 0;
+    pid_t t_waited;
+    do
+        t_waited = waitpid(t_pid, &t_status, 0);
+    while (t_waited == -1 && errno == EINTR);
+    return t_waited == t_pid && WIFEXITED(t_status) && WEXITSTATUS(t_status) == 0;
+}
+
+// A path as a file: URI's path, or a .trashinfo's Path: every byte but the
+// unreserved ones and "/" written as %XX (RFC 3986)
+static bool MCLinuxPercentEncodePath(const char *p_path, MCAutoArray<char> &r_encoded)
+{
+    static const char s_hex[] = "0123456789ABCDEF";
+    for (const unsigned char *t_byte = (const unsigned char *)p_path; *t_byte != 0; t_byte++)
+    {
+        unsigned char c = *t_byte;
+        bool t_plain = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                       (c >= '0' && c <= '9') || c == '-' || c == '.' ||
+                       c == '_' || c == '~' || c == '/';
+        if (t_plain)
+        {
+            if (!r_encoded.Push((char)c))
+                return false;
+        }
+        else if (!r_encoded.Push('%') ||
+                 !r_encoded.Push(s_hex[c >> 4]) ||
+                 !r_encoded.Push(s_hex[c & 15]))
+            return false;
+    }
+    return r_encoded.Push('\0');
+}
+
+// Makes the folder and any folders above it that are missing, as mkdir -p
+static void MCLinuxMakeFolders(const char *p_path, mode_t p_mode)
+{
+    char t_path[PATH_MAX];
+    size_t t_length = strlen(p_path);
+    if (t_length >= sizeof(t_path))
+        return;
+    memcpy(t_path, p_path, t_length + 1);
+    for (size_t i = 1; i <= t_length; i++)
+        if (t_path[i] == '/' || t_path[i] == '\0')
+        {
+            char t_saved = t_path[i];
+            t_path[i] = '\0';
+            mkdir(t_path, p_mode);
+            t_path[i] = t_saved;
+        }
+}
+
+// The freedesktop.org Trash specification's home trash: the file goes to
+// $XDG_DATA_HOME/Trash/files (or ~/.local/share/Trash/files) under a name no
+// other trashed file has, with a .trashinfo of that name in Trash/info that
+// says where it was and when it went, made first, as the specification
+// asks. Only a file on the same file system as the home trash can go there
+// (rename does not cross file systems); for any other this answers false,
+// and nothing is changed
+static bool MCLinuxMoveToHomeTrash(const char *p_path)
+{
+    char t_trash[PATH_MAX];
+    const char *t_data_home = getenv("XDG_DATA_HOME");
+    if (t_data_home != NULL && t_data_home[0] == '/')
+    {
+        if (snprintf(t_trash, sizeof(t_trash), "%s/Trash", t_data_home) >= (int)sizeof(t_trash))
+            return false;
+    }
+    else
+    {
+        const char *t_home = getenv("HOME");
+        if (t_home == NULL || t_home[0] != '/')
+            return false;
+        if (snprintf(t_trash, sizeof(t_trash), "%s/.local/share/Trash", t_home) >= (int)sizeof(t_trash))
+            return false;
+    }
+
+    char t_files[PATH_MAX], t_info[PATH_MAX];
+    if (snprintf(t_files, sizeof(t_files), "%s/files", t_trash) >= (int)sizeof(t_files) ||
+        snprintf(t_info, sizeof(t_info), "%s/info", t_trash) >= (int)sizeof(t_info))
+        return false;
+    MCLinuxMakeFolders(t_files, 0700);
+    MCLinuxMakeFolders(t_info, 0700);
+
+    // The path, without any "/" at its end, and the name it ends in
+    char t_source[PATH_MAX];
+    size_t t_source_length = strlen(p_path);
+    if (t_source_length == 0 || t_source_length >= sizeof(t_source))
+        return false;
+    memcpy(t_source, p_path, t_source_length + 1);
+    while (t_source_length > 1 && t_source[t_source_length - 1] == '/')
+        t_source[--t_source_length] = '\0';
+    const char *t_name = strrchr(t_source, '/');
+    t_name = t_name != NULL ? t_name + 1 : t_source;
+    if (t_name[0] == '\0')
+        return false;
+
+    MCAutoArray<char> t_encoded;
+    if (!MCLinuxPercentEncodePath(t_source, t_encoded))
+        return false;
+
+    char t_date[32];
+    time_t t_now = time(NULL);
+    struct tm t_local;
+    localtime_r(&t_now, &t_local);
+    strftime(t_date, sizeof(t_date), "%Y-%m-%dT%H:%M:%S", &t_local);
+
+    for (int t_try = 1; t_try < 10000; t_try++)
+    {
+        char t_trashed_name[NAME_MAX + 1];
+        int t_written_length;
+        if (t_try == 1)
+            t_written_length = snprintf(t_trashed_name, sizeof(t_trashed_name), "%s", t_name);
+        else
+            t_written_length = snprintf(t_trashed_name, sizeof(t_trashed_name), "%s.%d", t_name, t_try);
+        if (t_written_length >= (int)sizeof(t_trashed_name) - 10)
+            return false;
+
+        char t_info_file[PATH_MAX], t_destination[PATH_MAX];
+        if (snprintf(t_info_file, sizeof(t_info_file), "%s/%s.trashinfo", t_info, t_trashed_name) >= (int)sizeof(t_info_file) ||
+            snprintf(t_destination, sizeof(t_destination), "%s/%s", t_files, t_trashed_name) >= (int)sizeof(t_destination))
+            return false;
+
+        // The .trashinfo is made first, and only if there is none of that
+        // name: that is what keeps the name for this file
+        int t_fd = open(t_info_file, O_WRONLY | O_CREAT | O_EXCL, 0600);
+        if (t_fd < 0)
+        {
+            if (errno == EEXIST)
+                continue;
+            return false;
+        }
+
+        // A file of that name in Trash/files with no .trashinfo is left as
+        // it is, and another name taken
+        struct stat t_stat;
+        if (lstat(t_destination, &t_stat) == 0)
+        {
+            close(t_fd);
+            unlink(t_info_file);
+            continue;
+        }
+
+        FILE *t_stream = fdopen(t_fd, "w");
+        if (t_stream == NULL)
+        {
+            close(t_fd);
+            unlink(t_info_file);
+            return false;
+        }
+        bool t_written = fprintf(t_stream, "[Trash Info]\nPath=%s\nDeletionDate=%s\n", t_encoded.Ptr(), t_date) > 0;
+        t_written = fclose(t_stream) == 0 && t_written;
+
+        if (!t_written || rename(t_source, t_destination) != 0)
+        {
+            unlink(t_info_file);
+            return false;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool MCLinuxMoveToTrash(MCStringRef p_native_path)
+{
+    MCAutoStringRefAsSysString t_path;
+    if (!t_path.Lock(p_native_path) || (*t_path)[0] != '/')
+        return false;
+
+    // gio, which every desktop that has a trash has, knows the trash of
+    // every disk; when it is not there, or could not do it, the home trash
+    const char *t_gio[] = { "gio", "trash", "--", *t_path, NULL };
+    if (MCLinuxRunProgram(t_gio, true))
+        return true;
+
+    // If gio failed and the file is gone all the same, the home trash has
+    // nothing to take, and where the file went is not known: a failure
+    struct stat t_stat;
+    if (lstat(*t_path, &t_stat) != 0)
+        return false;
+
+    return MCLinuxMoveToHomeTrash(*t_path);
+}
+
+#ifndef _LINUX_SERVER
+static bool MCLinuxRevealInFileManager(MCStringRef p_native_path)
+{
+    MCAutoStringRefAsSysString t_path;
+    if (!t_path.Lock(p_native_path) || (*t_path)[0] != '/')
+        return false;
+
+    const char *t_desktop = getenv("XDG_CURRENT_DESKTOP");
+    if (t_desktop == NULL)
+        t_desktop = "";
+
+    // Cinnamon's Nemo answers the D-Bus call below with an error in some
+    // versions (HyperXTalk found); given a file, it opens its folder with
+    // it selected
+    if (strcasestr(t_desktop, "Cinnamon") != NULL)
+    {
+        const char *t_nemo[] = { "nemo", *t_path, NULL };
+        if (MCLinuxRunProgram(t_nemo, false))
+            return true;
+    }
+
+    // The file managers that can select a file answer
+    // org.freedesktop.FileManager1's ShowItems (Nautilus, Dolphin, Caja,
+    // Thunar, Nemo...), given the file as a file: URI
+    MCAutoArray<char> t_encoded;
+    if (MCLinuxPercentEncodePath(*t_path, t_encoded))
+    {
+        MCAutoArray<char> t_items;
+        const char *t_prefix = "array:string:file://";
+        size_t t_prefix_length = strlen(t_prefix);
+        size_t t_encoded_length = strlen(t_encoded.Ptr());
+        if (t_items.New(t_prefix_length + t_encoded_length + 1))
+        {
+            memcpy(t_items.Ptr(), t_prefix, t_prefix_length);
+            memcpy(t_items.Ptr() + t_prefix_length, t_encoded.Ptr(), t_encoded_length + 1);
+            const char *t_dbus[] = { "dbus-send", "--session", "--print-reply",
+                "--reply-timeout=2000", "--dest=org.freedesktop.FileManager1",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+                t_items.Ptr(), "string:", NULL };
+            if (MCLinuxRunProgram(t_dbus, true))
+                return true;
+        }
+    }
+
+    // The file managers that select a file named on their command line
+    if (strcasestr(t_desktop, "KDE") != NULL)
+    {
+        const char *t_dolphin[] = { "dolphin", "--select", *t_path, NULL };
+        if (MCLinuxRunProgram(t_dolphin, false))
+            return true;
+    }
+    {
+        const char *t_nautilus[] = { "nautilus", "--select", *t_path, NULL };
+        if (MCLinuxRunProgram(t_nautilus, false))
+            return true;
+    }
+
+    // Last, the folder that holds it, opened, with nothing selected
+    char t_parent[PATH_MAX];
+    size_t t_length = strlen(*t_path);
+    if (t_length >= sizeof(t_parent))
+        return false;
+    memcpy(t_parent, *t_path, t_length + 1);
+    while (t_length > 1 && t_parent[t_length - 1] == '/')
+        t_parent[--t_length] = '\0';
+    char *t_slash = strrchr(t_parent, '/');
+    if (t_slash == NULL)
+        return false;
+    if (t_slash == t_parent)
+        t_parent[1] = '\0';
+    else
+        *t_slash = '\0';
+    const char *t_open[] = { "xdg-open", t_parent, NULL };
+    return MCLinuxRunProgram(t_open, false);
+}
+#endif
+
 class MCLinuxDesktop: public MCSystemInterface
 {
 public:
@@ -966,6 +1288,21 @@ public:
         /* UNCHECKED */ t_path.Lock(*t_resolved_path);
         Boolean done = unlink(*t_path) == 0;
         return done;
+    }
+
+    // OXT-Beyond: see MCLinuxMoveToTrash and MCLinuxRevealInFileManager
+    virtual bool MoveToTrash(MCStringRef p_native_path)
+    {
+        return MCLinuxMoveToTrash(p_native_path);
+    }
+
+    virtual bool RevealInFileManager(MCStringRef p_native_path)
+    {
+#ifdef _LINUX_SERVER
+        return false;
+#else
+        return MCLinuxRevealInFileManager(p_native_path);
+#endif
     }
 
     virtual Boolean RenameFileOrFolder(MCStringRef p_old_name, MCStringRef p_new_name)

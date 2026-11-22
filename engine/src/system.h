@@ -500,6 +500,22 @@ struct MCSystemInterface
 	virtual Boolean DeleteFolder(MCStringRef p_path) = 0;
 	
 	virtual Boolean DeleteFile(MCStringRef p_path) = 0;
+
+	// OXT-Beyond: moves the file or folder at a native path to the user's
+	// trash (the Recycle Bin on Windows), as the desktop's file manager
+	// does, and reveals one in the desktop's file manager (the Finder,
+	// Explorer, ...), selected. Both answer whether they did it; where the
+	// system has neither, as on the server and on phones, they do nothing
+	// and answer false. From HyperXTalk (Emily-Elizabeth Howard, #538 and
+	// #539), with OXT-Beyond's own implementations on Linux
+	virtual bool MoveToTrash(MCStringRef p_native_path)
+	{
+		return false;
+	}
+	virtual bool RevealInFileManager(MCStringRef p_native_path)
+	{
+		return false;
+	}
 	
 	virtual Boolean RenameFileOrFolder(MCStringRef p_old_name, MCStringRef p_new_name) = 0;
 	
