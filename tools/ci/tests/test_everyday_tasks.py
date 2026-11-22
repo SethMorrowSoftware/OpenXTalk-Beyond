@@ -1490,8 +1490,9 @@ class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'node runs the watcher against the windows macOS listed')
     def test_the_watcher_reads_what_the_intel_mac_listed(self):
         # The watcher's script run against CGWindowListCopyWindowInfo as it
-        # answered on the Intel Mac runner, and as it would for a dialog
-        # that shows late, never shows, or shows behind another window
+        # answered on the Mac runners (#623's first runs), and as it would
+        # for a dialog that shows late, never shows, or shows behind another
+        # window
         mock = r"""
 const src = require('fs').readFileSync(process.argv[2], 'utf8');
 const W = (n, pid, owner, layer, x, y, w, h, on) => ({ kCGWindowNumber: n, kCGWindowOwnerPID: pid, kCGWindowOwnerName: owner, kCGWindowLayer: layer, kCGWindowBounds: { X: x, Y: y, Width: w, Height: h }, kCGWindowIsOnscreen: on });
@@ -1499,13 +1500,15 @@ const panel = W(9, 1234, 'OXT-Beyond', 8, 560, 156, 800, 448, true);
 const service = W(8, 77, 'Open and Save Panel Service', 0, 100, 532, 800, 448, false);
 const zero = W(7, 1234, 'OXT-Beyond', 0, 0, 0, 0, 0, false);
 const finder = W(5, 55, 'Finder', 0, 0, 0, 1440, 900, true);
-const cases = { 'a palette': [[1, service], [1.25, panel]], 'late': [[1, zero], [3.5, panel]], 'never shown': [[1, zero]],
+const grown = W(7, 1234, 'OXT-Beyond', 8, 112, 84, 800, 448, true);
+const cases = { 'a palette': [[1, service], [1.25, panel]], 'grows': [[1, zero], [1.25, grown]], 'late': [[1, zero], [3.5, panel]], 'never shown': [[1, zero]],
                 'behind': [[1, panel], [1, finder]], 'none': [] };
 const out = {};
 for (const name of Object.keys(cases)) {
   let t = 0, closed = false, file = '';
   const base = [W(1, 1234, 'OXT-Beyond', 0, 100, 100, 400, 300, true), W(3, 99, 'Dock', 20, 0, 0, 1920, 1080, true)];
-  const list = (o) => { let l = closed ? [] : cases[name].filter(a => t >= a[0]).map(a => a[1]).reverse(); l = l.concat(base); return o === 17 ? l.filter(w => w.kCGWindowIsOnscreen) : l; };
+  // (a window listed again later is the same window, changed: the last listing of each number wins)
+  const list = (o) => { const by = new Map(); if (!closed) cases[name].filter(a => t >= a[0]).forEach(a => { by.delete(a[1].kCGWindowNumber); by.set(a[1].kCGWindowNumber, a[1]); }); let l = Array.from(by.values()).reverse().concat(base); return o === 17 ? l.filter(w => w.kCGWindowIsOnscreen) : l; };
   const $ = { CGWindowListCopyWindowInfo: list, CGEventCreateKeyboardEvent: (n, k, d) => ({ k, d }),
               CGEventPost: (p, e) => { if (e.k === 53 && e.d) closed = true; },
               NSString: { alloc: { initWithUTF8String: (s) => ({ writeToFileAtomicallyEncodingError: (p) => { if (p === '/tmp/dialog.txt') file = s; } }) } } };
@@ -1530,6 +1533,12 @@ console.log(JSON.stringify(out));
         self.assertEqual(found['a palette'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 560,156,800,448')
         self.assertIn('Open and Save Panel Service 77 layer 0 at 100,532,800,448 (not on the screen) at 1000 ms', found['a palette'][4])
         self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 1250 ms', found['a palette'][4])
+        # (after a stack on the Apple Silicon Mac: the IDE's new window is
+        # 0 x 0 and off the screen, and a poll later the same window is the
+        # panel, at layer 8 in the middle of the screen)
+        self.assertEqual(found['grows'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['grows'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 112,84,800,448')
+        self.assertEqual(found['grows'][4], 'new windows: OXT-Beyond 1234 layer 0 at 0,0,0,0 (not on the screen) at 1000 ms')
         # (a panel that shows two and a half seconds after the first window)
         self.assertEqual(found['late'][:3], ['opened', 'in front', 'closed'])
         self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 3500 ms', found['late'][4])
