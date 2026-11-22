@@ -43,7 +43,9 @@
 --   * Nothing outside the device: no host but 127.0.0.1, no tracker, no
 --     DHT, no file outside the folder xtalkTestFolder answers. The ports
 --     they listen on are tried upward from a base, so one that is taken
---     is not a failure.
+--     is not a failure. One listener is on every address the device has
+--     (0.0.0.0), the torrent session's: finding those addresses is what
+--     its test is for, and nothing is told its port.
 --   * Nothing waits for ever: every exchange has a deadline (kXtalkWait)
 --     and says which step it was at when the time ran out.
 --   * A comparison of two hex digests goes through xtalkSame: the engine
@@ -54,11 +56,18 @@
 --
 -- tools/ci/tests/test_android_xtalk.py holds this file to those rules as
 -- far as text can: every function of XTALK_TESTS defined here, a deadline
--- in each one that waits, no address but 127.0.0.1. Every function here
--- passed on a desktop engine before it met an emulator: the probe's whole
--- script, as android-check.livecodescript makes it, on OXT-Beyond
--- 0.2.8-dp.2's Linux standalone engine run headless (-ui), with the
--- suite's released x86_64-linux libraries (2026-11-21).
+-- in each one that waits, no address but 127.0.0.1 and the torrent
+-- session's one 0.0.0.0. Every function here passed on a desktop engine
+-- before it met an emulator: the probe's whole script, as
+-- android-check.livecodescript makes it, on OXT-Beyond 0.2.8-dp.2's Linux
+-- standalone engine run headless (-ui), with the suite's released
+-- x86_64-linux libraries (2026-11-21).
+-- xtalkTestTorrent as it is since 2026-11-22 (a session born paused fails,
+-- and it listens on every address) passed the same way, and failed both
+-- ways it should with the calls Android refuses an app refused by a
+-- preloaded library: a session born paused when the netlink socket's bind
+-- is refused, and a session listening on no port when only its listing of
+-- the interfaces is.
 -- xtalkTestAudio, added when audioxt joined, passed the same way on
 -- 0.2.8-dp.1's Linux server engine: the probe's script made by those
 -- functions from audioxt's two records alone, with the library of the
@@ -919,9 +928,10 @@ function xtalkTestDataChannel
    return tAnswer
 end xtalkTestDataChannel
 
--- TorrentXT: a session starts and listens, a torrent is made of a file
--- the app wrote, added, checked and found complete (seeding), and the
--- session stops. Nothing is announced: no tracker, and the DHT is off
+-- TorrentXT: a session starts, is not paused and listens on every address
+-- the device has; a torrent is made of a file the app wrote, added,
+-- checked and found complete (seeding); and the session stops. Nothing is
+-- announced: no tracker, and the DHT is off
 -- One event btPoll answered, in a few words, for a failure to say
 private function xtalkTorrentEvent pEvent
    local tSaid
@@ -942,7 +952,7 @@ end xtalkTorrentIs
 
 function xtalkTestTorrent
    local tSession, tFolder, tContent, tTorrentData, tTorrent, tDeadline, tStatus, tKey, tAnswer, tPort, tHash
-   local tEvent, tSaid, tEvents, tWas, tBornPaused
+   local tEvent, tSaid, tEvents, tWas
    -- RFC 8032's first seed again: the DHT's keys are Ed25519
    put btDhtKeypair("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60") into tKey
    if not xtalkSame(tKey["publicKey"], "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a") then
@@ -966,26 +976,41 @@ function xtalkTestTorrent
       delete folder tFolder
       return "btStartSession:" && it
    end if
-   -- it listens on the loopback alone, on a port the system picks
-   btSetString tSession, "listen_interfaces", "127.0.0.1:0"
+   -- It listens on every address the device has, on a port the system
+   -- picks, and nothing tells anyone that port: no tracker, no DHT, no
+   -- discovery on the local network, no router asked. The address is the
+   -- unspecified one because finding the device's addresses behind it is
+   -- half of what this test is for (below); on the loopback alone a
+   -- library that finds none of them would pass
+   btSetString tSession, "listen_interfaces", "0.0.0.0:0"
    btSetBool tSession, "enable_dht", false
    btSetBool tSession, "enable_lsd", false
    btSetBool tSession, "enable_upnp", false
    btSetBool tSession, "enable_natpmp", false
-   -- A session can be born paused, and a paused session checks nothing and
-   -- seeds nothing. On the Android 13 emulator the torrent of this test
-   -- stayed at "checking its files", progress 0, for the whole wait
-   -- (2026-11-21), beside the system's refusal of a netlink socket to the
-   -- app (avc: denied { bind } ... netlink_route_socket). As read in
-   -- libtorrent 2.0.11: a session starts a watcher of address changes on
-   -- such a socket, Android 11 and later refuse an app that bind, and the
-   -- session answers any error in its own start by pausing itself. So the
-   -- test asks, does what an app has to do today (btSessionResume), and SAYS
-   -- in its answer that it had to: the limit is torrentxt's on Android 11
-   -- and later, it is written in the xTalk Suite's work plan, and once a
-   -- library without it is pinned here a session born paused is a failure
-   put btSessionIsPaused(tSession) into tBornPaused
-   if tBornPaused then get btSessionResume(tSession)
+   -- A session born paused is a failure, and so is one that listens
+   -- nowhere. On the Android 13 emulator the torrent of this test stayed
+   -- at "checking its files", progress 0, for the whole wait (2026-11-21),
+   -- beside the system's refusal of a netlink socket to the app (avc:
+   -- denied { bind } and { nlmsg_readpriv } ... netlink_route_socket). As
+   -- read in libtorrent 2.0.11: built for an Android older than 7.0 (API
+   -- 24) it learns the device's addresses and watches them change over
+   -- such a socket, Android 11 and later refuse an app both, the session
+   -- answers the error in its own start by pausing itself, and a paused
+   -- session checks nothing and seeds nothing; with no addresses found,
+   -- "every address" opens no socket either. Built for API 24 it asks
+   -- getifaddrs() and opens no such socket, and those are the libraries
+   -- pinned here since 2026-11-22 (TorrentXT at fb2debf, the xTalk
+   -- Suite's release run 44914897842). Until then this test resumed the
+   -- session itself, listened on 127.0.0.1 and said in its answer that it
+   -- had to. It resumes nothing now: an app should not have to
+   if btSessionIsPaused(tSession) then
+      btStopSession tSession
+      delete file tFolder & "/content.bin"
+      delete folder tFolder
+      return "btStartSession answered a session that is paused, and a paused session checks and seeds nothing:" && \
+            "on Android 11 and later that is a torrentxt library built for an Android older than 7.0 (API 24)," && \
+            "refused the netlink socket it asks for"
+   end if
    put btAddTorrentFile(tSession, tTorrentData, tFolder) into tTorrent
    put the milliseconds + kXtalkWait into tDeadline
    repeat until the milliseconds > tDeadline or tTorrent <= 0
@@ -1005,28 +1030,34 @@ function xtalkTestTorrent
    end repeat
    put btInfoHash(tTorrent) into tHash
    if tTorrent > 0 and tStatus["isSeeding"] is 1 and tPort > 0 and the number of chars of tHash >= 40 then
-      put "passed: a session listening on port" && tPort & ", a torrent made of a 100000-byte file in the app's folder," && \
+      put "passed: a session not paused at its start and listening on every address on port" && tPort & \
+            ", a torrent made of a 100000-byte file in the app's folder," && \
             "checked and seeding (info hash" && char 1 to 8 of tHash & "...)" into tAnswer
-      if tBornPaused then
-         put "; KNOWN LIMIT: the session started paused and the test had to resume it" after tAnswer
-      end if
    else
       put xtalkTorrentIs(tStatus) into tWas
       replace return with "; " in tEvents
-      -- one more thing a failure can say: whether the torrent only waits to
-      -- be started. An app's btResume starts a paused one
-      if tTorrent > 0 then
-         get btResume(tTorrent)
-         put the milliseconds + 3000 into tDeadline
-         repeat until the milliseconds > tDeadline
-            get btPoll(tSession)
-            wait kXtalkTick milliseconds with messages
-         end repeat
-         put btTorrentStatus(tTorrent) into tStatus
+      if tTorrent > 0 and tStatus["isSeeding"] is 1 and tPort <= 0 then
+         -- checked and seeding, and nobody could reach it: "every address"
+         -- found none, or none could be listened on (the session says
+         -- which, when it says listenFailed)
+         put "the session listens on no port after" && kXtalkWait && "ms, though its torrent of a file in" && tFolder && \
+               "is seeding (handle" && tTorrent & "," && tWas & "; the session said:" && tEvents & "):" && btLastError() into tAnswer
+      else
+         -- one more thing a failure can say: whether the torrent only waits
+         -- to be started. An app's btResume starts a paused one
+         if tTorrent > 0 then
+            get btResume(tTorrent)
+            put the milliseconds + 3000 into tDeadline
+            repeat until the milliseconds > tDeadline
+               get btPoll(tSession)
+               wait kXtalkTick milliseconds with messages
+            end repeat
+            put btTorrentStatus(tTorrent) into tStatus
+         end if
+         put "a torrent of a file in" && tFolder && "is not seeding after" && kXtalkWait && "ms (handle" && tTorrent & \
+               ", port" && tPort & "," && tWas & "; the session said:" && tEvents & \
+               " and 3000 ms after a btResume it is at" && xtalkTorrentIs(tStatus) & "):" && btLastError() into tAnswer
       end if
-      put "a torrent of a file in" && tFolder && "is not seeding after" && kXtalkWait && "ms (handle" && tTorrent & \
-            ", port" && tPort & ", session born paused" && quote & tBornPaused & quote & "," && tWas & "; the session said:" && tEvents & \
-            " and 3000 ms after a btResume it is at" && xtalkTorrentIs(tStatus) & "):" && btLastError() into tAnswer
    end if
    btStopSession tSession
    delete file tFolder & "/content.bin"

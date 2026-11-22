@@ -1152,8 +1152,12 @@ render3dxt from a model read from the app's folder, a sound mixed with
 no device and read back from a WAV file, an Excel workbook written and
 read back cell for cell, a WebP picture saved and read back from a file,
 a QR code read out of a picture, an ENet connection, a WebRTC
-data channel, a torrent session and a curl request, each between two ends
-inside the one app, and a Nostr event signed and verified;
+data channel and a curl request, each between two ends
+inside the one app, a torrent session that must start unpaused, listen
+on every address the device has and seed a file the app wrote (the
+session of a TorrentXT library built for an Android older than 7.0
+starts paused on Android 11 and later, and that is a failure), and a
+Nostr event signed and verified;
 `android_check.py ide --probe xtalk`, `device --xtalk`). `lc-compile` runs in that
 folder with relative paths, because `module.lcm` embeds the source path
 as given; writes the module interface into a temporary folder

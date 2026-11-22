@@ -85,7 +85,7 @@
     {
       "name": "TorrentXT",
       "repository": "SethMorrowSoftware/TorrentXT",
-      "commit": "b644cf5d2e941557d108633bf0ee1e4d0a216e2d",
+      "commit": "fb2debf98529c1f4a944fbfd5445cbb1ff0da590",
       "version": "0.1.0",
       "version_from": {
         "path": "src/torrent.lcb",
@@ -95,17 +95,17 @@
       "files": [
         {"path": "src/torrent.lcb", "role": "source", "sha256": "18c9caf822db5844167db785a2cac5dbb4cd90d814f1487131542690111d8d56", "size": 131262},
         {"path": "examples/torrent-helpers.livecodescript", "role": "source", "sha256": "2111f040a841380867084f65ce82852efcf34141e6e84edd432927808168aafd", "size": 13943},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "71996897f05796934450b996d6392e8fa557d4757bbc7f3a666469d37d700095", "size": 922},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "262b3ab702f0a4e66c50700e34825178b14af5b8971aca42ccc7ae2f7a8549ba", "size": 922},
         {"path": "src/code/x86_64-win32/torrentxt.dll", "role": "library", "sha256": "25878fd15e8b873e29cf4f7fc56bb9e6d9546451fe485d52367e12ac8af490d1", "size": 12140544, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86-win32/torrentxt.dll", "role": "library", "sha256": "bda664531083c9a0b8ed627fef325c04bed2d138a0d1ed044935322b99fa2bf6", "size": 9599488, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86_64-linux/torrentxt.so", "role": "library", "sha256": "66a64519afcc4c257a5ee7583c23b0d541d205ade9e706f0d9ac43cde81cf50f", "size": 12999968},
         {"path": "src/code/x86-linux/torrentxt.so", "role": "library", "sha256": "65c0a7892b4bb056cc85aadaf9b8fc2ba9f60be12b3912a70ff1f92273190254", "size": 6721400},
         {"path": "src/code/arm64-linux/torrentxt.so", "role": "library", "sha256": "a582e8efc8ead9f3ebcafdec5dce111d4d57a497dae0414248c2abfcef845eaf", "size": 11827040},
         {"path": "src/code/universal-mac/torrentxt.dylib", "role": "library", "sha256": "8c4d538692d0c37f08c03d8aed751d59d1ca977782534f70c7fbae32a72c6273", "size": 27096944},
-        {"path": "src/code/arm64-android/torrentxt.so", "role": "library", "sha256": "96b709ea4bce5ccbf3fce1634f539bb4840e51f610c61eb33056b763dc522cbf", "size": 11078360},
-        {"path": "src/code/armv7-android/torrentxt.so", "role": "library", "sha256": "149844cfc9ba0a52ad541471b01411ed7a1fe46dbbc589688e0ea932f9646a1d", "size": 7637088},
-        {"path": "src/code/x86_64-android/torrentxt.so", "role": "library", "sha256": "798b011e84252640a816b61ad79001a7a7aea097c2e5dcc6f69545f06a9e32a0", "size": 11560376},
-        {"path": "src/code/x86-android/torrentxt.so", "role": "library", "sha256": "e597932608e16229147c332c2c25b693ad47f49e78fbf48a6f978097bf2e512d", "size": 10439356},
+        {"path": "src/code/arm64-android/torrentxt.so", "role": "library", "sha256": "5b1305bbde608004aa9bee40a3636a86f987f02144e581863995bccbe6437114", "size": 11052528},
+        {"path": "src/code/armv7-android/torrentxt.so", "role": "library", "sha256": "b2b01656381293c8dfd70a0562e26e0b0bfd23896ec0791654dd4a47789d40a2", "size": 7622696},
+        {"path": "src/code/x86_64-android/torrentxt.so", "role": "library", "sha256": "a90132956156154f2e0f8e5e5a73a18a03a5b3a1a47421c96389e2e159e51cab", "size": 11539624},
+        {"path": "src/code/x86-android/torrentxt.so", "role": "library", "sha256": "04d13fd6bbbea3ea213ca55558a66c372d6cab444e418a9292925407c275eaab", "size": 10217792},
         {"path": "LICENSE", "role": "licence", "sha256": "e5c72da08962da9f2bf47cfb842ccf4177e19755fed2ad4268efecf4ce821f09", "size": 1481},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "3f4dc64338c71d6222238cff54f6b1aeb3e02af9e0b9f086a63ff81bd4c4254c", "size": 11757},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into torrentxt; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}

@@ -604,39 +604,64 @@ class TheTests(unittest.TestCase):
 
     def test_no_host_but_the_loopback(self):
         code = self.code(self.body)
-        self.assertEqual(set(re.findall(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', code)), {'127.0.0.1'})
+        # 0.0.0.0 is no host: it is the one listener on every address the
+        # device has, the torrent session's, whose test is that the
+        # library finds those addresses (the next test). Nothing connects
+        # to it and nothing is told its port
+        self.assertEqual(set(re.findall(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', code)),
+                         {'127.0.0.1', '0.0.0.0'})
+        self.assertEqual([line.strip() for line in code.splitlines() if '0.0.0.0' in line],
+                         ['btSetString tSession, "listen_interfaces", "0.0.0.0:0"'])
         self.assertEqual(set(re.findall(r'[a-z]+://[^" ]*', code)), {'http://127.0.0.1:'})
         # no tracker, no DHT, no discovery on the local network, no port
         # asked of a router
         torrent = self.functions['xtalkTestTorrent']
         for setting in ('enable_dht', 'enable_lsd', 'enable_upnp', 'enable_natpmp'):
             self.assertIn('btSetBool tSession, "%s", false' % setting, torrent)
-        self.assertIn('btSetString tSession, "listen_interfaces", "127.0.0.1:0"', torrent)
+        self.assertIn('btSetString tSession, "listen_interfaces", "0.0.0.0:0"', torrent)
         self.assertIn('btCreateTorrent(tFolder & "/content.bin", 0, 0, empty)', torrent)
         # no ICE server: the two peers find each other on the device
         self.assertEqual(self.functions['xtalkTestDataChannel'].count('dcCreatePeer(empty)'), 2)
 
-    def test_a_session_born_paused_is_said(self):
-        # torrentxt's session is born paused on Android 11 and later (the
-        # tests file says why). The test resumes it, as an app must, and
-        # its answer says that it had to: a pass must not hide the limit,
-        # and a failure says which way the session was born
-        torrent = self.functions['xtalkTestTorrent']
-        asked = torrent.index('put btSessionIsPaused(tSession) into tBornPaused')
-        resumed = torrent.index('if tBornPaused then get btSessionResume(tSession)')
-        added = torrent.index('put btAddTorrentFile(')
-        self.assertLess(asked, resumed)
-        self.assertLess(resumed, added)
-        passed = torrent.index('"passed: ')
-        said = torrent.index('put "; KNOWN LIMIT: the session started paused and the test had to resume it" after tAnswer')
-        self.assertLess(passed, said)
-        self.assertIn('if tBornPaused then', torrent[passed:said])
-        self.assertIn('", session born paused" && quote & tBornPaused & quote', torrent[said:])
+    def test_a_session_born_paused_fails(self):
+        # torrentxt built for an Android older than 7.0 gave a session
+        # born paused, listening nowhere, on Android 11 and later (the
+        # tests file says why). While those libraries were pinned the test
+        # resumed the session, listened on the loopback and said that it
+        # had to; with the libraries built for API 24 pinned it does
+        # neither, so that the old libraries, or the limit come back by
+        # another road, fail it
+        torrent = self.code(self.functions['xtalkTestTorrent'])
+        self.assertNotIn('btSessionResume', torrent)
+        self.assertNotIn('KNOWN LIMIT', self.body)
+        lines = torrent.splitlines()
+        asked = lines.index('   if btSessionIsPaused(tSession) then')
+        closed = lines.index('   end if', asked)
+        added = [i for i, line in enumerate(lines) if 'put btAddTorrentFile(' in line]
+        self.assertEqual(len(added), 1)
+        # asked before a torrent is added, and of the session as it was
+        # born: nothing between its start and the question starts it
+        self.assertLess(closed, added[0])
+        started = [i for i, line in enumerate(lines) if 'btStartSession()' in line][0]
+        for line in lines[started:asked]:
+            self.assertNotRegex(line, r'bt(Session)?(Resume|Pause)\b')
+        # and paused is an answer that does not begin "passed:"
+        block = [line.strip() for line in lines[asked + 1:closed]]
+        returns = [line for line in block if line.startswith('return ')]
+        self.assertEqual(len(returns), 1)
+        self.assertTrue(returns[0].startswith('return "btStartSession answered a session that is paused'), returns[0])
+        # a pass needs a port as well as a seeding torrent, and the
+        # address it listens on is every one (test_no_host_but_the_loopback
+        # holds the setting): on the loopback alone a library that finds
+        # none of the device's addresses passed
+        self.assertIn('if tTorrent > 0 and tStatus["isSeeding"] is 1 and tPort > 0 and', torrent)
+        self.assertIn('if tStatus["isSeeding"] is 1 and tPort > 0 then exit repeat', torrent)
+        self.assertIn('put "the session listens on no port after"', torrent)
         # and what a torrent that never seeds leaves behind: its error, and
         # what the session said while the test waited
         self.assertIn('repeat for each element tEvent in btPoll(tSession)', torrent)
         self.assertIn('pStatus["error"]', self.body)
-        self.assertIn('"; the session said:" && tEvents', torrent)
+        self.assertEqual(torrent.count('"; the session said:" && tEvents'), 2)
 
     def test_files_only_where_the_app_may_write(self):
         code = self.code(self.body)
