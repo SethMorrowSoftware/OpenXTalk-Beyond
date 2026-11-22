@@ -1,2 +1,0 @@
-- Online Dictionary: an address can open it at a word (`dictionary/#put`, or `?entry=put`, with `&type=` and `&api=builder`), for links from the forum; the IDE's own Dictionary is unchanged (#581)
-- Web site: a "Try it in the browser" page for stacks attached to forum posts, which plays them in a boxed copy of the bare player that cannot see the site's or the forum's data (#581)
