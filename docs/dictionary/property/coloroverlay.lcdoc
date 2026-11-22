@@ -9,7 +9,7 @@ Syntax: set the colorOverlay[<propertyName>] of object to <propertyValue>
 Summary:
 Specifies the color overlay to use for an object.
 
-Associations: field, button, graphic, scrollbar, player, image
+Associations: field, button, graphic, scrollbar, player, image, widget
 
 Introduced: 4.0.0
 
@@ -44,6 +44,12 @@ object. This is one of the following values:
 
 colorOverlay["opacity"] : How opaque the overlay is. The value is
 between 0 (fully transparent) and 255 (fully opaque).
+
+>*Note:* Widgets draw this effect too, from OXT-Beyond 0.2.8-dp.3 on. A
+> widget whose own module has a property of this name keeps it, and a
+> widget that already holds a custom property of this name (set by an
+> older version, which kept it but drew nothing) keeps reading and
+> setting that custom property, so older stacks look as they did.
 
 References: innerShadow (property), innerGlow (property),
 dropShadow (property), outerGlow (property), blendLevel (property),
