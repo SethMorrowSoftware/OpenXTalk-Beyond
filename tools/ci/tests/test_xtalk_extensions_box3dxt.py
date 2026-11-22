@@ -135,7 +135,7 @@ class Box3dxtMemberTest(unittest.TestCase):
         e = self.member['extensions'][0]
         self.assertEqual(e['probe'], 'b3LibraryVersion()')
         # What the shim answers: its ABI, then Box3D's own version
-        self.assertRegex('box3dxt ABI 2; Box3D 0.2.0', e['expect'])
+        self.assertRegex('box3dxt ABI 3; Box3D 0.2.0', e['expect'])
         self.assertNotRegex('box3dxt', e['expect'])
 
     def test_its_licence_is_carried(self):
