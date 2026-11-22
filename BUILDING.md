@@ -3038,6 +3038,22 @@ runs. The unit tests of the CI scripts run on Linux on every pull request
 (`ci-checks.yml`), and on Windows and macOS only when something under
 `tools/`, `util/` or `.github/` changes (`ci-checks-other-os.yml`).
 
+Those short jobs, each workflow's "Draft check" (Android engine's "What
+the change needs") and draft-status's "Platform builds status", can run on a
+self-hosted runner on the maintainer's own Linux PC (since 2026-11-21): on
+that day the few-second jobs waited 15 to 66 minutes for one of GitHub's
+machines, and every build of a pull request waited behind them. A job goes
+there only while the repository variable `PC_RUNNERS_LINUX` is `on`, and only
+for a push, a dispatch, or a pull request from a branch of this repository; a
+pull request from a fork, and every other event, runs on GitHub's
+`ubuntu-24.04` as before. No other job names a self-hosted runner.
+`tools/ci/tests/test_pc_runners.py` holds all of this by evaluating each
+`runs-on` the way Actions does. The runner's setup (a service under its own
+account with no sudo, a hard CPU and memory cap, nothing on the screen) is
+the xTalk Suite's `tools/pc-runners/`, described in its
+`docs/PC-RUNNERS.md`. A job sent to the PC waits for it, so before the PC is
+off for long, set the variable to anything but `on`.
+
 The workflow [`.github/workflows/runtimes.yml`](.github/workflows/runtimes.yml)
 ("Runtimes asset") is only started by hand: it makes the runtimes asset
 from the outputs of one Windows and one Linux run, and optionally an
