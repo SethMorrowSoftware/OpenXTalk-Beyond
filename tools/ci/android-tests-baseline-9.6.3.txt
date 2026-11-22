@@ -143,6 +143,8 @@ lcs: core/field/bidi-order: TestTextAfterAClosedIsolate
 lcs: core/field/bidi-order: TestZWNJInAWord
 lcs: core/field/markdownText: TestChunks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestCodeAsItIs  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeBlock  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeBlockFence  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestCodeInEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestCodeWithBackticks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestCustomPropertyRemovedGivesMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
@@ -154,9 +156,11 @@ lcs: core/field/markdownText: TestHandlerThatPasses  # the markdownText of a fie
 lcs: core/field/markdownText: TestHeadingKeepsItsHash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestHeadings  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestLinks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestListItemsLineByLine  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestListNumbersGoOn  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestLists  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestNoHangOrCrash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestOneLineOfCodeIsASpan  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestOwnHandlerReadsTheMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestPlainText  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/markdownText: TestQuoteAndCode  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property

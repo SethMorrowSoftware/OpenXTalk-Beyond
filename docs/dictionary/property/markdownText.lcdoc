@@ -34,8 +34,9 @@ save a field's styled text as Markdown.
 
 Setting the <markdownText> of a field (or a chunk of a field) sets its
 text and the styles that Markdown can say. Each line of the Markdown is
-a line of the field, and a blank line between them is left out. It
-reads:
+a line of the field, and a blank line between them is left out (but
+not inside a block of code between "```" or "~~~" lines, where an empty
+line is an empty line of the field). It reads:
 * headings, "# Heading" to "###### Heading", or text underlined with
   "===" or "---": bold, at the sizes the <HTMLText> gives h1 to h6
 * "**bold**", "*italic*" and "***bold italic***" (or the same with "_")
@@ -54,7 +55,11 @@ Getting the <markdownText> gives the text of the field (or chunk of a
 field) as Markdown, with a blank line between its lines: bold, italic,
 Courier, links, the heading sizes above, lists and indented lines are
 written as Markdown, and other styling (colors, other fonts and sizes) is
-left out, as the <RTFText> leaves out what RTF cannot say. Characters
+left out, as the <RTFText> leaves out what RTF cannot say. The items of
+a list follow one another with no blank line between them. Two or more
+lines in a row that are all in Courier are written as one block of code,
+between "```" lines, with any empty lines among them kept; one such line
+on its own is written between backticks. Characters
 that Markdown would read as markup are written with a backslash before
 them, so a field's plain text comes back as the same text when the
 <markdownText> is set to what it gave. Lines that start with four spaces

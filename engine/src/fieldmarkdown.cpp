@@ -906,7 +906,155 @@ struct export_md_t
     //   of a "." to escape (UINDEX_MAX for none)
     uindex_t para_start;
     uindex_t escape_dot_at;
+
+    // OXT-Beyond: what export_md_scan_paragraphs found for each paragraph
+    //   (nil when it could not run), and which of them this pass is at;
+    //   whether the paragraph being written is a line of a fenced code
+    //   block, and the length of that block's fence; what kind of list
+    //   item the last paragraph written was (0 none, 1 bulleted, 2 numbered)
+    struct export_md_para_t *paras;
+    uindex_t para_count;
+    uindex_t para_index;
+    bool in_code_block;
+    uint32_t fence_len;
+    uint8_t prev_list_kind;
 };
+
+// OXT-Beyond: a first pass over the paragraphs finds the lines of code
+//   that are written as one fenced block: two or more paragraphs in a row
+//   whose every run is in Courier, with any empty paragraphs between them.
+//   HyperXTalk wrote each such paragraph as a code span, with a blank line
+//   between it and the next, so a block of code came back as lines of
+//   inline code, and an empty line inside it was lost (Markdown reads a
+//   blank line as nothing). In a fence, the reader keeps every line as it
+//   is, empty ones too, so the field comes back as it was.
+enum export_md_kind_t
+{
+    kMDParaEmpty,   // no runs (so far)
+    kMDParaCode,    // every run in Courier, no link
+    kMDParaOther,   // anything else, list items and quotes among them
+};
+
+enum export_md_block_t
+{
+    kMDBlockNone,
+    kMDBlockFirst,
+    kMDBlockInside,
+    kMDBlockLast,
+};
+
+struct export_md_para_t
+{
+    uint8_t kind;
+    uint8_t block;
+    // The backticks the paragraph starts with (while ticks_open), and for
+    // the first paragraph of a block, the length of its fence
+    uint32_t ticks;
+    bool ticks_open;
+};
+
+struct export_md_scan_t
+{
+    export_md_para_t *paras;
+    uindex_t count;
+    uindex_t capacity;
+};
+
+static bool export_md_scan_paragraphs(void *p_context,
+                                      MCFieldExportEventType p_event,
+                                      const MCFieldExportEventData& p_data)
+{
+    export_md_scan_t& scan = *(export_md_scan_t *)p_context;
+
+    if (p_event == kMCFieldExportEventBeginParagraph)
+    {
+        if (scan.count == scan.capacity)
+        {
+            uindex_t t_capacity = scan.capacity;
+            if (!MCMemoryResizeArray(t_capacity == 0 ? 16 : t_capacity * 2, scan.paras, t_capacity))
+                return false;
+            scan.capacity = t_capacity;
+        }
+
+        export_md_para_t& t_para = scan.paras[scan.count++];
+        t_para.block = kMDBlockNone;
+        t_para.ticks = 0;
+        t_para.ticks_open = true;
+
+        // A list item (or a paragraph that goes on from one) and a quote
+        // keep their own prefixes: never code
+        const MCFieldParagraphStyle& ps = p_data.paragraph_style;
+        if (p_data.has_paragraph_style &&
+            (ps.has_list_style || (ps.has_left_indent && ps.left_indent > 0)))
+            t_para.kind = kMDParaOther;
+        else
+            t_para.kind = kMDParaEmpty;
+        return true;
+    }
+
+    if ((p_event != kMCFieldExportEventNativeRun &&
+         p_event != kMCFieldExportEventUnicodeRun) || scan.count == 0)
+        return true;
+
+    export_md_para_t& t_para = scan.paras[scan.count - 1];
+    if (t_para.kind == kMDParaOther)
+        return true;
+
+    const MCFieldCharacterStyle& cs = p_data.character_style;
+    if (!p_data.has_character_style || !cs.has_text_font || cs.has_link_text ||
+        !MCNameIsEqualToCaseless(cs.text_font, MCNAME("Courier")))
+    {
+        t_para.kind = kMDParaOther;
+        return true;
+    }
+
+    t_para.kind = kMDParaCode;
+    for (uindex_t i = p_data.m_range.offset; t_para.ticks_open && i < p_data.m_range.offset + p_data.m_range.length; i++)
+    {
+        if (MCStringGetCharAtIndex(p_data.m_text, i) == '`')
+            t_para.ticks++;
+        else
+            t_para.ticks_open = false;
+    }
+    return true;
+}
+
+// Marks the blocks: from a code paragraph to the last code paragraph that
+// follows it with nothing but code and empty paragraphs between. A block's
+// fence is longer than the run of backticks any of its lines starts with,
+// which would otherwise close it, and three at least.
+static void export_md_find_blocks(export_md_scan_t& scan)
+{
+    uindex_t i = 0;
+    while (i < scan.count)
+    {
+        if (scan.paras[i].kind != kMDParaCode)
+        {
+            i++;
+            continue;
+        }
+
+        uindex_t t_last = i;
+        uint32_t t_ticks = scan.paras[i].ticks;
+        for (uindex_t j = i + 1; j < scan.count && scan.paras[j].kind != kMDParaOther; j++)
+            if (scan.paras[j].kind == kMDParaCode)
+            {
+                t_last = j;
+                if (scan.paras[j].ticks > t_ticks)
+                    t_ticks = scan.paras[j].ticks;
+            }
+
+        if (t_last > i)
+        {
+            scan.paras[i].block = kMDBlockFirst;
+            for (uindex_t j = i + 1; j < t_last; j++)
+                scan.paras[j].block = kMDBlockInside;
+            scan.paras[t_last].block = kMDBlockLast;
+            scan.paras[i].ticks = t_ticks + 1 > 3 ? t_ticks + 1 : 3;
+        }
+        i = t_last + 1;
+    }
+}
 
 // Append a C-string literal to the output.
 static void export_md_append(export_md_t& ctxt, const char *p_cstr)
@@ -1093,9 +1241,47 @@ static bool export_md_emit_paragraphs(void *p_context,
 
     if (p_event == kMCFieldExportEventBeginParagraph)
     {
+        uint8_t t_block = kMDBlockNone;
+        uint32_t t_fence = 0;
+        if (ctxt.para_index < ctxt.para_count)
+        {
+            t_block = ctxt.paras[ctxt.para_index].block;
+            t_fence = ctxt.paras[ctxt.para_index].ticks;
+        }
+        ctxt.para_index++;
+
+        // OXT-Beyond: the items of a list follow one another line by line,
+        //   as the field shows them (HyperXTalk put a blank line between
+        //   them, which Markdown shows as a list with space between its
+        //   items). A bulleted list next to a numbered one, and a paragraph
+        //   that goes on from an item (listStyle "skip"), still have a
+        //   blank line before them.
+        uint8_t t_list_kind = 0;
+        if (p_data.has_paragraph_style && p_data.paragraph_style.has_list_style)
+            switch (p_data.paragraph_style.list_style)
+            {
+                case kMCParagraphListStyleSkip:
+                    break;
+                case kMCParagraphListStyleNumeric:
+                case kMCParagraphListStyleLowerCase:
+                case kMCParagraphListStyleUpperCase:
+                case kMCParagraphListStyleLowerRoman:
+                case kMCParagraphListStyleUpperRoman:
+                    t_list_kind = 2;
+                    break;
+                default:
+                    t_list_kind = 1;
+                    break;
+            }
+
         // Separate paragraphs with a blank line (except before the first).
-        if (!ctxt.is_first_para)
+        // OXT-Beyond: and except between two items of one list, and
+        //   between the lines of a block of code
+        if (!ctxt.is_first_para &&
+            t_block != kMDBlockInside && t_block != kMDBlockLast &&
+            !(t_list_kind != 0 && t_list_kind == ctxt.prev_list_kind))
             export_md_append(ctxt, "\n");
+        ctxt.prev_list_kind = t_list_kind;
         ctxt.is_first_para  = false;
         ctxt.bold_open      = false;
         ctxt.italic_open    = false;
@@ -1103,6 +1289,24 @@ static bool export_md_emit_paragraphs(void *p_context,
         ctxt.at_line_start  = true;
         ctxt.para_start     = MCStringGetLength(ctxt.m_text);
         ctxt.escape_dot_at  = UINDEX_MAX;
+
+        // OXT-Beyond: a line of a block of code, written as it is
+        ctxt.in_code_block = t_block != kMDBlockNone;
+        if (ctxt.in_code_block)
+        {
+            if (t_block == kMDBlockFirst)
+            {
+                ctxt.fence_len = t_fence;
+                for (uint32_t i = 0; i < ctxt.fence_len; i++)
+                    MCStringAppendChar(ctxt.m_text, '`');
+                export_md_append(ctxt, "\n");
+            }
+            ctxt.ordered_index = 0;
+            ctxt.para_start = UINDEX_MAX;
+            ctxt.at_line_start = false;
+            // (the last line's fence is written at the end of its paragraph)
+            return true;
+        }
 
         if (!p_data.has_paragraph_style)
             return true;
@@ -1161,10 +1365,28 @@ static bool export_md_emit_paragraphs(void *p_context,
         export_md_close_inline(ctxt);
         export_md_append(ctxt, "\n");
         ctxt.at_line_start = true;
+
+        // OXT-Beyond: the fence after the last line of a block of code
+        if (ctxt.in_code_block &&
+            ctxt.para_index - 1 < ctxt.para_count &&
+            ctxt.paras[ctxt.para_index - 1].block == kMDBlockLast)
+        {
+            for (uint32_t i = 0; i < ctxt.fence_len; i++)
+                MCStringAppendChar(ctxt.m_text, '`');
+            export_md_append(ctxt, "\n");
+            ctxt.in_code_block = false;
+        }
     }
     else if (p_event == kMCFieldExportEventNativeRun ||
              p_event == kMCFieldExportEventUnicodeRun)
     {
+        // OXT-Beyond: in a block of code, the text as it is
+        if (ctxt.in_code_block)
+        {
+            export_md_emit_code_text(ctxt, p_data.m_text, p_data.m_range);
+            return true;
+        }
+
         if (!p_data.has_character_style)
         {
             // Plain run — emit text directly (no inline markers needed).
@@ -1253,8 +1475,25 @@ bool MCField::exportasmarkdowntext(MCParagraph *p_paragraphs,
                        kMCFieldExportParagraphStyles | kMCFieldExportCharacterStyles |
                        kMCFieldExportNumbering;
 
+    // OXT-Beyond: the first pass, which finds the blocks of code (the
+    //   same paragraphs and runs as the second, over the same range); if
+    //   it could not finish, no paragraph is written as a block
+    export_md_scan_t t_scan;
+    memset(&t_scan, 0, sizeof(export_md_scan_t));
+    if (doexport(kMCFieldExportParagraphs | kMCFieldExportRuns |
+                 kMCFieldExportParagraphStyles | kMCFieldExportCharacterStyles,
+                 p_paragraphs, p_start, p_finish,
+                 export_md_scan_paragraphs, &t_scan))
+    {
+        export_md_find_blocks(t_scan);
+        ctxt.paras = t_scan.paras;
+        ctxt.para_count = t_scan.count;
+    }
+
     doexport(t_flags, p_paragraphs, p_start, p_finish,
              export_md_emit_paragraphs, &ctxt);
+
+    MCMemoryDeleteArray(t_scan.paras);
 
     // OXT-Beyond: an immutable copy, as the other exporters give
     return MCStringCopyAndRelease(ctxt.m_text, r_text);

@@ -238,6 +238,61 @@ on TestCodeWithBackticks
    TestAssert "a span closes on a run of its own length", field "md" is "a``b"
 end TestCodeWithBackticks
 
+on TestCodeBlock
+   -- lines of code in a row are one fenced block, with their empty lines,
+   -- so the field comes back as it was (each was a code span, with a blank
+   -- line after it, and the empty line was lost)
+   local tMarkdown
+   put "```" & return & "a *b*" & return & return & "  c" & return & "```" & return into tMarkdown
+   set the markdownText of field "md" to tMarkdown
+   TestAssert "written as the block it was", the markdownText of field "md" is tMarkdown
+   set the markdownText of field "md" to the markdownText of field "md"
+   TestAssert "the same text", field "md" is "a *b*" & return & return & "  c"
+   TestAssert "the code in Courier", the textFont of line 1 of field "md" is "Courier" and the textFont of line 3 of field "md" is "Courier"
+
+   -- lines a script put in Courier, between other text
+   put "Before" & return & "if x then" & return & return & "   put 1" & return & "after" into field "md"
+   set the textFont of line 2 to 4 of field "md" to "Courier"
+   TestAssert "one block between two paragraphs", the markdownText of field "md" is \
+         "Before" & return & return & "```" & return & "if x then" & return & return & "   put 1" & return & "```" & return & return & "after" & return
+   set the markdownText of field "md" to the markdownText of field "md"
+   TestAssert "and back", field "md" is "Before" & return & "if x then" & return & return & "   put 1" & return & "after"
+   TestAssert "Courier again", the textFont of line 4 of field "md" is "Courier" and the textFont of line 5 of field "md" is not "Courier"
+end TestCodeBlock
+
+on TestCodeBlockFence
+   -- the fence is longer than the backticks a line of the code starts with
+   put "```" & return & "````x" into field "md"
+   set the textFont of line 1 to 2 of field "md" to "Courier"
+   TestAssert "five backticks", line 1 of the markdownText of field "md" is "`````"
+   set the markdownText of field "md" to the markdownText of field "md"
+   TestAssert "the same code", field "md" is "```" & return & "````x"
+end TestCodeBlockFence
+
+on TestOneLineOfCodeIsASpan
+   put "put x" & return & "text" into field "md"
+   set the textFont of line 1 of field "md" to "Courier"
+   TestAssert "one line of code stays a code span", line 1 of the markdownText of field "md" is "`put x`"
+   -- an empty line before or after code is not code
+   put "a" & return & return & "b" into field "md"
+   set the textFont of line 1 of field "md" to "Courier"
+   TestAssert "an empty line after one line of code", the markdownText of field "md" is "`a`" & return & return & return & return & "b" & return
+end TestOneLineOfCodeIsASpan
+
+on TestListItemsLineByLine
+   -- the items of a list follow one another line by line, as the field
+   -- shows them (each had a blank line after it, which Markdown shows as
+   -- a list with space between its items)
+   local tMarkdown
+   put "- one" & return & "- two" & return & return & "1. first" & return & "2. second" & return & return & "after" & return into tMarkdown
+   set the markdownText of field "md" to tMarkdown
+   TestAssert "a list's items, line by line", the markdownText of field "md" is tMarkdown
+   set the markdownText of field "md" to the markdownText of field "md"
+   TestAssert "the same text", field "md" is "one" & return & "two" & return & "first" & return & "second" & return & "after"
+   TestAssert "the same lists", the listStyle of line 2 of field "md" is "disc" and the listStyle of line 3 of field "md" is "decimal"
+   TestAssert "and a paragraph after them", the listStyle of line 5 of field "md" is empty
+end TestListItemsLineByLine
+
 on TestEscapes
    set the markdownText of field "md" to "\*not italic\* and 2 \* 3"
    TestAssert "escaped stars are stars", field "md" is "*not italic* and 2 * 3"
