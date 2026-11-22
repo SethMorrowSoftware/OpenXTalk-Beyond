@@ -14,6 +14,11 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -844,6 +849,21 @@ void MCField::GetRtfText(MCExecContext& ctxt, uint32_t part, MCStringRef& r_text
 void MCField::SetRtfText(MCExecContext& ctxt, uint32_t part, MCStringRef p_text)
 {
 	setrtf(part, p_text);
+}
+
+// OXT-Beyond: the markdownText, from HyperXTalk (Emily-Elizabeth Howard,
+//   commit 6d114085), called from MCChunk::getsetmarkdowntext (chunk.cpp)
+void MCField::GetMarkdownText(MCExecContext& ctxt, uint32_t part, MCStringRef& r_text)
+{
+	if (exportasmarkdowntext(part, 0, INT32_MAX, r_text))
+		return;
+
+	ctxt . Throw();
+}
+
+void MCField::SetMarkdownText(MCExecContext& ctxt, uint32_t part, MCStringRef p_text)
+{
+	setmarkdown(part, p_text);
 }
 
 void MCField::GetStyledText(MCExecContext& ctxt, uint32_t part, MCArrayRef& r_array)

@@ -16,7 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -2514,6 +2515,12 @@ bool MCChunk::setprop(MCExecContext& ctxt, Properties which, MCNameRef index, Bo
 
 bool MCChunk::getsetcustomprop(MCExecContext &ctxt, MCNameRef p_prop_name, MCNameRef p_index_name, bool p_is_get_operation, MCExecValue &r_value)
 {
+    // OXT-Beyond: "the markdownText of <field or chunk of a field>", with no
+    //   index and no element chunk (getsetmarkdowntext, below)
+    if (p_index_name == nil && !iselementchunk() &&
+        MCNameIsEqualToCaseless(p_prop_name, MCNAME("markdownText")))
+        return getsetmarkdowntext(ctxt, p_prop_name, p_is_get_operation, r_value);
+
     bool t_success;
     t_success = true;
     
@@ -2555,6 +2562,179 @@ bool MCChunk::getsetcustomprop(MCExecContext &ctxt, MCNameRef p_prop_name, MCNam
     }
     
     return t_success;
+}
+
+// OXT-Beyond: the markdownText of a field, from HyperXTalk (Emily-Elizabeth
+//   Howard, commit 6d114085, #448; the importer and exporter are in
+//   fieldmarkdown.cpp). In HyperXTalk it is a word of the language; here it
+//   is not, so that a script that kept a custom property or a variable of
+//   that name finds it as before. "the markdownText of <object>" is the
+//   field's Markdown when the object is a field that holds no custom
+//   property of that name and uses its default custom property set; for
+//   anything else it is the custom property, as it always was (what
+//   getsetcustomprop does with no index and no element chunk, written out
+//   below because the object is found once, here).
+//
+//   For a whole field, a getProp or setProp markdownText handler is sent
+//   first, as for a custom property, so a handler that kept the value
+//   somewhere of its own still does; only when none handles it (or one
+//   passes it) is the field's text given or set as Markdown. (Before, a
+//   field with no such custom property gave empty, and setting it made
+//   one.) A chunk of a field ("the markdownText of line 2 of field 1") had
+//   no custom property and stopped; it now gives or sets that chunk, as the
+//   htmlText of a chunk does, and sends no message. A field that holds a
+//   custom property "markdownText" keeps it, and a chunk of it stops as
+//   before.
+bool MCChunk::getsetmarkdowntext(MCExecContext& ctxt, MCNameRef p_prop_name, bool p_is_get_operation, MCExecValue& x_value)
+{
+    MCObjectPtr t_target;
+    if (!getobj(ctxt, t_target, True))
+    {
+        MCeerror->add(EE_CHUNK_CANTFINDOBJECT, line, pos);
+        if (!p_is_get_operation)
+            MCExecTypeRelease(x_value);
+        return false;
+    }
+
+    bool t_function = false;
+    if (desttype == DT_FUNCTION && function != F_CLICK_FIELD
+        && function != F_SELECTED_FIELD && function != F_FOUND_FIELD
+        && function != F_MOUSE_CONTROL && function != F_FOCUSED_OBJECT
+        && function != F_SELECTED_IMAGE
+        && function != F_DRAG_SOURCE && function != F_DRAG_DESTINATION)
+        t_function = true;
+    bool t_whole = !t_function && notextchunks();
+
+    MCObject *t_object = t_target . object;
+    if (t_object -> gettype() != CT_FIELD ||
+        !MCNameIsEmpty(t_object -> getdefaultpropsetname()) ||
+        t_object -> hascustomprop(p_prop_name))
+    {
+        // A custom property, as before: of an object (getobjforprop), never
+        // of a chunk
+        if (!t_whole)
+        {
+            MCeerror->add(EE_CHUNK_NOPROP, line, pos);
+            if (!p_is_get_operation)
+                MCExecTypeRelease(x_value);
+            return false;
+        }
+
+        bool t_success;
+        if (p_is_get_operation)
+            t_success = t_object -> getcustomprop(ctxt, t_object -> getdefaultpropsetname(), p_prop_name, nil, x_value);
+        else
+            t_success = t_object -> setcustomprop(ctxt, t_object -> getdefaultpropsetname(), p_prop_name, nil, x_value);
+
+        if (t_success && !p_is_get_operation)
+            t_object -> signallisteners(P_CUSTOM);
+
+        return t_success;
+    }
+
+    MCField *t_field = static_cast<MCField *>(t_object);
+
+    if (t_whole)
+    {
+        // The handler may delete the field
+        MCObjectHandle t_handle(t_object);
+
+        if (p_is_get_operation)
+        {
+            Exec_stat t_stat;
+            t_stat = t_object -> sendgetprop(ctxt, kMCEmptyName, p_prop_name, x_value . valueref_value);
+            if (t_stat == ES_NORMAL)
+            {
+                x_value . type = kMCExecValueTypeValueRef;
+                return true;
+            }
+            if (t_stat != ES_NOT_HANDLED && t_stat != ES_PASS)
+                return false;
+
+            MCAutoStringRef t_text;
+            if (t_handle . IsValid())
+            {
+                t_field -> GetMarkdownText(ctxt, t_target . part_id, &t_text);
+                if (ctxt . HasError())
+                    return false;
+            }
+            x_value . stringref_value = *t_text != nil ? t_text . Take() : MCValueRetain(kMCEmptyString);
+            x_value . type = kMCExecValueTypeStringRef;
+            return true;
+        }
+
+        MCAutoValueRef t_value;
+        MCExecTypeConvertAndReleaseAlways(ctxt, x_value . type, &x_value, kMCExecValueTypeValueRef, &(&t_value));
+        if (ctxt . HasError())
+            return false;
+
+        Exec_stat t_stat;
+        t_stat = t_object -> sendsetprop(ctxt, kMCEmptyName, p_prop_name, *t_value);
+        if (t_stat == ES_NORMAL)
+        {
+            if (t_handle . IsValid())
+                t_object -> signallisteners(P_CUSTOM);
+            return true;
+        }
+        if (t_stat != ES_NOT_HANDLED && t_stat != ES_PASS)
+            return false;
+        if (!t_handle . IsValid())
+            return true;
+
+        // As the field's htmlText takes its value
+        MCExecValue t_copy;
+        t_copy . valueref_value = MCValueRetain(*t_value);
+        t_copy . type = kMCExecValueTypeValueRef;
+        MCAutoStringRef t_text;
+        MCExecTypeConvertAndReleaseAlways(ctxt, t_copy . type, &t_copy, kMCExecValueTypeStringRef, &(&t_text));
+        if (ctxt . HasError())
+            return false;
+
+        t_field -> SetMarkdownText(ctxt, t_target . part_id, *t_text);
+        if (ctxt . HasError())
+            return false;
+
+        t_field -> signallisteners(P_TEXT);
+        return true;
+    }
+
+    // A chunk of the field, as MCChunk::getsetprop finds it for a text
+    // property (a set forces the chunk's delimiters, as it does there)
+    MCAutoStringRef t_text;
+    if (!p_is_get_operation)
+    {
+        MCExecTypeConvertAndReleaseAlways(ctxt, x_value . type, &x_value, kMCExecValueTypeStringRef, &(&t_text));
+        if (ctxt . HasError())
+            return false;
+    }
+
+    MCObjectChunkPtr t_chunk;
+    if (!evalobjectchunkof(ctxt, t_target, false, !p_is_get_operation, t_chunk))
+        return false;
+
+    int32_t t_start, t_finish;
+    t_start = 0;
+    t_finish = INT32_MAX;
+    MCExecResolveCharsOfField(ctxt, t_field, t_chunk . part_id, t_chunk . mark, t_start, t_finish);
+    MCValueRelease(t_chunk . mark . text);
+
+    if (p_is_get_operation)
+    {
+        MCAutoStringRef t_markdown;
+        t_field -> GetMarkdownTextOfCharChunk(ctxt, t_chunk . part_id, t_start, t_finish, &t_markdown);
+        if (ctxt . HasError())
+            return false;
+        x_value . stringref_value = *t_markdown != nil ? t_markdown . Take() : MCValueRetain(kMCEmptyString);
+        x_value . type = kMCExecValueTypeStringRef;
+        return true;
+    }
+
+    t_field -> SetMarkdownTextOfCharChunk(ctxt, t_chunk . part_id, t_start, t_finish, *t_text);
+    if (ctxt . HasError())
+        return false;
+
+    t_field -> signallisteners(P_TEXT);
+    return true;
 }
 
 bool MCChunk::getcustomprop(MCExecContext& ctxt, MCNameRef p_prop_name, MCNameRef p_index_name, MCExecValue& r_value)
@@ -2650,6 +2830,14 @@ bool MCChunk::evalobjectchunk(MCExecContext &ctxt, bool p_whole_chunk, bool p_fo
         return false;
     }
 
+    return evalobjectchunkof(ctxt, t_object, p_whole_chunk, p_force, r_chunk);
+}
+
+// OXT-Beyond: the rest of evalobjectchunk, as it was, for an object already
+//   found (MCChunk::getsetmarkdowntext finds the object first, to ask whether
+//   it is a field, and must not evaluate its reference twice)
+bool MCChunk::evalobjectchunkof(MCExecContext &ctxt, MCObjectPtr t_object, bool p_whole_chunk, bool p_force, MCObjectChunkPtr &r_chunk)
+{
     bool t_function = false;
     if (desttype == DT_FUNCTION && function != F_CLICK_FIELD
         && function != F_SELECTED_FIELD && function != F_FOUND_FIELD

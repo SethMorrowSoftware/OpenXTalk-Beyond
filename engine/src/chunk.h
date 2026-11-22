@@ -14,6 +14,11 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
+
 #ifndef	CHUNK_H
 #define	CHUNK_H
 
@@ -123,6 +128,12 @@ public:
     bool setprop(MCExecContext& ctxt, Properties which, MCNameRef index, Boolean effective, MCExecValue p_value);
     
     bool getsetcustomprop(MCExecContext& ctxt, MCNameRef p_prop_name, MCNameRef p_index_name, bool p_is_get_operation, MCExecValue& r_value);
+    // OXT-Beyond: the markdownText of a field (from HyperXTalk), reached as
+    //   a custom property is (see chunk.cpp)
+    bool getsetmarkdowntext(MCExecContext& ctxt, MCNameRef p_prop_name, bool p_is_get_operation, MCExecValue& x_value);
+    // OXT-Beyond: evalobjectchunk for an object already found, so that the
+    //   object's reference is evaluated once
+    bool evalobjectchunkof(MCExecContext& ctxt, MCObjectPtr p_object, bool p_whole_chunk, bool p_force, MCObjectChunkPtr& r_chunk);
     
     bool getcustomprop(MCExecContext& ctxt, MCNameRef p_prop_name, MCNameRef p_index_name, MCExecValue& r_value);
     bool setcustomprop(MCExecContext& ctxt, MCNameRef p_prop_name, MCNameRef p_index_name, MCExecValue p_value);
