@@ -24,8 +24,8 @@ ask no other host for anything; each has the tags a link preview reads
 is there and small enough for every app that shows one; tools/pages/seo.py
 finds their addresses and adds none; nothing moves without end at rest; the
 site gets the section without its builder, tests and README; git keeps
-every file of it; and the stack checker gives each of its test files the
-verdict it should (with Node, when there is one).
+every file of it; the stack checker passes its tests (with Node, when
+there is one); and its report names the releases the downloads offer.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -318,7 +318,7 @@ class TheSite(unittest.TestCase):
 
 class TheChecker(unittest.TestCase):
 
-    def test_each_test_file_gets_its_verdict(self):
+    def test_it_passes_its_tests(self):
         node = shutil.which('node')
         if not node:
             self.skipTest('no Node to run tools/pages/welcome/tests/run.js')
@@ -326,6 +326,19 @@ class TheChecker(unittest.TestCase):
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         self.assertEqual(run.returncode, 0, run.stdout)
         self.assertIn('All passed', run.stdout)
+
+    def test_its_report_names_the_releases_the_downloads_offer(self):
+        # (the report's first line, pasted into forum posts, names both)
+        with open(os.path.join(WELCOME, 'assets', 'stackcheck.js'), encoding='utf-8') as f:
+            script = f.read()
+        with open(os.path.join(WELCOME, 'index.html'), encoding='utf-8') as f:
+            page = f.read()
+        for name, block in (('STABLE', 'downloads-stable'), ('PREVIEW', 'downloads-preview')):
+            said = re.search(r"\bvar %s = '([^']+)'" % name, script)
+            offered = re.search(r'id="%s".*?<span class="release">v([^<]+)</span>' % block, page, re.S)
+            self.assertTrue(said, name)
+            self.assertTrue(offered, block)
+            self.assertEqual(said.group(1), offered.group(1), name)
 
 
 if __name__ == '__main__':

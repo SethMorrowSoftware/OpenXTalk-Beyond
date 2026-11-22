@@ -29,9 +29,17 @@
      (widget.cpp). A kind OXT-Beyond does not ship still opens: the engine
      draws the widget as a stippled placeholder and saves its state back
      as it was read (widget.cpp, MCWidget::draw and save).
+   - The Standalone Settings: the stack's custom property set
+     cRevStandaloneSettings, read as the engine reads a property set
+     (objectpropsets.cpp; before format 7.0 its array is laid out as
+     foundation-legacy.cpp's MCArrayLoadFromHandleLegacy reads it, and from
+     7.0 as mcio.cpp's IO_read_valueref_new does), for the targets that are
+     ticked. On 2026-11-22 this gave the 0.2.8-dp.1 engine's answer for
+     each of the 26 stacks in OXT-Beyond's repository whose files name the
+     set (formats 2.7, 5.5, 7.0 and 8.1); tests/run.js keeps four of them.
    - The rest is a search of the file's text for the names of calls and
-     libraries (scripts are stored as text), and for the keys of the
-     Standalone Settings. Those are hints, and the report says so.
+     libraries (scripts are stored as text), whatever their case. Those
+     are hints, and the report says so.
 
    Works in a browser (window.StackCheck) and in node (module.exports). */
 (function (root, factory) {
@@ -48,7 +56,8 @@
 
   var CURRENT = 8100;            // the 8.1 format, the newest it reads and the one it saves
   var STABLE = '0.2.7';          // the stable release, 2026-11-10
-  var PREVIEW = '0.2.8-dp.2';    // the developer preview, 2026-11-20
+  var PREVIEW = '0.2.8-dp.2.1';  // the developer preview, 2026-11-21 (both as the front page's downloads)
+  var DP2 = '0.2.8-dp.2';        // the preview Chromium 156 and tsNetCompat came in, 2026-11-20
   var REPO = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond';
   var TSNET_DIFF = 'https://github.com/SethMorrowSoftware/xtalk-suite/blob/main/curlxt/docs/tsnet-compat.md';
 
@@ -66,7 +75,7 @@
   // The widgets an OXT-Beyond package carries: extensions/extensions.gyp
   // (the ones it builds) and ide/Extensions. [name, note or ''].
   var WIDGETS = {
-    'com.livecode.widget.browser': ['Browser', 'On Windows and Linux x86-64 it runs Chromium 156 from ' + PREVIEW + ' (preview), Chromium 74 before; the Mac\'s is unchanged. The 64-bit ARM Linux package has no browser widget.'],
+    'com.livecode.widget.browser': ['Browser', 'On Windows and Linux x86-64 it runs Chromium 156 from ' + DP2 + ' (preview), Chromium 74 before; the Mac\'s is unchanged. The 64-bit ARM Linux package has no browser widget.'],
     'com.livecode.widget.clock': ['Clock', ''],
     'com.livecode.widget.linegraph': ['Line Graph', ''],
     'com.livecode.widget.headerbar': ['Header Bar', ''],
@@ -91,36 +100,74 @@
     'com.livecode.widget.native.ios.button': ['iOS Native Button', 'It is there, but OXT-Beyond does not build for iOS.']
   };
 
-  // Text that says what a script calls. Each: [id, pattern, status, title, detail, link].
-  // status: ok (works), preview (in the preview release), note (works
-  // differently or is missing), info (good to know)
+  // A word in either case, letter by letter, for a pattern whose other
+  // parts keep their case
+  function anyCase(word) {
+    return word.replace(/[A-Za-z]/g, function (c) { return '[' + c.toUpperCase() + c.toLowerCase() + ']'; });
+  }
+
+  // mergExt's calls are merg and a capital (mergAVCamStart). Written in
+  // another case, a word that goes on from merg with e or ing is taken for
+  // English (merged, merging, mergeSort), not a call; mergJSON is built
+  // from source, and has its own entry.
+  function isMergExt(word) {
+    if (/^mergjson/i.test(word)) return false;
+    return /^merg[A-Z]/.test(word) || !/^merg(?:e|ing)/i.test(word);
+  }
+
+  // Text that says what a script calls. Each: [id, pattern, status, title,
+  // detail, link, keep]. The engine finds a handler however its name is
+  // capitalized, so the patterns ignore case, bar the url pattern's t, p,
+  // s, g or k with a capital after it: that is how a variable's name is
+  // usually written, and its case is the clue. keep, where there is one,
+  // says whether a match is a call. status: ok (works), preview (in the
+  // preview release), note (works differently or is missing), info (good
+  // to know)
   var CALLS = [
-    ['tsnet', /\btsNet[A-Z][A-Za-z]+/g, 'preview', 'tsNet calls',
-      'tsNet came only with LiveCode\'s paid editions. From ' + PREVIEW + ' (preview), OXT-Beyond answers the same calls by name (tsNetCompat, over curlxt), with tsNet\'s parameter orders and callbacks. A few details differ; they are listed in curlxt\'s notes.',
+    ['tsnet', /\btsNet[A-Z][A-Za-z]+/gi, 'preview', 'tsNet calls',
+      'tsNet came only with LiveCode\'s paid editions. From ' + DP2 + ' (preview), OXT-Beyond answers the same calls by name (tsNetCompat, over curlxt), with tsNet\'s parameter orders and callbacks. A few details differ; they are listed in curlxt\'s notes.',
       TSNET_DIFF],
-    ['mergjson', /\b(?:JSONToArray|ArrayToJSON)\b/g, 'ok', 'mergJSON (JSONToArray, ArrayToJSON)',
+    ['mergjson', /\b(?:JSONToArray|ArrayToJSON)\b/gi, 'ok', 'mergJSON (JSONToArray, ArrayToJSON)',
       'Built from mergJSON\'s source, so these work as they do in LiveCode (from 0.2.7-rc.6.4, in ' + STABLE + ').', ''],
-    ['json', /\bJSON(?:Import|Export)\b/g, 'ok', 'LiveCode\'s JSON library (JSONImport, JSONExport)',
+    ['json', /\bJSON(?:Import|Export)\b/gi, 'ok', 'LiveCode\'s JSON library (JSONImport, JSONExport)',
       'Comes with OXT-Beyond (com.livecode.library.json).', ''],
-    ['revdb', /\b(?:revOpenDatabase|revdb_connect|revQueryDatabase|revDataFromQuery|revExecuteSQL)\b/g, 'ok', 'Databases (revDB)',
+    ['revdb', /\b(?:revOpenDatabase|revdb_connect|revQueryDatabase|revDataFromQuery|revExecuteSQL)\b/gi, 'ok', 'Databases (revDB)',
       'revDB comes with its SQLite, MySQL, PostgreSQL and ODBC drivers. MySQL connects over TLS 1.2 and 1.3; MySQL 8.4 logins and PostgreSQL\'s SCRAM logins work from 0.2.8-dp.1 (preview).', ''],
-    ['revbrowser', /\brevBrowser[A-Z][A-Za-z]*/g, 'ok', 'revBrowser',
-      'Included. On Windows and Linux x86-64 it runs Chromium 156 from ' + PREVIEW + ' (preview), where ' + STABLE + ' has Chromium 74; the Mac\'s is unchanged. The 64-bit ARM Linux package has no browser.', ''],
-    ['revxml', /\brevXML[A-Z][A-Za-z]*|\brevCreateXMLTree[A-Za-z]*/g, 'ok', 'revXML',
+    ['revbrowser', /\brevBrowser[A-Z][A-Za-z]*/gi, 'ok', 'revBrowser',
+      'Included. On Windows and Linux x86-64 it runs Chromium 156 from ' + DP2 + ' (preview), where ' + STABLE + ' has Chromium 74; the Mac\'s is unchanged. The 64-bit ARM Linux package has no browser.', ''],
+    ['revxml', /\brevXML[A-Z][A-Za-z]*|\brevCreateXMLTree[A-Za-z]*/gi, 'ok', 'revXML',
       'Included, on libxml2 2.15.4 and libxslt 1.1.45, built from source.', ''],
-    ['revzip', /\brevZip[A-Z][A-Za-z]*/g, 'ok', 'revZip',
+    ['revzip', /\brevZip[A-Z][A-Za-z]*/gi, 'ok', 'revZip',
       'Included, on libzip 1.12, built from source.', ''],
-    ['url', /\b(?:put|get|post|load)\b[^\r\n]{0,80}\burl\s*(?:"|\(|[tpsgk][A-Z])|\blibURL[A-Z][A-Za-z]*/g, 'ok', 'The internet library (libURL)',
+    ['url', new RegExp('\\b(?:' + ['put', 'get', 'post', 'load'].map(anyCase).join('|') + ')\\b[^\\r\\n]{0,80}\\b' +
+      anyCase('url') + '\\s*(?:"|\\(|[tpsgk][A-Z])|\\b' + anyCase('libURL') + '[A-Za-z]+', 'g'), 'ok', 'The internet library (libURL)',
       'get url, post, put ... into url and the httpHeaders family behave as before.', ''],
-    ['datagrid', /\bdgProps\b|Data Grid Templates/g, 'ok', 'The Data Grid',
+    ['datagrid', /\bdgProps\b|Data Grid Templates/gi, 'ok', 'The Data Grid',
       'Comes with OXT-Beyond, in the IDE, in standalones and in the Stack Player.', ''],
-    ['mobile', /\bmobile[A-Z][A-Za-z]+/g, 'info', 'mobile... calls',
+    ['mobile', /\bmobile[A-Z][A-Za-z]+/gi, 'info', 'mobile... calls',
       'These work in Android apps, which OXT-Beyond builds (target API 36 and App Bundles, for Google Play). On the desktop they do nothing, as in LiveCode.', ''],
-    ['iphone', /\biphone[A-Z][A-Za-z]+/g, 'note', 'iOS calls (iphone...)',
+    ['iphone', /\biphone[A-Z][A-Za-z]+/gi, 'note', 'iOS calls (iphone...)',
       'OXT-Beyond has no iOS build, so these are only for a stack that also runs on iOS in LiveCode. The rest of the stack is not affected.', ''],
-    ['mergext', /\bmerg(?!JSON)[A-Z][A-Za-z]+/g, 'note', 'mergExt calls',
-      'OXT-Beyond does not ship the mergExt externals (mergJSON aside, which it builds from source), so these calls will not be found. Install the external yourself if its licence lets you.', '']
+    ['mergext', /\bmerg[A-Z][A-Za-z]+/gi, 'note', 'mergExt calls',
+      'OXT-Beyond does not ship the mergExt externals (mergJSON aside, which it builds from source), so these calls will not be found. Install the external yourself if its licence lets you.', '', isMergExt]
   ];
+
+  // The targets of the Standalone Settings: keys of the stack's
+  // cRevStandaloneSettings, true when the target is ticked
+  // (ide-support/revsblibrary.livecodescript, kDesktopTargets and
+  // kAdditionalTargets; MacOSX and MacOSX PowerPC-32 are older stacks' Mac
+  // targets, revsaveasstandalone.livecodescript). The engine compares keys
+  // without regard to case, and stacks hold android and ios as well.
+  var TARGETS = [
+    ['Windows', ['windows', 'windows x86-64']],
+    ['macOS', ['macosx', 'macosx powerpc-32', 'macosx x86-32', 'macosx x86-64', 'macosx x64-arm64']],
+    ['Linux', ['linux', 'linux x64', 'linux armv6-hf', 'linux arm64']],
+    ['Android', ['android']],
+    ['iOS', ['ios']],
+    ['HTML5', ['emscripten']]
+  ];
+  var SETTINGS = 'cRevStandaloneSettings';
+  var OT_CUSTOM = 24;            // filedefs.h: the byte before a custom property set
   // Widget kinds are names, which the engine compares without regard to case
   var WIDGETS_LC = {};
   Object.keys(WIDGETS).forEach(function (id) { WIDGETS_LC[id.toLowerCase()] = WIDGETS[id]; });
@@ -311,18 +358,24 @@
     var out = [];
     CALLS.forEach(function (c) {
       c[1].lastIndex = 0;
-      var names = {};
+      var names = {};    // a name in lower case: [the first way it is written, how many]
       var total = 0;
       var m;
       while ((m = c[1].exec(text)) !== null) {
-        total++;
         var word = m[0].replace(/\s+/g, ' ');
+        if (c[6] && !c[6](word)) continue;
+        total++;
         if (c[0] === 'url') word = /url/i.test(word) ? 'url' : word;
-        if (word.length < 40) names[word] = (names[word] || 0) + 1;
+        var key = word.toLowerCase();
+        if (word.length < 40) {
+          if (!names[key]) names[key] = [word, 0];
+          names[key][1]++;
+        }
         if (total > 5000) break;
       }
       if (total > 0) {
-        var list = Object.keys(names).sort(function (a, b2) { return names[b2] - names[a]; }).slice(0, 6);
+        var list = Object.keys(names).sort(function (a, b2) { return names[b2][1] - names[a][1]; }).slice(0, 6)
+          .map(function (key) { return names[key][0]; });
         out.push({ id: c[0], status: c[2], title: c[3], detail: c[4], link: c[5], names: c[0] === 'url' || c[0] === 'datagrid' ? [] : list, count: total });
       }
     });
@@ -337,19 +390,122 @@
     return Object.keys(seen).slice(0, 12);
   }
 
-  function findPlatforms(text) {
-    var keys = [
-      ['Windows', /\bWindows,(?:iconFile|productversion|fileversion|companyname|productname)/],
-      ['macOS', /\bMacOSX(?: x86-32| x86-64|,|\b)/],
-      ['Linux', /\bLinux(?: x64| ARMv6-HF|,)/],
-      ['Android', /\bandroid,(?:identifier|label|version|minimum version|target sdk|engine|app bundle)/],
-      ['iOS', /\bios,(?:bundle id|display name|device family|profile|minimum version|initial orientation)/],
-      ['HTML5', /\bemscripten,|"emscripten"/]
-    ];
-    var out = [];
-    if (!/cRevStandaloneSettings/.test(text)) return out;
-    keys.forEach(function (k) { if (k[1].test(text)) out.push(k[0]); });
-    return out;
+  // A length as IO_read_uint2or4 reads it (mcio.cpp)
+  function len2or4(b, p) {
+    var n = u16(b, p);
+    if (n & 0x8000) return { n: (n & 0x7fff) + u16(b, p + 2) * 32768, at: p + 4 };
+    return { n: n, at: p + 2 };
+  }
+
+  // One value as IO_read_valueref_new reads it (mcio.cpp, from format
+  // 7.0): a tag, then what it holds. Returns where the next thing starts
+  // and, for a boolean or a short name or string, its text. Throws at
+  // anything it cannot read.
+  function readValue(b, p, depth) {
+    if (p >= b.length || depth > 32) throw new Error('value');
+    var q = p + 1;
+    var n, i, s;
+    switch (b[p]) {
+      case 0: case 5: case 7: case 9: case 11: case 14:   // nothing, an empty name, string, data, array or list
+        return { end: q, text: '' };
+      case 1: return { end: q, text: 'false' };
+      case 2: return { end: q, text: 'true' };
+      case 3: return { end: q + 4, text: '' };            // an integer
+      case 4: return { end: q + 8, text: '' };            // a real
+      case 6: case 8:                                      // a name or a string, in UTF-8
+        s = len2or4(b, q);
+        return { end: s.at + s.n, text: s.n <= 16 ? utf8Text(b, s.at, s.at + s.n) : '' };
+      case 10:                                             // data
+        return { end: q + 4 + u32(b, q), text: '' };
+      case 12: case 15:                                    // a sequence or a list: its values
+        n = u32(b, q);
+        q += 4;
+        for (i = 0; i < n; i++) q = readValue(b, q, depth + 1).end;
+        return { end: q, text: '' };
+      case 13:                                             // an array: keys and values
+        n = u32(b, q);
+        q += 4;
+        for (i = 0; i < n; i++) {
+          s = len2or4(b, q);
+          q = readValue(b, s.at + s.n, depth + 1).end;
+        }
+        return { end: q, text: '' };
+    }
+    throw new Error('value');
+  }
+
+  // A property set's array from format 7.0: a value, as above, whose keys
+  // are a uint2or4 length and UTF-8. {key in lower case: text}, or null.
+  function readSet(b, p) {
+    var out = {};
+    if (b[p] === 11) return out;                          // an empty array
+    if (b[p] !== 13) return null;
+    var n = u32(b, p + 1);
+    var q = p + 5;
+    for (var i = 0; i < n; i++) {
+      var k = len2or4(b, q);
+      var v = readValue(b, k.at + k.n, 1);
+      out[utf8Text(b, k.at, k.at + k.n).toLowerCase()] = v.text;
+      q = v.end;
+    }
+    return q <= b.length ? out : null;
+  }
+
+  // A property set's array before format 7.0, as MCArrayLoadFromHandleLegacy
+  // reads it (foundation-legacy.cpp): a uint4 count whose top bits say the
+  // set is encrypted or its values have 4-byte lengths, then for each
+  // element a key (a uint1 length, its text and a zero) and a value (a
+  // uint2 or uint4 length and its text). {key in lower case: text}, or null.
+  function readSetLegacy(b, p) {
+    var out = {};
+    var n = u32(b, p);
+    if (n >= 0x80000000) return null;                     // encrypted
+    var large = n >= 0x40000000;
+    if (large) n -= 0x40000000;
+    var q = p + 4;
+    for (var i = 0; i < n; i++) {
+      if (q >= b.length) return null;
+      var kl = b[q];
+      var key = kl ? ascii(b, q + 1, q + kl) : '';
+      q += 1 + kl;
+      var vl = large ? u32(b, q) : u16(b, q);
+      q += large ? 4 : 2;
+      out[key.toLowerCase()] = vl <= 16 ? ascii(b, q, q + vl) : '';
+      q += vl;
+    }
+    return q <= b.length ? out : null;
+  }
+
+  // The targets the Standalone Settings have ticked, or none when there
+  // are no settings or they cannot be read. A property set is the byte
+  // OT_CUSTOM, its name (before format 7.0 a uint2 length and a zero after
+  // it, from 7.0 a uint2or4 length) and its array (objectpropsets.cpp,
+  // MCObject::savepropsets). A stack writes its own property sets before
+  // its cards, controls and substacks (stack3.cpp, MCStack::save_stack),
+  // so the first set of this name that reads is the stack's.
+  function findPlatforms(b, text, version) {
+    var re = new RegExp(SETTINGS, 'gi');
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      var at = m.index;
+      var end = at + SETTINGS.length;
+      if (at < 3 || b[at - 3] !== OT_CUSTOM) continue;
+      var set = null;
+      try {
+        if (version < 7000) {
+          if (u16(b, at - 2) === SETTINGS.length + 1 && b[end] === 0) set = readSetLegacy(b, end + 1);
+        } else if (u16(b, at - 2) === SETTINGS.length) {
+          set = readSet(b, end);
+        }
+      } catch (e) {
+        set = null;
+      }
+      if (!set) continue;
+      return TARGETS.filter(function (t) {
+        return t[1].some(function (key) { return /^true$/i.test(set[key] || ''); });
+      }).map(function (t) { return t[0]; });
+    }
+    return [];
   }
 
   function findHandlers(text) {
@@ -442,12 +598,13 @@
     }
     findCalls(text).forEach(function (f) { r.findings.push(f); });
     r.libraries = findLibraries(text);
-    r.platforms = findPlatforms(text);
+    // (a script-only stack has no property sets)
+    r.platforms = r.kind === 'binary' ? findPlatforms(b, text, r.format.version) : [];
     if (r.platforms.indexOf('iOS') >= 0) {
       r.findings.push({
         status: 'note',
-        title: 'Standalone Settings for iOS',
-        detail: 'OXT-Beyond has no iOS build. It keeps these settings, and builds the stack for its other platforms.'
+        title: 'Set up to build for iOS',
+        detail: 'OXT-Beyond has no iOS build. It keeps the iOS settings, and builds the stack for its other platforms.'
       });
     }
     r.handlers = findHandlers(text);
@@ -725,7 +882,7 @@
     if (r.widgets && r.widgets.length) {
       lines.push('Widgets: ' + r.widgets.map(function (w) { return w.id + (w.shipped ? '' : ' [not in OXT-Beyond]'); }).join(', '));
     }
-    if (r.platforms && r.platforms.length) lines.push('Standalone Settings for: ' + r.platforms.join(', '));
+    if (r.platforms && r.platforms.length) lines.push('Set up to build for: ' + r.platforms.join(', '));
     if (r.handlers && r.handlers.count) lines.push('Handlers found in its scripts: about ' + r.handlers.count);
     if (r.libraries && r.libraries.length) lines.push('Starts using: ' + r.libraries.join(', '));
     r.findings.forEach(function (f) {

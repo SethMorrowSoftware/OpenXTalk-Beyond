@@ -63,7 +63,8 @@ folder is in its place in `tools/pages`.
 - `assets/stackcheck.js`: the stack reader. It reads a file's bytes the
   way the engine's loader does and stops before anything could run. The
   comments at its top name the engine source each part follows
-  (`stack3.cpp`, `object.cpp`, `widget.cpp` and others).
+  (`stack3.cpp`, `object.cpp`, `widget.cpp`, `objectpropsets.cpp` and
+  others).
   `assets/check-ui.js` draws its reports, and `assets/sample-stacks.js`
   holds LiveCode Community's Book Library and Balls sample stacks
   (GPLv3) for its Try buttons.
@@ -104,9 +105,12 @@ are what `src/build.py` writes; every file they name is there; they ask
 no other host for anything; each has its link-preview tags, naming its
 address and a picture of the right size that is there; `seo.py` adds
 nothing to them; nothing moves without end at rest; the site gets the
-pages without the tools; git keeps every file of the section; and, with
-Node, the checker gives each file in `tests/files` and both samples the
-verdict it should:
+pages without the tools; git keeps every file of the section; the
+checker's report names the releases the downloads offer; and, with Node,
+the checker gives each file in `tests/files` and both samples the verdict
+it should, reads the platforms ticked in their Standalone Settings as
+OXT-Beyond's engine does, and finds a script's calls however they are
+capitalized, without taking English words for them:
 
 ```sh
 node tools/pages/welcome/tests/run.js                 # every test file
@@ -130,7 +134,9 @@ or its date. With each release:
 1. **Downloads.** The front page's Downloads link the files of v0.2.7
    (stable) and v0.2.8-dp.2.1 (preview), with their sizes as GitHub's
    release page gives them (MB and GB of 1,024). Point both at
-   the new releases, and keep offering both.
+   the new releases, and keep offering both. The checker's report names
+   them too (`STABLE` and `PREVIEW` in `assets/stackcheck.js`, which a
+   test holds to the downloads).
 2. **Where everything stands.** The guide's board is the one list to move
    a feature along as it changes (Preview to Ready when 0.2.8 is stable,
    for instance), with the release named on each.
