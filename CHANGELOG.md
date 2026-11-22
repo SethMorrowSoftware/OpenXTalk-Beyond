@@ -113,6 +113,7 @@ words, is in the [README](README.md#the-ide) and on the
 - Web engines: a library's C++ inline and template code stays global when its other symbols are made local, so barcodext, the first C++ library linked in, no longer traps in the browser; render3dxt is registered beside box3dxt, as the other lists name it (#620)
 - CI: the Android xTalk Suite app's functional tests take audioxt, xlsxt, render3dxt, webpxt and barcodext too (#620)
 - Version 0.2.8-dp.2.1 (#620)
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.8-dp.2.1's engine, with the Android runtime's Java layer and OXT-Beyond's own Android engine built from the same source: the asset `oxt-runtimes-0.2.8-dp.2.1` replaces `oxt-runtimes-0.2.8-dp.2`
 
 ## 0.2.8-dp.2 (2026-11-20, pre-release)
 
