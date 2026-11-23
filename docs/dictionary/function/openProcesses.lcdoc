@@ -8,7 +8,8 @@ Syntax: openProcesses()
 
 Summary:
 <return|Returns> the names of <process|processes> that have been opened
-with the <open process> <command>, but have not yet <exit|exited>.
+with the <open process> <command>, and have not <exit|exited> or not yet
+been closed.
 
 Introduced: 1.0
 
@@ -40,7 +41,17 @@ opened.
 Programs that were not started by OpenXTalk are not included in the list
 returned by the <openProcesses> <function>.
 
-References: open process (command), kill (command),
+A <process> opened for write, or for neither, leaves the list as soon as
+it exits. On Linux and macOS, one opened for read or for update stays in
+the list after it exits, until a <close process> closes it, so that the
+output it left behind can still be read; its ID in the <openProcessIDs>
+is then 0. To have it leave the list by itself once its output has been
+read to the end, set the <closeEndedProcesses> to true. (On Windows it
+leaves the list by itself once it has exited and its output has been
+read.)
+
+References: closeEndedProcesses (property), openProcessIDs (function),
+open process (command), kill (command),
 read from process (command), function (control structure),
 exit (glossary), command (glossary), return (glossary),
 process (glossary), there is no (operator)

@@ -285,6 +285,8 @@ extern Boolean MChidewindows;
 extern Boolean MCusesystemwindowcolor;
 // OXT-Beyond: the useDesktopAppearance (Linux: lnxdc.cpp)
 extern Boolean MCusedesktopappearance;
+// OXT-Beyond: the closeEndedProcesses (see IO_cleanprocesses in mcio.cpp)
+extern bool MCcloseendedprocesses;
 extern Boolean MCbufferimages;
 extern MCStringRef MCserialcontrolsettings;
 extern MCStringRef MCshellcmd;

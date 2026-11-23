@@ -46,6 +46,16 @@ opened.
 Programs that were not started by OpenXTalk are not included in the list
 returned by the <openProcessIDs> <function>.
 
-References: launch (command), kill (command), open process (command),
+The ID of a <process> that has exited is 0. A <process> opened for
+write, or for neither, leaves the list as soon as it exits. On Linux and
+macOS, one opened for read or for update stays in the list, with the ID
+0, until a <close process> closes it, so that the output it left behind
+can still be read. To have it leave the list by itself once its output
+has been read to the end, set the <closeEndedProcesses> to true. (On
+Windows it leaves the list by itself once it has exited and its output
+has been read.)
+
+References: closeEndedProcesses (property), openProcesses (function),
+launch (command), kill (command), open process (command),
 function (control structure), exit (glossary), integer (glossary),
 command (glossary), return (glossary), process (glossary), line (keyword)

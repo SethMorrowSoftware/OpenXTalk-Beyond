@@ -1,0 +1,65 @@
+Name: closeEndedProcesses
+
+Type: property
+
+Syntax: set the closeEndedProcesses to {true | false}
+
+Syntax: get the closeEndedProcesses
+
+Summary:
+Specifies whether a <process> opened for reading that has ended leaves
+the <openProcesses> once its output has been read to the end.
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux
+
+Platforms: desktop, server
+
+Example:
+set the closeEndedProcesses to true
+
+Example:
+set the closeEndedProcesses to true
+open process "/usr/bin/whoami" for read
+read from process "/usr/bin/whoami" until EOF
+put it into tUser
+-- the process has ended and its output is read: it is no longer
+-- among the openProcesses, and needs no close process
+
+Value (bool):
+The <closeEndedProcesses> is true or false. By default, it is false.
+
+Description:
+Use the <closeEndedProcesses> property to have a <process> that has
+finished leave the <openProcesses> and the <openProcessIDs> by itself,
+without a <close process>.
+
+A <process> opened with the <open process> <command> for write, or for
+neither, leaves the <openProcesses> as soon as it exits. One opened for
+read or for update stays there after it exits, so that the output it
+left behind can still be read; its ID in the <openProcessIDs> is then 0.
+By default it stays until a <close process> closes it, even after its
+output has been read to the end, as it has since LiveCode 7. Scripts
+may rely on that: an ID of 0 says that the <process> has exited.
+
+On Windows a <process> opened for read or update has always left the
+list by itself once it has exited and its output has been read, so the
+<closeEndedProcesses> changes nothing there: setting it makes Linux and
+macOS behave as Windows does.
+
+When the <closeEndedProcesses> is true, such a <process> leaves the
+<openProcesses> and the <openProcessIDs> once it has exited and a
+<read from process> has taken its output to the end (the <result> is
+"eof"). Until then it stays, with its ID 0, so that no output is lost.
+A <process> that is still running stays, whatever a read gives. A
+<close process> of a <process> that has left the list does nothing, and
+the <result> is "process is not open".
+
+The <closeEndedProcesses> is not saved anywhere: a <stack> that wants
+it sets it each time it runs.
+
+References: openProcesses (function), openProcessIDs (function),
+open process (command), read from process (command),
+close process (command), kill (command), result (function),
+process (glossary)

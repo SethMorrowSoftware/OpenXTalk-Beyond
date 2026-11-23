@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 //
 // Structures used for reading/writing
 //
@@ -117,6 +121,11 @@ typedef struct _Streamnode
 	MCMacProcessSerialNumber sn;
 #endif
     int4 retcode;
+	// OXT-Beyond: true once a read from this process, after it ended, has
+	// come to the end of its output (the result "eof"). With the
+	// closeEndedProcesses set, IO_cleanprocesses then drops it. Every place
+	// that adds a process to MCprocesses sets it to false.
+	bool read_to_end;
 }
 Streamnode;
 

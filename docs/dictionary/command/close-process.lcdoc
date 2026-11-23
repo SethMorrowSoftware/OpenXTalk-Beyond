@@ -33,10 +33,17 @@ On desktop systems, <close process> tells a
 <process|process's> <standard input> to end running. The <process> then finishes
 processing whatever data remains, and then exits.
 
-Once opened a <process> may remain in the openProcesses list but its ID number
-in the the openProcessIDs list will be 0 (zero) if the process is not actually
-running. If a process was opened with the access mode neither, it exits
-automatically when it finishes running, and does not need to be closed.
+On Linux and macOS, a <process> opened for read or for update stays in
+the <openProcesses> after it exits, until <close process> closes it, so that the output it
+left behind can still be read; its ID in the <openProcessIDs> is then 0
+(zero). If a process was opened with the access mode neither, or for
+write, it leaves the list by itself when it finishes running, and does
+not need to be closed. When the <closeEndedProcesses> is true, one
+opened for read or for update leaves the list by itself too, once it has
+exited and its output has been read to the end; a <close process> of it
+after that does nothing, and the <result> is "process is not open". On
+Windows such a process has always left the list by itself once it has
+exited and its output has been read.
 
 You can use the <kill> <command> instead to quit a process.
 
@@ -57,5 +64,6 @@ exiting:
 
 References: wait (command), kill (command), read from process (command),
 quit (command), open process (command), exit (control structure),
-openProcesses (function), command (glossary), standard input (glossary),
+openProcesses (function), openProcessIDs (function),
+closeEndedProcesses (property), command (glossary), standard input (glossary),
 Mac OS (glossary), process (glossary)

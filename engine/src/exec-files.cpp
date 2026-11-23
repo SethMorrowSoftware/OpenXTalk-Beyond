@@ -2248,6 +2248,21 @@ void MCFilesExecReadFromProcess(MCExecContext& ctxt, MCNameRef p_process, MCStri
 		break;
 	}
 
+	// OXT-Beyond: a read that ended at the end of an ended process's output
+	// is noted, for the closeEndedProcesses (IO_cleanprocesses). The process
+	// is found again by its stream: a script's messages may have run while
+	// the read waited, and moved it in the list or closed it.
+	if (t_stat == IO_EOF && t_stream != NULL)
+	{
+		for (uindex_t i = 0; i < MCnprocesses; i++)
+			if (MCprocesses[i].ihandle == t_stream)
+			{
+				if (MCprocesses[i].pid == 0)
+					MCprocesses[i].read_to_end = true;
+				break;
+			}
+	}
+
     MCFilesReadComplete(ctxt, *t_output, t_stat, t_encoding != kMCFileEncodingBinary);
 }
 
@@ -2795,6 +2810,21 @@ void MCFilesGetHideConsoleWindows(MCExecContext& ctxt, bool& r_value)
 void MCFilesSetHideConsoleWindows(MCExecContext& ctxt, bool p_value)
 {
 	MChidewindows = p_value ? True : False;
+}
+
+// OXT-Beyond: the closeEndedProcesses, false by default. When it is true, a
+// process opened for read or update that has ended, and whose output a read
+// has taken to its end ("eof" in the result), leaves the openProcesses and
+// the openProcessIDs, as one opened for write or neither does when it ends
+// (IO_cleanprocesses).
+void MCFilesGetCloseEndedProcesses(MCExecContext& ctxt, bool& r_value)
+{
+	r_value = MCcloseendedprocesses;
+}
+
+void MCFilesSetCloseEndedProcesses(MCExecContext& ctxt, bool p_value)
+{
+	MCcloseendedprocesses = p_value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

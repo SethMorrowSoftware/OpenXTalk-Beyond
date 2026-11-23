@@ -182,6 +182,14 @@ lcs: core/field/undo-typed-return: TestUndoReturnThenText
 lcs: core/field/undo-typed-return: TestUndoReturnTypedFirst
 lcs: core/field/undo-typed-return: TestUndoReturnTypedInALine
 lcs: core/field/undo-typed-return: TestUndoTextThenReturn
+lcs: core/files/process-list: TestCloseEndedProcessesNameAsBefore  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestCloseEndedProcessesOffAgain  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestCloseEndedProcessesProperty  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestEndedProcessKeepsUnreadOutputWhenSet  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestEndedProcessLeavesWhenSet  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestEndedProcessStaysByDefault  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestEndedWriteProcessLeaves  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
+lcs: core/files/process-list: TestRunningProcessStaysWhenSet  # 9.6.3 cannot compile the script: the closeEndedProcesses, new in 0.2.8-dp.3
 lcs: core/files/trash: TestMoveCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
 lcs: core/files/trash: TestMoveRunsAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
 lcs: core/files/trash: TestShowCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)

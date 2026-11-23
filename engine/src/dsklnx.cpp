@@ -1924,6 +1924,7 @@ public:
                             MCnprocesses + 1, sizeof(Streamnode));
                 MCprocesses[MCnprocesses].pid = 0;
                 MCprocesses[MCnprocesses].name = (MCNameRef)MCValueRetain(MCM_shell);
+                MCprocesses[MCnprocesses].read_to_end = false;
                 MCprocesses[MCnprocesses].mode = OM_NEITHER;
                 MCprocesses[MCnprocesses].ohandle = NULL;
                 MCprocesses[MCnprocesses].ihandle = NULL;
@@ -2221,6 +2222,7 @@ public:
         MCU_realloc((char **)&MCprocesses, MCnprocesses, MCnprocesses + 1,
                     sizeof(Streamnode));
         MCprocesses[MCnprocesses].name = (MCNameRef)MCValueRetain(p_name);
+        MCprocesses[MCnprocesses].read_to_end = false;
         MCprocesses[MCnprocesses].mode = (Open_mode)p_mode;
         MCprocesses[MCnprocesses].ihandle = NULL;
         MCprocesses[MCnprocesses].ohandle = NULL;
