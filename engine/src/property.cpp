@@ -83,6 +83,7 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
 	DEFINE_RW_PROPERTY(P_ROW_DELIMITER, String, Engine, RowDelimiter)
 	DEFINE_RW_PROPERTY(P_LINE_DELIMITER, String, Engine, LineDelimiter)
 	DEFINE_RW_PROPERTY(P_WHOLE_MATCHES, Bool, Engine, WholeMatches)
+	DEFINE_RW_PROPERTY(P_SEQUENCES_AS_LISTS, Bool, Engine, SequencesAsLists)
 	DEFINE_RW_PROPERTY(P_USE_SYSTEM_DATE, Bool, Engine, UseSystemDate)
 	DEFINE_RW_PROPERTY(P_USE_UNICODE, Bool, Engine, UseUnicode)
 	DEFINE_RW_CUSTOM_PROPERTY(P_NUMBER_FORMAT, EngineNumberFormat, Engine, NumberFormat)
@@ -417,6 +418,10 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
 	// OXT-Beyond: the systemAppearance on Linux follows the desktop's light
 	// or dark setting
 	DEFINE_RW_PROPERTY(P_USE_DESKTOP_APPEARANCE, Bool, Interface, UseDesktopAppearance)
+	
+	// OXT-Beyond: the session cookie's Secure and SameSite attributes
+	DEFINE_RW_PROPERTY(P_SESSION_COOKIE_SECURE, Bool, Server, SessionCookieSecure)
+	DEFINE_RW_ENUM_PROPERTY(P_SESSION_COOKIE_SAME_SITE, ServerSessionCookieSameSite, Server, SessionCookieSameSite)
 };
 
 static bool MCPropertyInfoTableLookup(Properties p_which, Boolean p_effective, const MCPropertyInfo*& r_info, bool p_is_array_prop)
@@ -537,6 +542,28 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 			return PS_NORMAL;
 		}
 		sp = t_sql;
+	}
+	// OXT-Beyond: the handler-local sequencesAsLists (MCExecContext). Its
+	// name is no keyword either: "the sequencesAsLists of" an object (or
+	// "the sequencesAsLists[...] of" one) is the custom property it was,
+	// and what is left, "the sequencesAsLists" with no object, did not
+	// compile, so it is read only where what holds it did not compile
+	// without it (MCNewSyntax)
+	if (the && !effective && type == ST_ID &&
+		MCStringIsEqualToCString(sp.gettoken_stringref(), "sequencesaslists", kMCCompareCaseless))
+	{
+		MCScriptPoint t_after(sp);
+		Symbol_type t_after_type;
+		const LT *t_after_te;
+		bool t_custom = false;
+		if (t_after.next(t_after_type) == PS_NORMAL)
+			t_custom = t_after_type == ST_LB ||
+				(t_after.lookup(SP_FACTOR, t_after_te) == PS_NORMAL && t_after_te->type == TT_OF);
+		if (!t_custom && MCNewSyntax::Read())
+		{
+			which = P_SEQUENCES_AS_LISTS;
+			return PS_NORMAL;
+		}
 	}
 	if (sp.lookup(SP_FACTOR, te) != PS_NORMAL)
 	{
@@ -954,6 +981,8 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 	case P_SESSION_LIFETIME:
 	case P_SESSION_COOKIE_NAME:
 	case P_SESSION_ID:
+	case P_SESSION_COOKIE_SECURE:
+	case P_SESSION_COOKIE_SAME_SITE:
 	
 	case P_SCRIPT_EXECUTION_ERRORS:
 	case P_SCRIPT_PARSING_ERRORS:
@@ -994,6 +1023,7 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 	case P_SYSTEM_APPEARANCE:
 	case P_USE_SYSTEM_WINDOW_COLOR:
 	case P_USE_DESKTOP_APPEARANCE:
+	case P_SEQUENCES_AS_LISTS:
         break;
     
     case P_REV_LIBRARY_MAPPING:

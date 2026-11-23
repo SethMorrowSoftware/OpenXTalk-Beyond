@@ -123,12 +123,15 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/runtimes.yml'
       - '.github/workflows/tag-release.yml'
+      - '.github/workflows/web-prerelease.yml'
       - '.github/workflows/ui-tour.yml'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-java.yml'
       - '.github/workflows/android-engine.yml'
       - '.github/workflows/mac-menu-backdrop.yml'
       - '.github/workflows/visual-effects-mac.yml'
+      - '.github/workflows/window-opacity-mac.yml'
+      - '.github/workflows/ipad-simulator.yml'
       - '.github/workflows/pages.yml'
       - 'tools/pages/**'
       - 'tools/web-host/**'
@@ -137,10 +140,14 @@ on:
       - 'tools/ci/ide_screenshots_branch.py'
       - 'tools/ci/release_assets.py'
       - 'tools/ci/release_notes.py'
+      - 'tools/ci/ipad_simulator_check.py'
+      - 'tools/ci/ipad-simulator-reporter.js'
       - 'tools/ci/android_check.py'
       - 'tools/ci/android-check.livecodescript'
+      - 'tools/ci/android-xtalk-tests.livecodescript'
       - 'tools/ci/android_java.py'
       - 'tools/ci/android_engine.py'
+      - 'tools/ci/android_runs.py'
       - 'tools/ci/build-android.sh'
       - 'config/android-ndk-version'
       - 'engine/src/java/**'
@@ -154,8 +161,6 @@ on:
       - 'tools/ci/mac_ide_start.sh'
       - 'tools/ci/mac-menu-backdrop.livecodescript'
       - 'tools/ci/mac_menu_backdrop.py'
-      - 'tools/ci/visual-effect-check.livecodescript'
-      - 'tools/ci/visual_effect_check.py'
       - 'tools/ci/merge_universal.py'
       - 'tools/ci/sign_mac_app.py'
       - 'tools/ci/win_crashtrace.py'
@@ -241,7 +246,11 @@ jobs:
   # it is now, not of the event that started the run (see build-windows.yml)
   gate:
     name: Draft check
-    runs-on: ubuntu-24.04
+    # Seth's Linux PC takes this short job while the repository variable
+    # PC_RUNNERS_LINUX is 'on', for this repository's own pushes and branches
+    # only; otherwise, and for every fork, GitHub's ubuntu-24.04
+    # (BUILDING.md, "Continuous integration"; test_pc_runners.py holds it)
+    runs-on: ${{ (vars.PC_RUNNERS_LINUX == 'on' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON('["self-hosted","Linux","X64","seth-pc"]')) || 'ubuntu-24.04' }}
     timeout-minutes: 5
     continue-on-error: true
     outputs:
@@ -755,6 +764,17 @@ jobs:
             core/interface/delete.livecodescript:TestDeleteGroupOfTarget \
             core/interface/delete.livecodescript:TestDeleteStackOfTarget
 
+      # What the runtimes asset (oxt-runtimes-<label>, made by runtimes.yml
+      # with make_runtimes_asset.py --builds) takes from this build, checked
+      # as --builds checks it, from the tarball that runtimes.yml takes: a
+      # file it wants that this build no longer makes, a binary of another
+      # architecture, or a Standalone without this tree's engine version
+      # fails here, the day it happens, not in the runtimes run before a
+      # release. The asset takes nothing from linux-arm64.
+      - name: Check what the runtimes asset takes from this build
+        if: matrix.arch == 'x86_64'
+        run: python3 tools/oxt/make_runtimes_asset.py --check-bin "linux-$ARCH=OXT-Beyond-linux-$ARCH-bin.tar.xz"
+
       # The job output built-<arch> (see outputs above): only a leg that
       # got here packages
       - name: Record the finished build
@@ -976,6 +996,11 @@ jobs:
         run: |
           tools/ci/i386-container.sh run 'python3 tools/ci/standalone_check.py --engine linux-x86-bin/LiveCode-Community \
             --runtime linux-x86-bin/standalone-community --platform linux-x86 --log standalone-check.log'
+
+      # What the runtimes asset takes from this build (as for the x86_64
+      # leg), on the runner itself: the tarball is in the workspace
+      - name: Check what the runtimes asset takes from this build
+        run: python3 tools/oxt/make_runtimes_asset.py --check-bin "linux-x86=OXT-Beyond-linux-x86-bin.tar.xz"
 
       - name: Upload build logs
         if: failure()
@@ -1301,7 +1326,8 @@ jobs:
       # package against them, so an outdated one is downloaded again, never
       # installed. A slow mirror once held this step for 22 minutes, so the
       # downloads (not the install, which must not be stopped half-way)
-      # have a time limit and are tried up to three times.
+      # have a time limit and are tried up to three times
+      # (tools/ci/apt-install.sh, as every step on a runner installs).
       - name: Compute the runtime libraries cache key
         id: apt-key
         run: |
@@ -1323,19 +1349,9 @@ jobs:
         env:
           SAVE: ${{ steps.apt-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' }}
         run: |
-          retry() {
-            for i in 1 2 3; do
-              timeout 300 "$@" && return 0
-              echo "::warning::attempt $i failed: $*"
-              sleep 15
-            done
-            return 1
-          }
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          # (sudo does not pass the job's environment on)
-          apt=(sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30)
-          retry "${apt[@]}" update
+          # (and public name servers too if the runner's own give no answer
+          # for the package servers)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           # mplayer, Xvfb and xauth: the browser and player check; the
           # window managers (mutter: GNOME's), xdotool, xwininfo (x11-utils)
           # and ImageMagick: the browser window manager check; the Adwaita GTK 2 themes, light
@@ -1374,7 +1390,7 @@ jobs:
           if compgen -G "$HOME/apt-debs/*.deb" > /dev/null; then
             sudo cp "$HOME"/apt-debs/*.deb /var/cache/apt/archives/
           fi
-          retry "${apt[@]}" install -y --no-install-recommends --download-only "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --fetch "${pkgs[@]}"
           if [ "$SAVE" = true ]; then
             # Only what the current lists still offer
             sudo apt-get autoclean
@@ -1385,7 +1401,7 @@ jobs:
               echo "debs=true" >> "$GITHUB_OUTPUT"
             fi
           fi
-          "${apt[@]}" install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
           python3 --version
           ldd --version | sed -n 1p
 
@@ -1477,8 +1493,25 @@ jobs:
           python3 tools/oxt/package_server.py --platform "linux-$ARCH" --bin-tar "$BIN_TAR" --out dist --sums \
             2>&1 | tee "$RUNNER_TEMP/logs/server-zip.log"
 
+      # Whether there is anything to save, found by listing the folders
+      # rather than by hashFiles() in the save steps' if:, which reads every
+      # file and fails the job when it takes more than 120 seconds (see
+      # build-windows.yml).
+      - name: Look for fetched files to cache
+        id: fetched
+        if: always() && (steps.assets-cache.outputs.cache-hit != 'true' || steps.xtalk-cache.outputs.cache-hit != 'true')
+        continue-on-error: true
+        run: |
+          assets=false
+          xtalk=false
+          if [ -n "$(find prebuilt/fetched-assets -maxdepth 1 -type f -name '*.zip' -print -quit 2>/dev/null)" ]; then assets=true; fi
+          if [ -n "$(find prebuilt/fetched-assets/xtalk -type f -print -quit 2>/dev/null)" ]; then xtalk=true; fi
+          echo "assets=$assets" >> "$GITHUB_OUTPUT"
+          echo "xtalk=$xtalk" >> "$GITHUB_OUTPUT"
+          echo "External assets to save: $assets. xTalk extension files to save: $xtalk."
+
       - name: Save external assets to the cache
-        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/*.zip') != ''
+        if: always() && steps.assets-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.assets == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -1486,7 +1519,7 @@ jobs:
           key: ${{ steps.assets-cache.outputs.cache-primary-key }}
 
       - name: Save xTalk extension files to the cache
-        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && hashFiles('prebuilt/fetched-assets/xtalk/**') != ''
+        if: always() && steps.xtalk-cache.outputs.cache-hit != 'true' && steps.fetched.outputs.xtalk == 'true'
         continue-on-error: true
         uses: actions/cache/save@v6
         with:
@@ -1553,22 +1586,30 @@ jobs:
       # Valgrind, which must find no read outside memory (the engine read
       # past the cookie header and, on Windows, now and then lost a session
       # id's last character). The runner image has Apache; it and Valgrind
-      # are installed if not.
+      # are installed if not, in a step of their own: while 0.2.8-dp.2 was
+      # cut (19 Nov 2026), the runner's mirror sent them a few kilobytes a
+      # second and the install took the check's 10 minutes.
+      - name: Install Apache and Valgrind for the server check
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
+        timeout-minutes: 20
+        run: |
+          missing=()
+          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing+=(apache2); fi
+          if ! command -v valgrind > /dev/null; then missing+=(valgrind); fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            # (tried again if a package server is out for a while, its own
+            # mirror left out after a try that did not finish, and public
+            # name servers too if the runner's own give no answer for the
+            # package servers: tools/ci/apt-install.sh)
+            bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${missing[@]}"
+          fi
+
       - name: Server check
         if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         timeout-minutes: 10
         env:
           SERVER_ZIP: ${{ steps.server.outputs.zip }}
         run: |
-          missing=""
-          if ! command -v apache2 > /dev/null && [ ! -x /usr/sbin/apache2 ]; then missing="apache2"; fi
-          if ! command -v valgrind > /dev/null; then missing="$missing valgrind"; fi
-          if [ -n "$missing" ]; then
-            # (public name servers too, if the runner's own give no answer for the package servers)
-            bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-            sudo apt-get update -q
-            sudo apt-get install -y -q --no-install-recommends $missing
-          fi
           python3 tools/ci/server_check.py --zip "$SERVER_ZIP" --platform "linux-$ARCH" --apache yes \
             --memcheck yes --log "$RUNNER_TEMP/logs/server-check.log"
 
@@ -1648,6 +1689,23 @@ jobs:
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
             --browser-backend cef --session wayland --log "$RUNNER_TEMP/logs/media-check-wayland.log"
 
+      # The same on a desktop that has a name, as every real one has:
+      # GNOME's (Ubuntu's session) and Xfce's (Xubuntu's). Chromium asks
+      # for the theme of the desktop it is named, GTK's on these, and loads
+      # GTK 3 for it into the engine, a GTK 2 program: 0.2.8-dp.2 ended
+      # there with a segmentation fault as its first browser was made (the
+      # checks above run with no name, where Chromium loads none). The
+      # engine keeps the name from Chromium while it starts, and scripts
+      # still see it afterwards (tools/ci/media_check.py --desktop).
+      - name: Browser check (a desktop named GNOME, then Xfce)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --desktop gnome --log "$RUNNER_TEMP/logs/media-check-desktop-gnome.log"
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget,revbrowser \
+            --browser-backend cef --desktop xfce --log "$RUNNER_TEMP/logs/media-check-desktop-xfce.log"
+
       # What a script sees of the browser's htmlText and url (the url and
       # htmlText properties, the messages, and where the page's JavaScript
       # says it is) is what it saw in the release before, line by line
@@ -1694,6 +1752,23 @@ jobs:
             --log "$RUNNER_TEMP/logs/webkit-browser-check.log"
           python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend webkitgtk \
             --log "$RUNNER_TEMP/logs/media-check-webkitgtk.log"
+
+      # The browser widget on a desktop scaled to 200% as GNOME scales one
+      # (an XSETTINGS manager publishing Gdk/WindowScalingFactor 2, with
+      # Xft/DPI at 192 and Gdk/UnscaledDPI at 96): the page is as wide as
+      # the widget, at 2 pixels a point, with WebKitGTK and (x86_64) with
+      # CEF. Up to 0.2.8-dp.2 WebKitGTK drew the page at 4 pixels a point,
+      # everything in it double (tools/ci/media_check.py --desktop-scale)
+      - name: Browser check (a desktop at 200%)
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend webkitgtk \
+            --desktop-scale 2 --log "$RUNNER_TEMP/logs/media-check-webkitgtk-200.log"
+          if [ "$ARCH" = x86_64 ]; then
+            python3 tools/ci/media_check.py --install "$OXT_ROOT" --platform "linux-$ARCH" --what widget --browser-backend cef \
+              --desktop-scale 2 --log "$RUNNER_TEMP/logs/media-check-cef-200.log"
+          fi
 
       # Text a standalone puts on the clipboard is still there after it
       # quits, when a clipboard manager runs (this script's own, which does
@@ -1805,6 +1880,36 @@ jobs:
           python3 tools/ci/backdrop_focus_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/backdrop-focus-check.log" --shots "$RUNNER_TEMP/logs/backdrop-focus-shots"
 
+      # A stack's window at the opacity of its blendLevel: set twice with
+      # the screen locked, and the IDE's way with the Message Box (made
+      # invisible as a palette at blendLevel 99, closed, set to 0 twice
+      # while closed, opened again). The window's _NET_WM_WINDOW_OPACITY is
+      # read with xprop; 0.2.8-dp.2 left both at the opacity of 99, and on
+      # a Mac the Message Box never appeared (the forum's report of
+      # 2026-11-21; tools/ci/window_opacity_check.py)
+      - name: Window opacity check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 5
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/window_opacity_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --out "$RUNNER_TEMP/logs/window-opacity"
+
+      # A group that grabs itself from the mouseDown of a popup, option or
+      # pulldown menu button in it, pressed and released with the system's
+      # mouse: the engine runs on (up to 0.2.8-dp.2, and in LiveCode
+      # Community 9.6.3, it crashed on the release), and a plain button
+      # that grabs itself still follows the mouse; and "popup button" from
+      # a timer with the mouse over none of the program's stacks opens its
+      # menu (it was error 583) (tools/ci/grab_menu_check.py)
+      - name: Grab from a menu button check
+        if: ${{ !cancelled() && env.OXT_ROOT != '' }}
+        timeout-minutes: 10
+        run: |
+          case $ARCH in x86_64) folder=x86-64 ;; *) folder=$ARCH ;; esac
+          python3 tools/ci/grab_menu_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
+            --log "$RUNNER_TEMP/logs/grab-menu-check.log" --shots "$RUNNER_TEMP/logs/grab-menu-shots"
+
       # The IDE itself, started through the launcher as a user does, on an
       # Xvfb screen under openbox with a scratch home folder: still running
       # after 90 s, with windows on the screen (tools/ci/linux_ide_start.sh;
@@ -1827,15 +1932,16 @@ jobs:
       # the logs.
       - name: Install Playwright and Chromium
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
-        timeout-minutes: 10
+        timeout-minutes: 20
         env:
           PLAYWRIGHT_VERSION: 1.56.0
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" chromium
 
       - name: Web standalone check
         if: ${{ !cancelled() && env.OXT_ROOT != '' }}
@@ -1926,6 +2032,32 @@ jobs:
           OXT_BOX2DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
             --filter '^lcs: webplayer/wobble-forts:' --log "$RUNNER_TEMP/logs/wobble-forts-tests.log"
           tail -n 1 "$RUNNER_TEMP/logs/wobble-forts-tests.log" | grep -q ' 0 skip$'
+
+      # The Render3D Tour's tests of its pictures
+      # (tests/lcs/webplayer/render3d-tour.livecodescript), which the engine
+      # tests above skip: the tour draws with render3dxt, and a desktop
+      # engine has it only as an extension. Here the build's standalone
+      # engine runs them with the package's render3dxt (OXT_RENDER3DXT: the
+      # test finds Extensions/org.openxtalk.library.renderthreed in it). A
+      # package made without the xTalk Suite's extensions has none: then
+      # the step says so and does nothing.
+      - name: Render3D Tour with render3dxt
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 10
+        env:
+          BIN_TAR: ${{ runner.temp }}/ci-build/OXT-Beyond-linux-${{ matrix.arch }}-bin.tar.xz
+        run: |
+          if [ ! -f "$OXT_ROOT/Extensions/org.openxtalk.library.renderthreed/module.lcm" ]; then
+            echo "::notice title=Render3D Tour::the package has no render3dxt, so the tests of its pictures were not run"
+            exit 0
+          fi
+          bin_dir="$RUNNER_TEMP/render3d-tour-bin"
+          rm -rf "$bin_dir"
+          mkdir -p "$bin_dir"
+          tar -xJf "$BIN_TAR" -C "$bin_dir"
+          OXT_RENDER3DXT="$OXT_ROOT" python3 tools/ci/run_engine_tests.py --bin "$bin_dir/linux-$ARCH-bin" --suite lcs \
+            --filter '^lcs: webplayer/render3d-tour:' --log "$RUNNER_TEMP/logs/render3d-tour-tests.log"
+          tail -n 1 "$RUNNER_TEMP/logs/render3d-tour-tests.log" | grep -q ' 0 skip$'
 
       # The IDE's own windows, as a user sees them under the Adwaita GTK
       # theme, light and dark: tools/ci/ui_tour.py starts the package's IDE
@@ -2286,6 +2418,15 @@ jobs:
             # missing, which would push the engine's stack out of view)
             grep -v '^missing: ' "$f" | tail -n 200 | cut -c1-600
           done
+
+      # And the grab check's lines, which the screenshots' lines after it
+      # push far up the log
+      - name: Repeat the grab check's output
+        if: ${{ failure() }}
+        run: |
+          out="$RUNNER_TEMP/logs/grab-menu-check.log"
+          [ -f "$out" ] || exit 0
+          cut -c1-1500 "$out"
 
       - name: Upload logs
         if: always()

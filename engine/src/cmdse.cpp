@@ -16,7 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -768,11 +769,50 @@ MCMove::~MCMove()
 	delete startloc;
 	delete endloc;
 	delete durationexp;
+	delete trash_path;
+}
+
+// OXT-Beyond: whether the statement at sp is "move file <path> to trash",
+// or "folder" (or "directory") for "file". If so, trash_path is the path
+// and sp is after "trash"; if not, sp is where it was and the statement is
+// read as before. "move file <path> to ..." failed to compile before
+// (PE_MOVE_NOTO, whatever the place), so no script that compiled reads
+// differently; "move file to trash", with no path, still compiles as it
+// did (and still stops when it runs, as "file" is no object). From
+// HyperXTalk (Emily-Elizabeth Howard, commit 72be0fee, #538), without
+// making "trash" a word of the language
+static bool MCMoveParseToTrash(MCScriptPoint &sp, MCExpression *&r_path)
+{
+	MCScriptPoint t_start(sp);
+	if (sp.skip_token(SP_THERE, TT_UNDEFINED, TM_FILE) != PS_NORMAL &&
+		sp.skip_token(SP_THERE, TT_UNDEFINED, TM_DIRECTORY) != PS_NORMAL)
+		return false;
+
+	MCExpression *t_path = nullptr;
+	Symbol_type t_type;
+	MCerrorlock++;
+	bool t_is_trash = sp.parseexp(False, True, &t_path) == PS_NORMAL &&
+		sp.skip_token(SP_FACTOR, TT_TO, PT_TO) == PS_NORMAL &&
+		sp.next(t_type) == PS_NORMAL && t_type == ST_ID &&
+		sp.token_is_cstring("trash");
+	MCerrorlock--;
+
+	if (!t_is_trash)
+	{
+		delete t_path;
+		sp.restore(t_start);
+		return false;
+	}
+
+	r_path = t_path;
+	return true;
 }
 
 Parse_stat MCMove::parse(MCScriptPoint &sp)
 {
 	initpoint(sp);
+	if (MCMoveParseToTrash(sp, trash_path))
+		return PS_NORMAL;
 	object = new (nothrow) MCChunk(False);
 	if (object->parse(sp, False) != PS_NORMAL)
 	{
@@ -819,6 +859,15 @@ Parse_stat MCMove::parse(MCScriptPoint &sp)
 
 void MCMove::exec_ctxt(MCExecContext &ctxt)
 {
+	if (trash_path != NULL)
+	{
+		MCAutoStringRef t_path;
+		if (!ctxt . EvalExprAsStringRef(trash_path, EE_DELETE_BADFILEEXP, &t_path))
+			return;
+		MCFilesExecMoveToTrash(ctxt, *t_path);
+		return;
+	}
+
 	MCObject *optr;
 	uint4 parid;
 

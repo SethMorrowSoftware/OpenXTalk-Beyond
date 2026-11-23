@@ -82,16 +82,49 @@
         "elf": {
           "GLIBC": "2.33"
         },
-        "readme": "still need glibc 2.33 (SodiumXT)",
+        "readme": "still need glibc 2.33 (SodiumXT and xlsxt)",
         "reason": "SodiumXT's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/xlsxt.so",
+        "elf": {
+          "GLIBC": "2.33"
+        },
+        "readme": "still need glibc 2.33 (SodiumXT and xlsxt)",
+        "reason": "xlsxt's 32-bit library is built on a newer system than the IDE: its stat() is glibc 2.33's (README.md, Linux)"
       },
       {
         "files": "Extensions/*/code/x86-linux/box2dxt.so",
         "elf": {
           "GLIBC": "2.34"
         },
-        "readme": "2.34 (Box2Dxt)",
+        "readme": "2.34 (Box2Dxt, box3dxt, audioxt and render3dxt)",
+        "readme": "2.34 (Box2Dxt, box3dxt, audioxt and render3dxt)",
         "reason": "Box2Dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/box3dxt.so",
+        "elf": {
+          "GLIBC": "2.34"
+        },
+        "readme": "2.34 (Box2Dxt, box3dxt, audioxt and render3dxt)",
+        "reason": "box3dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/audioxt.so",
+        "elf": {
+          "GLIBC": "2.34"
+        },
+        "readme": "2.34 (Box2Dxt, box3dxt, audioxt and render3dxt)",
+        "reason": "audioxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/render3dxt.so",
+        "elf": {
+          "GLIBC": "2.34"
+        },
+        "readme": "2.34 (Box2Dxt, box3dxt, audioxt and render3dxt)",
+        "reason": "render3dxt's 32-bit library is built on a newer system than the IDE (README.md, Linux)"
       },
       {
         "files": "Extensions/*/code/x86-linux/curlxt.so",
@@ -101,6 +134,14 @@
         },
         "readme": "2.34 and OpenSSL 3 (curlxt)",
         "reason": "curlxt's 32-bit library is built on a newer system than the IDE and uses the system's OpenSSL 3 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/barcodext.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
+        "reason": "barcodext's 32-bit library is built on a newer system than the IDE: zxing-cpp is C++, and glibc 2.38's headers send its strtol calls to __isoc23_strtol (README.md, Linux)"
       },
       {
         "files": "Extensions/*/code/x86-linux/torrentxt.so",
@@ -117,6 +158,22 @@
         },
         "readme": "2.38 and OpenSSL 3 (TorrentXT and DataChannelXT)",
         "reason": "DataChannelXT's 32-bit library needs glibc 2.38 and OpenSSL 3 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/gamepadxt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
+        "reason": "gamepadxt's 32-bit library is built on a newer system than the IDE: SDL's C23 calls need glibc 2.38 (README.md, Linux)"
+      },
+      {
+        "files": "Extensions/*/code/x86-linux/midixt.so",
+        "elf": {
+          "GLIBC": "2.38"
+        },
+        "readme": "2.38 (gamepadxt, barcodext and midixt)",
+        "reason": "midixt's 32-bit library is built on a newer system than the IDE, with the C++ runtime inside it: glibc 2.38's headers send a strtoul call in it to __isoc23_strtoul (README.md, Linux)"
       }
     ]
   }

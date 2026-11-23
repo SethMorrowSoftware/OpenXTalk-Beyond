@@ -193,7 +193,11 @@ jobs:
   # it is now, not of the event that started the run (see build-windows.yml)
   gate:
     name: Draft check
-    runs-on: ubuntu-24.04
+    # Seth's Linux PC takes this short job while the repository variable
+    # PC_RUNNERS_LINUX is 'on', for this repository's own pushes and branches
+    # only; otherwise, and for every fork, GitHub's ubuntu-24.04
+    # (BUILDING.md, "Continuous integration"; test_pc_runners.py holds it)
+    runs-on: ${{ (vars.PC_RUNNERS_LINUX == 'on' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON('["self-hosted","Linux","X64","seth-pc"]')) || 'ubuntu-24.04' }}
     timeout-minutes: 5
     continue-on-error: true
     outputs:
@@ -524,9 +528,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" chromium
 
       - name: Web IDE screenshots
         timeout-minutes: 15
@@ -636,9 +641,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" "$BROWSER"
 
       - name: Web IDE in a small window
         timeout-minutes: 10
@@ -788,9 +794,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps "$BROWSER"
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" "$BROWSER"
 
       - name: The released web IDE saves a stack and a preference
         timeout-minutes: 10
@@ -954,6 +961,19 @@ jobs:
 
       - name: Fetch the suite's apps and relay library
         run: python3 tools/web-ide/xtalk_web_libraries.py test-files --out "$RUNNER_TEMP/xtalk-files"
+
+      # The suite's extensions as this checkout pins them
+      # (tools/oxt/xtalk-extensions.json), built with the release's
+      # lc-compile into the install's Extensions in place of the release's
+      # own, as android.yml's xTalk probe does: the engine built here links
+      # the libraries of this checkout's pins, and a member the release
+      # does not have yet (box3dxt, then audioxt) would otherwise have its table in
+      # the engine and no extension to call it. The web takes no native
+      # library from them, so one platform's are enough
+      - name: Build the suite's extensions as pinned
+        run: |
+          python3 tools/oxt/xtalk_extensions.py build --bin "$OXT_ROOT/Toolchain" --out "$OXT_ROOT/Extensions" \
+            --platforms x86_64-linux
 
       - name: Build the site
         run: |
@@ -1122,9 +1142,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium firefox
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" chromium firefox
 
       - name: The online Dictionary
         run: |

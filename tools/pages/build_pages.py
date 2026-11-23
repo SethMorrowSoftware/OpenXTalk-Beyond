@@ -25,7 +25,8 @@ given.
       [--map HTML --map-version V]
       [--release TAG --release-assets FILE]
       [--preview TAG --preview-assets FILE]
-      [--suite-release TAG --suite-assets FILE]
+      [--suite-release TAG --suite-assets FILE [--suite-packages FOLDER]]
+      [--release-built-in JSON] [--preview-built-in JSON]
 
   DIR/index.html     the front page (tools/pages/index.html)
   DIR/brand/         the logo it shows (tools/pages/brand)
@@ -53,12 +54,25 @@ given.
                      search (tools/pages/build_lessons.py, from
                      tools/pages/lessons); they link the web IDE and the
                      Dictionary when the site has them
-  DIR/extensions/    the xTalk Suite's extensions, built into OXT-Beyond,
-                     each with its .lce package for the other IDEs built
-                     on LiveCode Community 9: the files of the suite
-                     release --suite-release (FILE lists its file names),
-                     or a link to the suite's releases without one
-                     (tools/pages/extensions/index.html)
+  DIR/extensions/    a card for every xTalk Suite extension, each with its
+                     .lce packages for the IDEs built on LiveCode
+                     Community 9: the files of the suite release
+                     --suite-release (FILE lists its file names), or a
+                     link to the suite's releases without one. An
+                     extension the page's table (EXTENSIONS) does not
+                     name has a card made from its packages, read from
+                     FOLDER (the release's .lce files and SHA256SUMS); each
+                     card says which release it is built into, of the
+                     two the front page offers, from that release's
+                     tools/oxt/xtalk-extensions.json (--release-built-in,
+                     --preview-built-in), and says nothing of it without
+                     them (tools/pages/extensions/index.html)
+  DIR/welcome/       the pages for people coming from LiveCode
+                     (tools/pages/welcome): a front page, a guide, the GPL
+                     for in-house tools, and a stack checker that reads a
+                     stack in the visitor's browser; written by hand, made
+                     by its own src/build.py, and copied as they are,
+                     without the builder, tests and README beside them
   DIR/map/           the codebase map: the one self-contained page that
                      tools/codebase-map/build_map.py writes (index.html),
                      and beside it, when build_map.py wrote them next to
@@ -95,6 +109,7 @@ build here, where the message says which file it is.
 """
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -103,6 +118,7 @@ import shutil
 import sys
 import tempfile
 import urllib.parse
+import xml.etree.ElementTree as ET
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -147,22 +163,30 @@ CHANNELS = {
 LIMIT = 100 * 1000 * 1000
 
 # The extensions page (extensions/, from tools/pages/extensions/index.html):
-# the xTalk Suite's extensions, which OXT-Beyond ships built in, with a
-# link to each one's .lce package for the other IDEs built on LiveCode
-# Community 9. The packages are the suite's release files
+# a card for every xTalk Suite extension, each with a link to its .lce
+# packages for the IDEs built on LiveCode Community 9 and, when the build
+# is told which extensions the OXT-Beyond releases it offers have built in,
+# the release it comes with. The packages are the suite's release files
 # (xtalk-suite/.github/workflows/lce-packages.yml), named
 # <package>-<version>.lce, so the page links the files of the suite's
 # newest release that has them (pages.yml lists it; --suite-release and
 # --suite-assets) and is as new as the last time the site was built. A
-# package this table does not name is still linked, under "More from the
-# suite", so a package the suite adds is never left off; a release with
-# none of them, or none given, leaves every card with a link to the
-# suite's releases instead of a file.
+# package belongs to the member its name starts with (curlxt-tsnet is
+# curlxt's), and every member in the release has a card: the table below
+# writes the ones it names, and a member it does not name, one that joined
+# the suite after the table was written, gets a card made from its own
+# packages, from what their manifest.xml and api.lcdoc say
+# (--suite-packages, suite_package_facts). So a package the suite adds is
+# never left off the page, and never only a bare link. A release with none
+# of them, or none given, leaves every card with a link to the suite's
+# releases instead of a file.
 SUITE = 'https://github.com/SethMorrowSoftware/xtalk-suite'
 SUITE_PACKAGE = re.compile(r'^(?P<package>[a-z0-9][a-z0-9-]*?)-(?P<version>[0-9][0-9A-Za-z.+-]*)\.lce$')
 SUITE_TAG = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
 # (member, name, what it is built on, what it does, what it needs or None,
-#  its repository, its icon's SVG paths, [(package, label)] in load order)
+#  its repository, its icon's SVG paths, [(package, label)] in load order),
+# in the order the page shows them: cryptography, networking, physics and
+# 3D, game controllers and sound, show control, then documents and pictures
 EXTENSIONS = (
     ('sodiumxt', 'SodiumXT', 'Native library · libsodium',
      'Modern cryptography made easy: authenticated encryption with a passphrase or a key, '
@@ -170,6 +194,19 @@ EXTENSIONS = (
      None, 'https://github.com/SethMorrowSoftware/SodiumXT',
      '<rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2.5"/>',
      (('sodiumxt', 'SodiumXT'),)),
+    ('coinxt', 'CoinXT', 'Native library · trezor-crypto and libsecp256k1',
+     'Bitcoin and Ethereum cryptography: hashes, keys, addresses, HD wallets and transaction '
+     'signing, with a script layer on top.',
+     None, 'https://github.com/SethMorrowSoftware/CoinXT',
+     '<circle cx="12" cy="12" r="8.5"/><path d="M10 7.5h3a2 2 0 0 1 0 4h-3zM10 11.5h3.5a2 2 0 0 1 0 4H10zM10 6v12"/>',
+     (('coinxt', 'CoinXT'), ('coinxt-script', 'Script layer'))),
+    ('nostrxt', 'NostrXT', 'Script library · Nostr',
+     'The client side of Nostr: signed events, bech32 names, encrypted messages and a relay client, '
+     'in plain script over the suite\'s own cryptography.',
+     'CoinXT and SodiumXT', 'https://github.com/SethMorrowSoftware/NostrXT',
+     '<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4'
+     'M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
+     (('nostrxt', 'NostrXT'), ('nostrxt-relay', 'Relay client'))),
     ('torrentxt', 'TorrentXT', 'Native library · libtorrent',
      'The full BitTorrent protocol from plain script: add, seed and inspect torrents, with magnets, '
      'the DHT, uTP and BitTorrent v2.',
@@ -188,19 +225,14 @@ EXTENSIONS = (
      None, 'https://github.com/SethMorrowSoftware/dataChannelXT',
      '<circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/><path d="M9 10.5h6M9 13.5h6"/>',
      (('datachannelxt', 'DataChannelXT'), ('datachannelxt-helpers', 'Helpers'))),
-    ('box2dxt', 'Box2Dxt', 'Native library · Box2D v3',
-     'Real 2D physics: your controls fall, roll, bounce, hinge and collide. The Kit binds bodies to '
-     'the controls on a card in a few lines.',
-     None, 'https://github.com/SethMorrowSoftware/Box2Dxt',
-     '<rect x="3.5" y="13" width="7" height="7" rx="1"/><rect x="11" y="4" width="7" height="7" rx="1" '
-     'transform="rotate(15 14.5 7.5)"/><circle cx="17" cy="17" r="3"/><path d="M2.5 21.5h19"/>',
-     (('box2dxt', 'Box2Dxt'), ('box2dxt-kit', 'Kit'))),
-    ('coinxt', 'CoinXT', 'Native library · trezor-crypto and libsecp256k1',
-     'Bitcoin and Ethereum cryptography: hashes, keys, addresses, HD wallets and transaction '
-     'signing, with a script layer on top.',
-     None, 'https://github.com/SethMorrowSoftware/CoinXT',
-     '<circle cx="12" cy="12" r="8.5"/><path d="M10 7.5h3a2 2 0 0 1 0 4h-3zM10 11.5h3.5a2 2 0 0 1 0 4H10zM10 6v12"/>',
-     (('coinxt', 'CoinXT'), ('coinxt-script', 'Script layer'))),
+    ('curlxt', 'curlxt', 'Native library · libcurl',
+     'The internet from plain script: HTTP and HTTPS, FTP and FTPS, SFTP and SCP, SMTP mail and '
+     'WebSockets, waiting for the answer or in the background. Its tsNet calls run stacks written '
+     'for LiveCode\'s tsNet unchanged.',
+     None, 'https://github.com/SethMorrowSoftware/curlXT',
+     '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.5 3.6 5.3 3.6 8.5s-1.2 6-3.6 8.5'
+     'c-2.4-2.5-3.6-5.3-3.6-8.5s1.2-6 3.6-8.5z"/>',
+     (('curlxt', 'curlxt'), ('curlxt-helpers', 'Helpers'), ('curlxt-tsnet', 'tsNet calls'))),
     ('onionxt', 'OnionXT', 'Script library · Tor',
      'Tor for any connection and v3 onion services, by talking to Tor running on the computer, '
      'with a small web server to put a site on an onion address.',
@@ -208,14 +240,116 @@ EXTENSIONS = (
      '<path d="M12 3c4 4 7 7 7 11a7 7 0 0 1-14 0c0-4 3-7 7-11z"/><path d="M12 7c2 2.5 3.5 4.5 3.5 7a3.5 3.5 0 0 1-7 0'
      'c0-2.5 1.5-4.5 3.5-7z"/>',
      (('onionxt', 'OnionXT'), ('onionxt-httpd', 'Web server'))),
-    ('nostrxt', 'NostrXT', 'Script library · Nostr',
-     'The client side of Nostr: signed events, bech32 names, encrypted messages and a relay client, '
-     'in plain script over the suite\'s own cryptography.',
-     'CoinXT and SodiumXT', 'https://github.com/SethMorrowSoftware/NostrXT',
-     '<circle cx="12" cy="12" r="2.2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4'
-     'M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/>',
-     (('nostrxt', 'NostrXT'), ('nostrxt-relay', 'Relay client'))),
+    ('box2dxt', 'Box2Dxt', 'Native library · Box2D v3',
+     'Real 2D physics: your controls fall, roll, bounce, hinge and collide. The Kit binds bodies to '
+     'the controls on a card in a few lines.',
+     None, 'https://github.com/SethMorrowSoftware/Box2Dxt',
+     '<rect x="3.5" y="13" width="7" height="7" rx="1"/><rect x="11" y="4" width="7" height="7" rx="1" '
+     'transform="rotate(15 14.5 7.5)"/><circle cx="17" cy="17" r="3"/><path d="M2.5 21.5h19"/>',
+     (('box2dxt', 'Box2Dxt'), ('box2dxt-kit', 'Kit'))),
+    ('box3dxt', 'box3dxt', 'Native library · Box3D',
+     'Real 3D physics by Erin Catto, the author of Box2D: bodies fall, collide, stack and hang on '
+     'joints, and a renderer inside draws the world into an image. The Kit adds the camera, the '
+     'keyboard and a player.',
+     None, 'https://github.com/SethMorrowSoftware/box3dxt',
+     '<path d="M10 8.5 16 12v6.5L10 22l-6-3.5V12z"/><path d="M4 12l6 3.5 6-3.5M10 15.5V22"/>'
+     '<circle cx="18" cy="5" r="2.6"/>',
+     (('box3dxt', 'box3dxt'), ('box3dxt-kit', 'Kit'))),
+    ('render3dxt', 'render3dxt', 'Native library · software 3D renderer',
+     'Textured, lit 3D drawn into an ordinary image: boxes, spheres and OBJ models with colours, '
+     'textures and shine, under lights and a camera, thousands of triangles in a few milliseconds. '
+     'box3dxt\'s Kit draws with it when it is installed.',
+     None, 'https://github.com/SethMorrowSoftware/render3dxt',
+     '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="4.5"/>'
+     '<path d="M9.3 10.7a3 3 0 0 1 2.5-1.9"/>',
+     (('render3dxt', 'render3dxt'),)),
+    ('gamepadxt', 'gamepadxt', 'Native library · SDL 3',
+     'Game controllers: Xbox, PlayStation, Switch and most other pads with one button layout, '
+     'plugged in and out while the stack runs, with rumble and lights.',
+     None, 'https://github.com/SethMorrowSoftware/gamepadxt',
+     '<path d="M7 7.5h10a4.5 4.5 0 0 1 4.4 5.4l-.8 4a2.6 2.6 0 0 1-4.6 1.1L14.5 16h-5L8 18a2.6 2.6 0 0 1-4.6-1.1'
+     'l-.8-4A4.5 4.5 0 0 1 7 7.5z"/><path d="M8 10.3v3.4M6.3 12h3.4M15.5 10.5h.01M17.5 13h.01"/>',
+     (('gamepadxt', 'gamepadxt'),)),
+    ('audioxt', 'audioxt', 'Native library · miniaudio',
+     'Sound for games and apps: many sounds mixed at once with low delay, music streamed from disk, '
+     'tones, sound placed in 3D and the microphone. The engine\'s own play command keeps working '
+     'beside it.',
+     None, 'https://github.com/SethMorrowSoftware/audioxt',
+     '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+     (('audioxt', 'audioxt'),)),
+    ('midixt', 'midixt', 'Native library · RtMidi',
+     'MIDI in and out: list the computer\'s MIDI ports, send notes, controllers, program changes and '
+     'SysEx, and read what arrives with its timing, from keyboards, synthesizers, lighting desks and '
+     'music software.',
+     None, 'https://github.com/SethMorrowSoftware/midixt',
+     '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M12 5v14M7.5 12.5V19M16.5 12.5V19"/>'
+     '<path fill="currentColor" d="M6.3 5h2.4v7.5H6.3zM15.3 5h2.4v7.5h-2.4z"/>',
+     (('midixt', 'midixt'),)),
+    ('oscxt', 'oscxt', 'Native library · tinyosc',
+     'Open Sound Control, the network language of control surfaces, lighting desks, media servers '
+     'and music software: build and read OSC messages and bundles, sent over the engine\'s own '
+     'sockets.',
+     None, 'https://github.com/SethMorrowSoftware/oscxt',
+     '<path d="M6 4v9M6 16v4M12 4v3M12 10v10M18 4v7M18 14v6"/><rect x="4" y="13" width="4" height="3" rx="1"/>'
+     '<rect x="10" y="7" width="4" height="3" rx="1"/><rect x="16" y="11" width="4" height="3" rx="1"/>',
+     (('oscxt', 'oscxt'),)),
+    ('artnetxt', 'artnetxt', 'xTalk Builder library · Art-Net',
+     'Stage lighting over a network: DMX512 levels for dimmers, LED fixtures and moving lights, and '
+     'the Art-Net nodes on the network found. It is plain xTalk Builder, with no native library.',
+     None, 'https://github.com/SethMorrowSoftware/artnetxt',
+     '<rect x="8.5" y="2.5" width="7" height="4.5" rx="1.2"/><path d="M9.5 7 6 17M14.5 7 18 17"/>'
+     '<ellipse cx="12" cy="19" rx="7" ry="2.2"/>',
+     (('artnetxt', 'artnetxt'),)),
+    ('pdfxt', 'pdfxt', 'Native library · PDFium',
+     'PDF files in a stack: draw their pages into an image, read and search their text, and follow '
+     'their outline and links, with PDFium, the PDF engine of Chromium. It reads PDFs; it does not '
+     'make or change them.',
+     'macOS 13 or later on a Mac', 'https://github.com/SethMorrowSoftware/pdfxt',
+     '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M8.5 12.5h7M8.5 16h7"/>',
+     (('pdfxt', 'pdfxt'),)),
+    ('xlsxt', 'xlsxt', 'Native library · libxlsxwriter, zlib and Expat',
+     'Excel workbooks from script: write a real .xlsx with formats, formulas and charts, and read one '
+     'back, made by Excel, LibreOffice, Numbers or Google Sheets, with no copy of Excel needed.',
+     None, 'https://github.com/SethMorrowSoftware/xlsxt',
+     '<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9.5 4v16M15 4v16"/>',
+     (('xlsxt', 'xlsxt'),)),
+    ('webpxt', 'webpxt', 'Native library · libwebp',
+     'WebP pictures, the format most of the web\'s images are in: read and write them, still and '
+     'animated, lossy or lossless, straight to and from an image object.',
+     None, 'https://github.com/SethMorrowSoftware/webpxt',
+     '<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/>'
+     '<path d="M3 17l5-5 4 4 3-3 6 6"/>',
+     (('webpxt', 'webpxt'),)),
+    ('barcodext', 'barcodext', 'Native library · zxing-cpp',
+     'QR codes and barcodes: read them out of a picture, even a photo from a camera, and make new ones '
+     'as a picture or as SVG. QR, Data Matrix, Aztec, PDF417, EAN, UPC, Code 128 and more.',
+     None, 'https://github.com/SethMorrowSoftware/barcodext',
+     '<rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/>'
+     '<rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 20.5h2'
+     'M20.5 14v2"/>',
+     (('barcodext', 'barcodext'),)),
 )
+# A member the table does not name gets a card made from its packages
+# (suite_package_facts): this icon, a parcel; the kind of library its first
+# package is, by what it holds; and, when its packages could not be read,
+# this for what it does
+SUITE_ICON = ('<path d="M12 2.8 20.5 7.4v9.2L12 21.2l-8.5-4.6V7.4z"/>'
+              '<path d="M3.5 7.4 12 12l8.5-4.6M12 12v9.2M7.8 5.1l8.5 4.6"/>')
+SUITE_KINDS = {'native': 'Native library', 'lcb': 'xTalk Builder library', 'script': 'Script library'}
+SUITE_UNREAD = 'New in the xTalk Suite: its guide says what it does and how to start.'
+# What the page reads of a package: its manifest.xml and api.lcdoc, each
+# no bigger than this, from a package whose SHA-256 is the one the
+# release's SHA256SUMS gives; and no more of what it does than this many
+# characters, cut at the end of a sentence
+SUITE_PART_LIMIT = 4 * 1024 * 1024
+SUITE_ABOUT_LIMIT = 320
+# The keys an api.lcdoc entry is made of, as xtalk-suite's
+# tools/build-extensions-site.py reads them: only a line that starts with
+# one of these ends a field, so a line of a description such as
+# "Note: ..." is part of it
+LCDOC_KEYS = frozenset(('library', 'type', 'title', 'author', 'description', 'summary', 'tags', 'name',
+                        'syntax', 'returns', 'parameters', 'references', 'example', 'examples', 'version',
+                        'os', 'platforms', 'associations', 'introduced', 'changes', 'related'))
 LOCAL_ONLY = {'serve.py', 'Start Web IDE.bat', 'README.txt'}
 
 
@@ -367,6 +501,188 @@ def suite_packages(assets):
     return {k: (v[1], v[2]) for k, v in found.items()}
 
 
+def suite_family(package):
+    """The member a package belongs to: curlxt-tsnet is curlxt's."""
+    return package.split('-', 1)[0]
+
+
+def lcdoc_about(text):
+    """What an extension does, from its api.lcdoc: the first paragraph of
+    the library entry (a script library's Description, an xTalk Builder
+    library's Summary) as plain text, no longer than SUITE_ABOUT_LIMIT,
+    or ''."""
+    entry = re.split(r'\n(?=Name:)', text.replace('\r\n', '\n').replace('\r', '\n'))[0]
+    fields, key = {}, None
+    for line in entry.split('\n'):
+        m = re.match(r'^([A-Za-z][A-Za-z ]*):(?:\s+(.*))?$', line)
+        if m and m.group(1).lower() in LCDOC_KEYS:
+            key = m.group(1).lower()
+            fields.setdefault(key, [])
+            if m.group(2) and m.group(2).strip():
+                fields[key].append(m.group(2).strip())
+        elif key is not None:
+            fields[key].append(line.strip())
+    first = []
+    for line in fields.get('description') or fields.get('summary') or []:
+        if line:
+            first.append(line)
+        elif first:
+            break
+    # <handlerName> is a link into the Dictionary and `this` is code: in
+    # plain words both are the name
+    about = re.sub(r'<([A-Za-z][A-Za-z0-9_.]*)>', r'\1', ' '.join(first)).replace('`', '')
+    about = re.sub(r'\s+', ' ', about).strip()
+    if len(about) <= SUITE_ABOUT_LIMIT:
+        return about
+    cut = about[:SUITE_ABOUT_LIMIT]
+    end = cut.rfind('. ')
+    if end > SUITE_ABOUT_LIMIT // 2:
+        return cut[:end + 1]
+    return cut[:cut.rfind(' ')].rstrip(',;:') + ' ...'
+
+
+def read_suite_package(path):
+    """What a card may say of one package (suite_package_facts), from its
+    manifest.xml and api.lcdoc; ValueError, KeyError, zipfile.BadZipFile or
+    ET.ParseError when it cannot be read."""
+    with zipfile.ZipFile(path) as z:
+        names = set(z.namelist())
+
+        def part(name):
+            info = z.getinfo(name)
+            if info.file_size > SUITE_PART_LIMIT:
+                raise ValueError('its %s is %d bytes' % (name, info.file_size))
+            with z.open(info) as f:
+                data = f.read(SUITE_PART_LIMIT + 1)
+            if len(data) > SUITE_PART_LIMIT:
+                raise ValueError('its %s is more than %d bytes' % (name, SUITE_PART_LIMIT))
+            return data
+
+        manifest = ET.fromstring(part('manifest.xml'))
+        about = lcdoc_about(part('api.lcdoc').decode('utf-8', 'replace')) if 'api.lcdoc' in names else ''
+
+    def field(tag):
+        found = manifest.find(tag)
+        return re.sub(r'\s+', ' ', found.text or '').strip() if found is not None else ''
+
+    if not field('name'):
+        raise ValueError('its manifest.xml names no id')
+    if any(n.startswith('code/') and n.count('/') >= 2 for n in names):
+        kind = 'native'
+    elif 'module.lcm' in names:
+        kind = 'lcb'
+    else:
+        kind = 'script'
+    # (com.livecode.* are the engine's own modules, there in every IDE)
+    requires = [r.get('name').strip() for r in manifest.findall('requires')
+                if (r.get('name') or '').strip() and not r.get('name').strip().startswith('com.livecode.')]
+    return {'id': field('name'), 'title': field('title'), 'requires': requires, 'kind': kind, 'about': about}
+
+
+def suite_package_facts(folder, files):
+    """What the cards may say of the packages in folder (a suite release's
+    files, as pages.yml downloads them): {file: {'id', 'title', 'requires',
+    'kind', 'about'}} for each of files whose SHA-256 is the one the
+    release's SHA256SUMS gives, read from its manifest.xml and the library
+    entry of its api.lcdoc. A package that is not listed there, is not the
+    file listed or cannot be read is left out with a note, and its card
+    says less; without SHA256SUMS none is read. Nothing in a package is
+    run."""
+    facts = {}
+    sums_path = os.path.join(folder, 'SHA256SUMS')
+    if not os.path.isfile(sums_path):
+        print('extension packages: %s has no SHA256SUMS, so none of them is read' % folder)
+        return facts
+    sums = {}
+    with open(sums_path, encoding='utf-8', errors='replace') as f:
+        for line in f:
+            m = re.match(r'^([0-9a-fA-F]{64}) [ *]?(\S.*?)\s*$', line)
+            if m:
+                sums[m.group(2)] = m.group(1).lower()
+    for name in sorted(files):
+        if not SUITE_PACKAGE.match(name):
+            continue
+        path = os.path.join(folder, name)
+        why = None
+        if name not in sums:
+            why = 'not in SHA256SUMS'
+        elif not os.path.isfile(path):
+            why = 'not downloaded'
+        else:
+            digest = hashlib.sha256()
+            with open(path, 'rb') as f:
+                for block in iter(lambda: f.read(1 << 20), b''):
+                    digest.update(block)
+            if digest.hexdigest() != sums[name]:
+                why = 'not the file SHA256SUMS lists'
+        if why is None:
+            try:
+                facts[name] = read_suite_package(path)
+            except (ValueError, KeyError, zipfile.BadZipFile, ET.ParseError, OSError) as e:
+                why = 'not readable (%s)' % e
+        if why:
+            print('extension packages: %s is %s, so its card says less' % (name, why))
+    return facts
+
+
+def suite_title(family, title):
+    """A package's title without its member's name and the suite's usual
+    ending: "render3dxt: 3D Renderer for OpenXTalk" is "3D Renderer",
+    "TorrentXT helpers" is "helpers", "tsNet calls (curlxt)" is "tsNet
+    calls", and "CoinXT" is ""."""
+    title = re.sub(r'\(\s*%s\s*\)' % re.escape(family), ' ', title, flags=re.I)
+    title = re.sub(r'^\s*%s(?![A-Za-z0-9])' % re.escape(family), '', title, flags=re.I)
+    title = re.sub(r'\s+for OpenXTalk\s*$', '', title, flags=re.I)
+    return re.sub(r'\s+', ' ', title).strip(' :-')
+
+
+def suite_label(family, package, facts):
+    """The button of a package the table does not name: its title without
+    its member's name ("Helpers", "tsNet calls"), or the end of its own
+    name ("box3dxt-kit" is "Kit")."""
+    label = suite_title(family, (facts or {}).get('title', ''))
+    if not label:
+        label = package[len(family):].strip('-').replace('-', ' ') or package
+    # (a first word in lower case starts with a capital, as the table's
+    # do; a name such as tsNet keeps its own)
+    if label.split(' ', 1)[0].islower():
+        label = label[0].upper() + label[1:]
+    return label
+
+
+def built_line(member, built_in):
+    """A card's line on OXT-Beyond itself, from built_in: [(version,
+    {member, ...})] of the releases the site offers whose built-in xTalk
+    Suite extensions are known, the stable release first. The first of
+    them that has it, or that the newest of them does not; nothing when
+    none is known."""
+    if not built_in:
+        return ''
+    for version, members in built_in:
+        if member in members:
+            return '        <p class="built">Built into OXT-Beyond %s</p>\n' % html.escape(version)
+    return ('        <p class="built no">Not built into OXT-Beyond %s: install its package there too</p>\n'
+            % html.escape(built_in[-1][0]))
+
+
+def extension_card(ident, icon, name, kind, what, needs, built, files_html, source):
+    return ('      <article class="ext" id="%s">\n'
+            '        <div class="ext-head">\n'
+            '          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">%s</svg></div>\n'
+            '          <div><h3>%s</h3><p class="kind">%s</p></div>\n'
+            '        </div>\n'
+            '        <p class="what">%s</p>\n'
+            '%s'
+            '%s'
+            '        %s\n'
+            '        <a class="source" href="%s">Guide and source</a>\n'
+            '      </article>'
+            % (html.escape(ident), icon, html.escape(name), html.escape(kind), html.escape(what),
+               ('        <p class="needs">Needs %s</p>\n' % html.escape(needs)) if needs else '',
+               built, files_html, html.escape(source)))
+
+
 def suite_file_link(tag, name, label, version, primary):
     return ('<a class="file%s" href="%s/releases/download/%s/%s" download>'
             '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>'
@@ -375,59 +691,137 @@ def suite_file_link(tag, name, label, version, primary):
                html.escape(label), html.escape(version)))
 
 
-def extensions_html(tag, assets):
-    """The extensions page's cards and its "More from the suite" list,
-    as (cards, more): each card links the packages the release tag has
-    (assets, its file names); with no tag, or none of a card's packages,
-    the card links the suite's releases instead."""
+def files_html(links):
+    if links:
+        return '<div class="files">%s</div>' % ''.join(links)
+    return ('<p class="soon">The .lce packages are on '
+            '<a href="%s/releases">the xTalk Suite\'s releases</a>.</p>' % SUITE)
+
+
+def suite_order(family, own, known):
+    """A member's packages (own; known: what each one's manifest says, or
+    None) in the order they install: the one named after the member first,
+    then each before any that needs it."""
+    ids = {facts['id']: package for package, facts in known.items() if facts}
+
+    def depth(package, seen=()):
+        needs = [ids[r] for r in (known.get(package) or {}).get('requires', ())
+                 if r in ids and ids[r] != package and ids[r] not in seen]
+        return 1 + max([depth(n, seen + (package,)) for n in needs] or [0])
+
+    return sorted(own, key=lambda p: (p != family, depth(p), p))
+
+
+def extensions_html(tag, assets, facts=None, built_in=(), taken=()):
+    """The extensions page's cards: one for each member of the table, and
+    after them one for each member of the release tag that the table does
+    not name, made from its packages. Each card links the packages the
+    release has (assets, its file names), a package of its member that the
+    table does not name after the ones it does; with no tag, or none of a
+    card's packages, the card links the suite's releases instead. facts:
+    suite_package_facts(), by file; built_in: as built_line() takes it;
+    taken: the ids the page has already, which a card made from a package
+    does not take."""
     if tag is not None and not SUITE_TAG.match(tag):
         raise BuildError('--suite-release %r is not a tag name' % tag)
+    facts = facts or {}
     packages = suite_packages(assets) if tag else {}
-    named = set()
+    families = {}
+    for package in sorted(packages):
+        families.setdefault(suite_family(package), []).append(package)
+    names = {row[0]: row[1] for row in EXTENSIONS}
     cards = []
     for member, name, kind, what, needs, repo, icon, files in EXTENSIONS:
         links = []
+        named = [package for package, _ in files]
         for i, (package, label) in enumerate(files):
-            named.add(package)
             if package in packages:
                 version, file = packages[package]
                 links.append(suite_file_link(tag, file, label, version, i == 0))
-        if links:
-            files_html = '<div class="files">%s</div>' % ''.join(links)
-        else:
-            files_html = ('<p class="soon">The .lce packages are on '
-                          '<a href="%s/releases">the xTalk Suite\'s releases</a>.</p>' % SUITE)
-        cards.append(
-            '      <article class="ext" id="%s">\n'
-            '        <div class="ext-head">\n'
-            '          <div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-            'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">%s</svg></div>\n'
-            '          <div><h3>%s</h3><p class="kind">%s</p></div>\n'
-            '        </div>\n'
-            '        <p class="what">%s</p>\n'
-            '%s'
-            '        %s\n'
-            '        <a class="source" href="%s">Guide and source</a>\n'
-            '      </article>'
-            % (html.escape(member), icon, html.escape(name), html.escape(kind), html.escape(what),
-               ('        <p class="needs">Needs %s</p>\n' % html.escape(needs)) if needs else '',
-               files_html, html.escape(repo)))
-    more = [suite_file_link(tag, file, package, version, False)
-            for package, (version, file) in sorted(packages.items()) if package not in named]
-    return '\n'.join(cards), ''.join(more)
+        for package in families.get(member, []):
+            if package not in named:
+                version, file = packages[package]
+                links.append(suite_file_link(tag, file, suite_label(member, package, facts.get(file)), version,
+                                             False))
+        cards.append(extension_card(member, icon, name, kind, what, needs, built_line(member, built_in),
+                                    files_html(links), repo))
+    # A member the table does not name: a card made from its packages,
+    # which links them in the order they install (suite_order)
+    unnamed = {}
+    for family in sorted(f for f in families if f not in names):
+        known = {p: facts.get(packages[p][1]) for p in families[family]}
+        order = suite_order(family, families[family], known)
+        title = (known[order[0]] or {}).get('title', '')
+        unnamed[family] = (order, known, title if title.lower() == family else family)
+    shown = dict(names)
+    shown.update((family, member[2]) for family, member in unnamed.items())
+    # (a package's id: its member, for what a member needs of another)
+    owner = {}
+    for package, (version, file) in packages.items():
+        if facts.get(file):
+            owner[facts[file]['id']] = suite_family(package)
+    taken = set(taken) | set(names)
+    for family, (order, known, name) in unnamed.items():
+        first = known[order[0]] or {}
+        kind = SUITE_KINDS.get(first.get('kind'), 'xTalk Suite extension')
+        if suite_title(family, first.get('title', '')):
+            kind += ' · ' + suite_title(family, first.get('title', ''))
+        needs = []
+        for package in order:
+            for wanted in (known[package] or {}).get('requires', ()):
+                other = owner.get(wanted)
+                if other == family:
+                    continue
+                needed = shown.get(other, other) if other else wanted
+                if needed not in needs:
+                    needs.append(needed)
+        links = [suite_file_link(tag, packages[p][1], name if i == 0 else suite_label(family, p, known[p]),
+                                 packages[p][0], i == 0) for i, p in enumerate(order)]
+        ident = family if family not in taken else 'suite-' + family
+        taken.add(ident)
+        cards.append(extension_card(ident, SUITE_ICON, name, kind, first.get('about') or SUITE_UNREAD,
+                                    ' and '.join(needs) if needs else None, built_line(family, built_in),
+                                    files_html(links), '%s/tree/%s/%s' % (SUITE, urllib.parse.quote(tag), family)))
+    return '\n'.join(cards)
 
 
-def extensions_page(source, target, tag=None, assets=(), beyond_tag=None, beyond_assets=()):
+def built_in_members(path):
+    """The xTalk Suite extensions an OXT-Beyond release has built in, from
+    its tools/oxt/xtalk-extensions.json (pages.yml takes the release's own
+    with git show), as their members' names in lower case: a member's name
+    and the last part of its repository's ("SodiumXT",
+    "SethMorrowSoftware/SodiumXT": sodiumxt). None, with a note, when the
+    file cannot be read: the cards then say nothing of that release."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            members = json.load(f)['members']
+        found = set()
+        for member in members:
+            for value in (member.get('name'), (member.get('repository') or '').rsplit('/', 1)[-1]):
+                if isinstance(value, str) and value.strip():
+                    found.add(value.strip().lower())
+        return found
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        print('built-in extensions: %s is not an xtalk-extensions.json (%s), so the cards say nothing of it'
+              % (path, e))
+        return None
+
+
+def extensions_page(source, target, tag=None, assets=(), beyond_tag=None, beyond_assets=(), facts=None,
+                    built_in=()):
     """Writes the extensions page (tools/pages/extensions/index.html) to
-    target/index.html: the cards, and the release's own block (its name,
-    its checksums and any package the cards do not name) or, without a
-    release with packages, the block that says where they will be."""
+    target/index.html: the cards (extensions_html: facts and built_in are
+    as it takes them), the release's own block (its name and its
+    checksums) or, without a release with packages, the block that says
+    where they will be, and what the page says of OXT-Beyond's built-in
+    extensions only when built_in says which they are."""
     with open(os.path.join(source, 'index.html'), encoding='utf-8') as f:
         page = f.read()
-    cards, more = extensions_html(tag, assets)
+    cards = extensions_html(tag, assets, facts, built_in, set(re.findall(r'\bid="([^"]*)"', page)) |
+                            {row[0] for row in PLUGINS})
     has = bool(tag) and bool(suite_packages(assets))
-    blocks = {'SUITE_RELEASE': has, 'SUITE_NONE': not has, 'SUITE_MORE': has and bool(more),
-              'SUITE_SUMS': has and 'SHA256SUMS' in assets}
+    blocks = {'SUITE_RELEASE': has, 'SUITE_NONE': not has, 'SUITE_SUMS': has and 'SHA256SUMS' in assets,
+              'BUILT_IN': bool(built_in)}
     # (every marker is looked for first: a block may sit inside another
     # that goes before it is reached)
     for key in blocks:
@@ -443,7 +837,6 @@ def extensions_page(source, target, tag=None, assets=(), beyond_tag=None, beyond
     page = page.replace('@EXTENSIONS_LIST@', cards)
     page = page.replace('@PLUGINS_LIST@', plugins_html(beyond_tag, set(beyond_assets)))
     if has:
-        page = page.replace('@SUITE_MORE_LIST@', more)
         page = page.replace('@SUITE_TAG@', html.escape(tag))
         page = page.replace('@SUITE_TAG_URL@', '%s/releases/tag/%s' % (SUITE, urllib.parse.quote(tag)))
         page = page.replace('@SUITE_SUMS_URL@', '%s/releases/download/%s/SHA256SUMS' % (SUITE, urllib.parse.quote(tag)))
@@ -500,6 +893,59 @@ def bare_player(out):
         f.write(text.replace(BARE_BASE, BARE_BASE.replace('"../"', '"../player/"')))
     shutil.rmtree(os.path.join(out, 'player', 'play'))
     return True
+
+
+# The forum's "Try it in the browser" (seth, 2026-11-19): a stack attached
+# to a post on openxtalk.org/forum plays at <site>/try/ (tools/pages/forum/
+# index.html), in a copy of the bare player at try/box/ that a frame boxes
+# in. Not on the forum's own site: its login cookies are there, and a
+# stack would run beside them. Here the frame's sandbox has no
+# allow-same-origin, so the stack is a stranger to this site (the web IDE
+# keeps people's stacks here) as well as to the forum; the box's page,
+# opened anywhere but in such a frame, goes back to try/ instead of
+# playing (FORUM_GUARD, as the OXT Community Stacks gallery does it); and
+# it takes a stack from the forum's stack files alone, which the forum's
+# oxt/stacktools extension serves to anyone, with no login, only when a
+# guest may download them.
+FORUM_SANDBOX = 'allow-scripts allow-downloads allow-popups allow-popups-to-escape-sandbox allow-pointer-lock'
+FORUM_GUARD = ('<script data-cfasync="false">if(self.origin!=="null"||self===top)'
+               '{location.replace("../")}</script>')
+# (no Referer to the forum; and neither try/ nor its box is for search
+# engines: tools/pages/seo.py leaves a noindex page out and unchanged)
+FORUM_BOX_HEAD = '<meta name="referrer" content="no-referrer">\n<meta name="robots" content="noindex">'
+FORUM_FILES = 'https://openxtalk.org/forum/app.php/oxtstack/file/'
+# The bare player's own rule (play.html, sameSite): this site's files only
+SAME_SITE = "if (url.origin !== location.origin || !/^https?:$/.test(url.protocol)) return null;"
+FORUM_ONLY = ("if (url.protocol !== 'https:' || url.href.indexOf('%s') !== 0"
+              " || url.search || url.hash) return null;" % FORUM_FILES)
+
+
+def forum_player(out):
+    """Puts the forum's try page at <out>/try/ and its boxed player at
+    <out>/try/box/, made from the bare player at <out>/play/ (bare_player,
+    which must have run). Refuses a bare player whose page has changed so
+    that the box could not be put on it."""
+    with open(os.path.join(out, 'play', 'index.html'), encoding='utf-8') as f:
+        text = f.read()
+    based = BARE_BASE.replace('"../"', '"../player/"')
+    for part, what in (('<head>', 'a single <head>'), (based, 'its base'), (SAME_SITE, 'its rule for stacks')):
+        if text.count(part) != 1:
+            raise BuildError('the bare player has changed: the forum\'s box needs %s in it' % what)
+    text = text.replace('<head>', '<head>\n' + FORUM_GUARD + '\n' + FORUM_BOX_HEAD, 1)
+    text = text.replace(based, BARE_BASE.replace('"../"', '"../../player/"'), 1)
+    text = text.replace(SAME_SITE, FORUM_ONLY, 1)
+    text = text.replace("'The stack must be on this site: '", "'The stack must be a forum stack: '", 1)
+    with open(os.path.join(HERE, 'forum', 'index.html'), encoding='utf-8') as f:
+        page = f.read()
+    for hole in ('@SANDBOX@', '@FORUM_FILES@'):
+        if page.count(hole) != 1:
+            raise BuildError('tools/pages/forum/index.html does not have %s once' % hole)
+    page = page.replace('@SANDBOX@', FORUM_SANDBOX).replace('@FORUM_FILES@', FORUM_FILES)
+    os.makedirs(os.path.join(out, 'try', 'box'))
+    with open(os.path.join(out, 'try', 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(page)
+    with open(os.path.join(out, 'try', 'box', 'index.html'), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text)
 
 
 def check_sizes(folder):
@@ -713,6 +1159,22 @@ def brand(source, target):
         shutil.copyfile(os.path.join(source, name), os.path.join(target, name))
 
 
+# The welcome section's own tools, which stay in the repository: how its
+# pages and pictures are made (src/), its tests and its README
+WELCOME_LEFT_OUT = ('src', 'tests', 'README.md')
+
+
+def welcome(source, target):
+    """Copies the welcome section (tools/pages/welcome) beside the front
+    page, without WELCOME_LEFT_OUT. Its pages name the logo files of the
+    site's brand/ (../brand/), which brand() writes."""
+    if not os.path.isfile(os.path.join(source, 'index.html')):
+        raise BuildError('tools/pages/welcome has no index.html')
+    shutil.copytree(source, target, ignore=lambda d, names:
+                    [n for n in names if d == source and n in WELCOME_LEFT_OUT])
+    return sorted(n for n in os.listdir(target) if n.endswith('.html'))
+
+
 def front_page(out, parts):
     with open(os.path.join(HERE, 'index.html'), encoding='utf-8') as f:
         page = f.read()
@@ -775,6 +1237,8 @@ def build(args):
         bare = bare_player(out)
         if bare:
             print('bare player: play/')
+            forum_player(out)
+            print('forum stacks: try/')
         # The games run on the Stack Player's engine, so they go up with it
         if games(os.path.join(HERE, 'games'), os.path.join(out, 'games'), os.path.join(out, 'player'), bare):
             parts['GAMES'] = ''
@@ -806,6 +1270,20 @@ def build(args):
     # the extensions page's plugins are the stable release's, or the
     # preview's while there is no stable release
     release, assets = stable or preview or (None, ())
+    # Which xTalk Suite extensions those releases have built in, for the
+    # line on each extension's card: each release's own
+    # tools/oxt/xtalk-extensions.json (pages.yml takes it from the
+    # release's tag), the stable release first
+    built_in = []
+    for given, option in ((stable, 'release'), (preview, 'preview')):
+        path = getattr(args, option + '_built_in', None)
+        if not path:
+            continue
+        if not given:
+            raise BuildError('--%s-built-in needs --%s' % (option, option))
+        members = built_in_members(path)
+        if members is not None:
+            built_in.append((given[0][1:], members))
     # The extensions page goes up with every site: the extensions are
     # OXT-Beyond's own, and without a suite release its cards link the
     # suite's releases
@@ -816,11 +1294,23 @@ def build(args):
     if suite_assets:
         with open(suite_assets, encoding='utf-8') as f:
             listed = {line.strip() for line in f if line.strip()}
+    # the release's packages themselves, for the card of a member the
+    # page's table does not name
+    facts = {}
+    folder = getattr(args, 'suite_packages', None)
+    if folder:
+        if not suite:
+            raise BuildError('--suite-packages needs --suite-release')
+        facts = suite_package_facts(folder, [file for _, file in suite_packages(listed).values()])
+        print('extension packages read: %d' % len(facts))
     shown = extensions_page(os.path.join(HERE, 'extensions'), os.path.join(out, 'extensions'), suite, listed,
-                            release if release else None, assets if release else ())
+                            release if release else None, assets if release else (), facts, built_in)
     if suite and not shown:
         print('no extension packages: %s has no .lce files' % suite)
     parts['EXTENSIONS'] = 'xTalk Suite %s' % shown if shown else 'xTalk Suite'
+    # The welcome section goes up with every site: it is written here, in
+    # tools/pages/welcome, and asks nothing of a release
+    print('welcome: %s' % ', '.join(welcome(os.path.join(HERE, 'welcome'), os.path.join(out, 'welcome'))))
     front_page(out, parts)
     brand(os.path.join(HERE, 'brand'), os.path.join(out, 'brand'))
     # Last, over everything written: each page's one address and the
@@ -849,6 +1339,13 @@ def main():
     ap.add_argument('--suite-release', metavar='TAG',
                     help="the xTalk Suite release whose .lce packages the extensions page links")
     ap.add_argument('--suite-assets', metavar='FILE', help="that release's file names, one a line")
+    ap.add_argument('--suite-packages', metavar='FOLDER',
+                    help="that release's .lce files and SHA256SUMS, downloaded: the card of an extension the "
+                         "page's table does not name is made from them")
+    ap.add_argument('--release-built-in', metavar='JSON',
+                    help="the --release's tools/oxt/xtalk-extensions.json: the extensions it has built in")
+    ap.add_argument('--preview-built-in', metavar='JSON',
+                    help="the --preview's tools/oxt/xtalk-extensions.json: the extensions it has built in")
     args = ap.parse_args()
     try:
         build(args)

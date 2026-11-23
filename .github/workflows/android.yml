@@ -68,10 +68,15 @@
 #     change (the manifest lists it), and, for the record, what that
 #     layer does across a density change and opened again.
 #   - Linux only, the xTalk Suite's extensions with their Android
-#     libraries (tools/oxt/xtalk-extensions.json) in the third copy: a
-#     probe that calls each one's smoke test (android_check.py ide --probe
-#     xtalk), built for all four ABIs and run on both emulators, where
-#     every library must load and answer, and the permissions the
+#     libraries (tools/oxt/xtalk-extensions.json) and the script libraries
+#     over them, in the third copy: a probe that calls each one's smoke
+#     test and then runs the suite's functional tests
+#     (tools/ci/android-xtalk-tests.livecodescript: known answers through
+#     the cryptography, a physics world stepped, ENet, WebRTC, a torrent
+#     session and an HTTP request each between two ends inside the one
+#     app, a Nostr event signed), built for all four ABIs (android_check.py
+#     ide --probe xtalk) and run on both emulators, where every library
+#     must load and answer, every test must pass, and the permissions the
 #     extensions declare must be the app's (device --xtalk).
 #
 # The released builder's builds are the comparison's other half; where
@@ -86,6 +91,7 @@ on:
       - .github/workflows/android.yml
       - tools/ci/android_check.py
       - tools/ci/android-check.livecodescript
+      - tools/ci/android-xtalk-tests.livecodescript
       - ide-support/revsaveasandroidstandalone.livecodescript
       - ide-support/revdeploylibraryandroid.livecodescript
       - 'ide/Toolset/palettes/standalone settings/revstandalonesettingsandroidbehavior.livecodescript'
@@ -169,9 +175,10 @@ jobs:
       - name: Install Xvfb and the runtime libraries
         if: runner.os == 'Linux'
         run: |
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get update
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
           pkgs=(xvfb xauth fonts-dejavu-core)
           while read -r soname use deb rpm rest; do
             case $soname in ''|'#'*) continue ;; esac
@@ -180,7 +187,7 @@ jobs:
             fi
             case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
           done < Installer/linux/libraries.txt
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
 
       # The JDK that the builder's javac and keytool come from (as
       # build-macos.yml chooses one), and the parts of the runner's Android
@@ -394,8 +401,9 @@ jobs:
       # their libraries for the four Android ABIs), built with the
       # release's lc-compile into the third copy's Extensions in place of
       # the release's own, after that copy's other probes are built; then a
-      # stack that calls each extension's smoke test, built by this builder
-      # with them chosen, for all four ABIs
+      # stack that calls each extension's smoke test and carries the
+      # suite's functional tests (tools/ci/android-xtalk-tests.livecodescript),
+      # built by this builder with the extensions chosen, for all four ABIs
       - name: The xTalk Suite's probe, with this Java layer
         if: runner.os == 'Linux'
         run: |
@@ -522,13 +530,15 @@ jobs:
 
       # The xTalk Suite's probe: each extension's library loads from the
       # package and its smoke test answers what the desktop check expects,
-      # and the permissions the extensions declare are the app's
+      # each functional test passes (a loopback exchange may wait 20 s, so
+      # the probe is given longer than the others to turn green), and the
+      # permissions the extensions declare are the app's
       - name: Run the xTalk Suite's probe on Android 13
         if: runner.os == 'Linux'
         run: |
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-xtalk/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-api33-java-xtalk.png" --log-out "$WORK/logcat-api33-java-xtalk.txt" \
-            --within-bars --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
+            --within-bars --timeout 240 --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
 
       # For the record, not a check (no annotations, so the run's account
       # stays the checks'): the same probe with the release's own Java
@@ -660,7 +670,7 @@ jobs:
             --edge-to-edge
           "$PY" tools/ci/android_check.py device --apk "$WORK/java-xtalk/out/debug.apk" --serial emulator-5554 \
             --sdk "$SDK" --out "$WORK/screen-16k-java-xtalk.png" --log-out "$WORK/logcat-16k-java-xtalk.txt" \
-            --within-bars --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
+            --within-bars --timeout 240 --xtalk "$WORK/java-xtalk/xtalk-probes.txt"
           for pkg in debug.apk bundle.aab; do
             "$PY" tools/ci/android_check.py device --apk "$WORK/java-new/out/$pkg" --serial emulator-5554 \
               --sdk "$SDK" --out "$WORK/screen-16k-java-${pkg%.*}.png" --log-out "$WORK/logcat-16k-java-${pkg%.*}.txt" \

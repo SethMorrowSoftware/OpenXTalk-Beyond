@@ -11,6 +11,9 @@
 -- seen on the sheet on a Mac, and hardly on Linux (bwmilby, issue 568).
 -- The editor gives its widget the labels' black as its own colour. The
 -- highlighted icon beside it is drawn in the highlight colour, as before.
+-- (In the dark appearance the widget now draws a dark sheet with light
+-- labels, and its icons there in the labels' light colour whatever this
+-- one: sheetPaint in extensions/widgets/navbar/navbar.lcb.)
 constant kSheetInk = "0,0,0"
 
 on editorInitialize

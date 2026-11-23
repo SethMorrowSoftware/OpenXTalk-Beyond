@@ -81,7 +81,11 @@ jobs:
   # build-windows.yml)
   gate:
     name: Draft check
-    runs-on: ubuntu-24.04
+    # Seth's Linux PC takes this short job while the repository variable
+    # PC_RUNNERS_LINUX is 'on', for this repository's own pushes and branches
+    # only; otherwise, and for every fork, GitHub's ubuntu-24.04
+    # (BUILDING.md, "Continuous integration"; test_pc_runners.py holds it)
+    runs-on: ${{ (vars.PC_RUNNERS_LINUX == 'on' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && fromJSON('["self-hosted","Linux","X64","seth-pc"]')) || 'ubuntu-24.04' }}
     timeout-minutes: 5
     continue-on-error: true
     outputs:
@@ -158,9 +162,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           "$RUNNER_TEMP/venv/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION" "brotli==1.1.0"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/venv/bin/python" -m playwright install --with-deps chromium
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/venv/bin/python" chromium
 
       - name: The unit tests
         run: |
@@ -186,9 +191,10 @@ jobs:
           sudo mkdir -p /srv/oxt
           sudo cp -a "$BUNDLE" /srv/oxt/bundle
           sudo chmod -R a+rX /srv/oxt
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends apache2 nginx > /dev/null || true
+          # (tried again if a package server is out for a while, and public
+          # name servers too if the runner's own give no answer for the
+          # package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" apache2 nginx || true
           sudo systemctl stop apache2 nginx 2> /dev/null || true
           sudo a2enmod rewrite headers > /dev/null
           sudo tee /etc/apache2/sites-available/oxt.conf > /dev/null <<'EOF'

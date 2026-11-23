@@ -1,0 +1,24 @@
+# Message Box: one window when it opens, not two. A moment after every
+# openStack, tWDTroubleshooting gives the Message Box the systemWindow of
+# the Troubleshooting preferences. The engine makes a stack's window again
+# whenever a decoration is set, also to the value it has
+# (MCStack::SetDecoration, engine/src/exec-interface-stack.cpp), so the
+# Message Box was drawn, taken away and drawn again each time it was opened
+# (bwmilby, openxtalk.org, on 0.2.8-dp.2: "Message box still seems to draw
+# twice when opened"), and on Windows, where the handler then sets it to
+# true whatever the preference says, up to three times. The value is worked
+# out first now, to the same result on every platform, and set only when
+# the stack has another, so a changed preference still takes effect at once.
+file: Toolset/palettes/message box/revmessagebox.8.rev
+object: stack
+replace:
+|   set the systemwindow of this stack to the cMsgboxSysWin of stack "revPreferences"|
+with:
+|   -- OXT-Beyond: set only when it differs. Setting a decoration makes the|
+|   -- window again, also to the value it has, which drew the Message Box|
+|   -- twice at every open. Windows gets true whatever the preference says,|
+|   -- as the last line of this handler gave it|
+|   local tSystemWindow|
+|   put the cMsgboxSysWin of stack "revPreferences" into tSystemWindow|
+|   if the platform contains "win" then put true into tSystemWindow|
+|   if the systemwindow of this stack is not tSystemWindow then set the systemwindow of this stack to tSystemWindow|

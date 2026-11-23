@@ -14,6 +14,11 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -37,6 +42,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "parentscript.h"
 #include "osspec.h"
 #include "variable.h"
+#include "literal.h"
 
 #include <utility>
 
@@ -1243,6 +1249,68 @@ bool MCVarref::deleterange(MCExecContext &ctxt, MCRange p_range)
     return t_container.deleterange(ctxt, p_range);
 }
 
+// OXT-Beyond: whether the key that starts at sp (just after its "[") is one
+// word, followed by "]", that does not read as an expression: a word of the
+// language that can name no variable, such as "from" or "to". If so, it is
+// read as a literal key of that word, r_key is set, and sp is left at the
+// "]"; otherwise sp is where it was, r_key is unset, and the key is read as
+// before. A word that reads as an expression (a variable, a constant, a
+// property such as "name" where it reads as one) is read as it always was,
+// and so is a word that is none of the language's (an undeclared variable
+// when the explicitVariables is true stays an error).
+// From HyperXTalk (Emily-Elizabeth Howard, commit 2144ce3a, HyperXTalk #608),
+// tried only for one word between the brackets, so that the errors of every
+// other key that fails to compile are the ones they were
+static bool MCVarrefKeywordKey(MCScriptPoint &sp, MCExpression *&r_key)
+{
+	MCScriptPoint t_start(sp);
+
+	// One word, then "]"
+	Symbol_type t_type;
+	if (sp.next(t_type) != PS_NORMAL || t_type != ST_ID)
+	{
+		sp.restore(t_start);
+		return false;
+	}
+	MCNewAutoNameRef t_word;
+	t_word = sp.gettoken_nameref();
+
+	// Only a word of the language's expressions (the factor table: from,
+	// to, into, the, of, and, line, ...). Any other word that fails to read
+	// as an expression is a variable that was not declared while the
+	// explicitVariables is true: that stays the error it was, so a key
+	// mistyped there is still caught, and is never read as a literal key
+	const LT *t_entry;
+	if (sp.lookup(SP_FACTOR, t_entry) != PS_NORMAL)
+	{
+		sp.restore(t_start);
+		return false;
+	}
+
+	if (sp.next(t_type) != PS_NORMAL || t_type != ST_RB)
+	{
+		sp.restore(t_start);
+		return false;
+	}
+
+	// Does the word read as an expression? Its errors are not kept: if it
+	// does not, it is the key, and if it does, it is read again below
+	sp.restore(t_start);
+	MCExpression *t_exp = nullptr;
+	MCerrorlock++;
+	bool t_reads = sp.parseexp(False, True, &t_exp) == PS_NORMAL;
+	MCerrorlock--;
+	delete t_exp;
+	sp.restore(t_start);
+	if (t_reads)
+		return false;
+
+	// It does not: the word is the key, and sp goes to the "]"
+	/* UNCHECKED */ sp.next(t_type);
+	r_key = new (nothrow) MCLiteral(*t_word);
+	return r_key != nullptr;
+}
+
 Parse_stat MCVarref::parsearray(MCScriptPoint &sp)
 {
 	Symbol_type type;
@@ -1258,8 +1326,19 @@ Parse_stat MCVarref::parsearray(MCScriptPoint &sp)
 			return PS_NORMAL;
 		}
 
-		MCExpression *t_new_dimension;
-		if (dimensions == 255 || sp.parseexp(False, True, &t_new_dimension) != PS_NORMAL)
+		// OXT-Beyond: a key that is one word which is not an expression by
+		// itself, because the word is one of the language's (from, to,
+		// before, after, into, ...), is that word as a literal key, as an
+		// unquoted word that names no variable is: tArray[from] is
+		// tArray["from"]. Such a key failed to compile before, so no script
+		// that compiled reads differently, and anything else in the brackets
+		// is read, and fails, exactly as before. From HyperXTalk (Emily-
+		// Elizabeth Howard, commit 2144ce3a, "Fix debugger failure when array
+		// keys are reserved words", HyperXTalk #608)
+		MCExpression *t_new_dimension = nullptr;
+		if (dimensions != 255 && MCVarrefKeywordKey(sp, t_new_dimension))
+			;
+		else if (dimensions == 255 || sp.parseexp(False, True, &t_new_dimension) != PS_NORMAL)
 		{
 			MCperror->add(PE_VARIABLE_BADINDEX, sp);
 			return PS_ERROR;

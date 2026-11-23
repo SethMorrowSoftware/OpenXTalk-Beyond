@@ -72,11 +72,17 @@
 # release that cannot be listed is left out with a warning, and the
 # section too when neither can.
 #
-# The extensions page (extensions/) has a card for each xTalk Suite
-# extension, which OXT-Beyond ships built in, linking its .lce packages in
-# the suite's newest release that has them, so a site built after a suite
-# release links that release's files; without one it links the suite's
-# releases page (tools/pages/build_pages.py --suite-release).
+# The extensions page (extensions/) has a card for every xTalk Suite
+# extension, linking its .lce packages in the suite's newest release that
+# has them, so a site built after a suite release links that release's
+# files; without one it links the suite's releases page
+# (tools/pages/build_pages.py --suite-release). An extension the page's
+# table does not name yet gets its card from its own packages, which this
+# run downloads and checks against the release's SHA256SUMS
+# (--suite-packages); and each card says which of the two releases the
+# front page offers has it built in, from that release's own
+# tools/oxt/xtalk-extensions.json, as tagged (--release-built-in,
+# --preview-built-in).
 #
 # The codebase map is the one part made here, and it is made from the
 # source of the commit this run checks out (main's, for the release's run),
@@ -296,7 +302,11 @@ jobs:
         # Suite extension's .lce packages in the suite's newest release that
         # has any (its lce-packages.yml attaches them; prereleases count,
         # drafts do not). Without one, or when the suite cannot be listed,
-        # the page goes up with links to the suite's releases instead
+        # the page goes up with links to the suite's releases instead. The
+        # packages themselves come down too, with SHA256SUMS: the card of
+        # an extension the page's table does not name yet is made from what
+        # its manifest.xml and api.lcdoc say (build_pages.py reads them and
+        # runs nothing in them), and without them that card says less
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -307,6 +317,12 @@ jobs:
                  > "$RUNNER_TEMP/suite-assets.txt" && grep -q '\.lce$' "$RUNNER_TEMP/suite-assets.txt"; then
               echo "SUITE_TAG=$tag" >> "$GITHUB_ENV"
               echo "xTalk Suite $tag: $(grep -c '\.lce$' "$RUNNER_TEMP/suite-assets.txt") packages"
+              if gh release download "$tag" --repo SethMorrowSoftware/xtalk-suite --pattern '*.lce' \
+                   --pattern SHA256SUMS --dir "$RUNNER_TEMP/suite-lce"; then
+                echo "SUITE_LCE=$RUNNER_TEMP/suite-lce" >> "$GITHUB_ENV"
+              else
+                echo "::warning::could not download the packages of xTalk Suite $tag; an extension the page's table does not name gets a card that says less"
+              fi
               exit 0
             fi
           done
@@ -339,6 +355,22 @@ jobs:
           fi
           if [ -n "${SUITE_TAG:-}" ]; then
             args+=(--suite-release "$SUITE_TAG" --suite-assets "$RUNNER_TEMP/suite-assets.txt")
+            if [ -n "${SUITE_LCE:-}" ]; then
+              args+=(--suite-packages "$SUITE_LCE")
+            fi
+          fi
+          # The xTalk Suite extensions each offered release has built in:
+          # its own tools/oxt/xtalk-extensions.json, from its tag (the
+          # checkout has them all; blob:none fetches the one file). A
+          # release without one, or one git cannot show, is left out, and
+          # the cards say nothing of it
+          if [ -n "${DOWNLOADS_TAG:-}" ] &&
+             git show "refs/tags/$DOWNLOADS_TAG:tools/oxt/xtalk-extensions.json" > "$RUNNER_TEMP/release-built-in.json"; then
+            args+=(--release-built-in "$RUNNER_TEMP/release-built-in.json")
+          fi
+          if [ -n "${PREVIEW_TAG:-}" ] &&
+             git show "refs/tags/$PREVIEW_TAG:tools/oxt/xtalk-extensions.json" > "$RUNNER_TEMP/preview-built-in.json"; then
+            args+=(--preview-built-in "$RUNNER_TEMP/preview-built-in.json")
           fi
           python3 tools/pages/build_pages.py --out "$RUNNER_TEMP/site" "${args[@]}"
           describe() { if [ -n "$1" ]; then basename "$1"; else echo "not on the site"; fi; }
@@ -365,7 +397,7 @@ jobs:
               echo "- Downloads: not on the front page"
             fi
             if grep -q '\.lce"' "$RUNNER_TEMP/site/extensions/index.html"; then
-              echo "- Extensions: the .lce packages of xTalk Suite $SUITE_TAG"
+              echo "- Extensions: the .lce packages of xTalk Suite $SUITE_TAG, on $(grep -c '<article class="ext" id=' "$RUNNER_TEMP/site/extensions/index.html") cards (the two plugins' included)"
             else
               echo "- Extensions: no packages linked (no xTalk Suite release has them)"
             fi
@@ -391,9 +423,10 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/playwright"
           "$RUNNER_TEMP/playwright/bin/python" -m pip install --quiet "playwright==$PLAYWRIGHT_VERSION"
-          # (public name servers too, if the runner's own give no answer for the package servers)
-          bash "$GITHUB_WORKSPACE/tools/ci/apt-name-servers.sh"
-          "$RUNNER_TEMP/playwright/bin/python" -m playwright install --with-deps chromium
+          # (its packages tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --playwright "$RUNNER_TEMP/playwright/bin/python" chromium
           set +e
           "$RUNNER_TEMP/playwright/bin/python" tools/pages/check_site_rest.py \
             --site "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/rest-shots" | tee "$RUNNER_TEMP/rest.txt"

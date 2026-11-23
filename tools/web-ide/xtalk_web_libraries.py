@@ -39,11 +39,30 @@ fetch downloads the pinned archives into the xTalk cache (the one
 tools/oxt/xtalk_extensions.py uses), verifies them, and writes DIR/<name>.o
 for each: the archive's object with every symbol it defines made LOCAL but
 <name>_web_exports (and what Emscripten itself needs global: an EM_JS
-function, an exported or no-strip symbol). The engine reaches a library
-only through its table, so nothing else needs a global name, and two
-members that carry the same vendored code (trezor-crypto's SHA-3 and
-memzero are in both SodiumXT and CoinXT, and libsodium and trezor-crypto
-both define blake2b) then link into one engine without clashing.
+function, an exported or no-strip symbol) and the symbols of its COMDAT
+groups (below). The engine reaches a library only through its table, so
+nothing else needs a global name, and two members that carry the same
+vendored code (trezor-crypto's SHA-3 and memzero are in both SodiumXT and
+CoinXT, and libsodium and trezor-crypto both define blake2b) then link
+into one engine without clashing.
+
+A COMDAT group is C++'s inline and template code (a std::string member, a
+vector's, the std::function around a lambda): every object that uses one
+carries a copy, the linker keeps the first copy of each group it meets
+and drops the others, and the code that called a dropped copy reaches the
+kept one through the symbol's global name. Made local, that name reaches
+nothing: the library's own calls into a copy dropped for the engine's,
+and libc++'s calls (linked after the library) into a copy dropped for the
+library's, become a trap, and a pointer to one is null. barcodext, the
+first C++ library, stopped the web IDE's xTalk Suite check in Firefox that
+way ("indirect call to null"). So a group's symbols are left global and
+weak, as the compiler made them, for the linker to merge as in any C++
+program: one definition, which cannot clash. The copies are of one libc++,
+since a library must be built with this checkout's Emscripten (fetch
+checks it), and libc++ names the inline functions it keeps out of its ABI
+after how they were built (with exceptions or not, its hardening and its
+version), so a copy built another way is another symbol. The C libraries
+have no COMDAT group, and their objects are the same as before.
 util/emscripten-javascriptify.py links DIR's objects into the web IDE's
 engine and the web standalone engine (--xtalk-objects, which engine.gyp's
 javascriptify-development and javascriptify pass; tools/ci/build-web-ide.sh
@@ -95,7 +114,9 @@ EMSCRIPTEN_VERSION_FILE = os.path.join(REPO, 'config', 'emscripten-version')
 
 # The names the engine registers (engine/src/em-xtalk-web.cpp): a library
 # whose name is not here would be linked and never found
-KNOWN = ('sodiumxt', 'box2dxt', 'coinxt', 'datachannelxt')
+KNOWN = ('sodiumxt', 'box2dxt', 'coinxt', 'datachannelxt', 'box3dxt',
+         'render3dxt', 'audioxt', 'xlsxt', 'gamepadxt', 'webpxt', 'barcodext',
+         'midixt')
 
 
 class WebLibraryError(Exception):
@@ -183,8 +204,9 @@ def ar_members(data, what):
 # ---------------------------------------------------------------- wasm objects
 
 WASM_MAGIC = b'\0asm\x01\0\0\0'
-SYMTAB = 8
+COMDAT_INFO, SYMTAB = 7, 8
 KIND_FUNCTION, KIND_DATA, KIND_GLOBAL, KIND_SECTION, KIND_TAG, KIND_TABLE = 0, 1, 2, 3, 4, 5
+COMDAT_DATA, COMDAT_FUNCTION = 0, 1
 FLAG_WEAK, FLAG_LOCAL, FLAG_UNDEFINED, FLAG_EXPORTED, FLAG_EXPLICIT_NAME, FLAG_NO_STRIP = \
     0x1, 0x2, 0x10, 0x20, 0x40, 0x80
 
@@ -221,14 +243,16 @@ def _keep_global(name, keep):
 def localize(obj, keep, what='object'):
     """Return the WebAssembly object obj with every symbol it defines made
     local, but those named in keep and those Emscripten needs (_keep_global)
-    or that are exported or kept from stripping. Returns (bytes, the global
-    names it kept, the number it made local)."""
+    or that are exported or kept from stripping, and those of a COMDAT group,
+    which are left as they were (the module's docstring says why). Returns
+    (bytes, the global names it kept, the number it made local, the number
+    of COMDAT symbols it left to the linker)."""
     if not obj.startswith(WASM_MAGIC):
         raise WebLibraryError('%s is not a WebAssembly object' % what)
     out = bytearray(obj[:8])
     pos = 8
     found_linking = False
-    kept, localized = [], 0
+    kept, localized, shared = [], 0, 0
     while pos < len(obj):
         section_id = obj[pos]
         size, body_start = _uleb(obj, pos + 1)
@@ -239,7 +263,7 @@ def localize(obj, keep, what='object'):
             name = body[p:p + name_len]
             if name == b'linking':
                 found_linking = True
-                body, kept, localized = _localize_linking(body, p + name_len, keep, what)
+                body, kept, localized, shared = _localize_linking(body, p + name_len, keep, what)
         out.append(section_id)
         out += _enc(len(body))
         out += body
@@ -249,39 +273,74 @@ def localize(obj, keep, what='object'):
     missing = [k for k in keep if k not in kept]
     if missing:
         raise WebLibraryError('%s defines no %s' % (what, ', '.join(missing)))
-    return bytes(out), kept, localized
+    return bytes(out), kept, localized, shared
 
 
 def _localize_linking(body, p, keep, what):
     version, p = _uleb(body, p)
     if version != 2:
         raise WebLibraryError('%s: linking section version %d, not 2' % (what, version))
+    # The COMDAT groups come AFTER the symbol table in the section (wasm-ld
+    # and clang write them so), and decide which of its symbols stay global
+    comdat_functions, comdat_segments = _comdat_members(body, p, what)
     new = bytearray(body[:p])
-    kept, localized = [], 0
+    kept, localized, shared = [], 0, 0
     while p < len(body):
         sub_type = body[p]
         sub_len, q = _uleb(body, p + 1)
         payload = body[q:q + sub_len]
         p = q + sub_len
         if sub_type == SYMTAB:
-            payload, kept, localized = _localize_symtab(payload, keep, what)
+            payload, kept, localized, shared = _localize_symtab(payload, keep, what,
+                                                                comdat_functions, comdat_segments)
         new.append(sub_type)
         new += _enc(len(payload))
         new += payload
-    return bytes(new), kept, localized
+    return bytes(new), kept, localized, shared
 
 
-def _localize_symtab(payload, keep, what):
+def _comdat_members(body, p, what):
+    """The functions (by index, imports counted, as a symbol names its
+    function) and the data segments (by index) that the COMDAT groups of
+    the linking section body[p:] hold."""
+    functions, segments = set(), set()
+    while p < len(body):
+        sub_type = body[p]
+        sub_len, q = _uleb(body, p + 1)
+        p = q + sub_len
+        if sub_type != COMDAT_INFO:
+            continue
+        payload = body[q:p]
+        count, r = _uleb(payload, 0)
+        for _ in range(count):
+            n, r = _uleb(payload, r)
+            r += n
+            _, r = _uleb(payload, r)  # flags, none defined
+            entries, r = _uleb(payload, r)
+            for _ in range(entries):
+                kind = payload[r]
+                index, r = _uleb(payload, r + 1)
+                if kind == COMDAT_FUNCTION:
+                    functions.add(index)
+                elif kind == COMDAT_DATA:
+                    segments.add(index)
+        if r != len(payload):
+            raise WebLibraryError('%s: the COMDAT groups have %d bytes left over' % (what, len(payload) - r))
+    return functions, segments
+
+
+def _localize_symtab(payload, keep, what, comdat_functions=frozenset(), comdat_segments=frozenset()):
     count, p = _uleb(payload, 0)
     out = bytearray(_enc(count))
-    kept, localized = [], 0
+    kept, localized, shared = [], 0, 0
     for _ in range(count):
         kind = payload[p]
         flags, p = _uleb(payload, p + 1)
         start = p
         name = None
+        index = None
         if kind in (KIND_FUNCTION, KIND_GLOBAL, KIND_TAG, KIND_TABLE):
-            _, p = _uleb(payload, p)
+            index, p = _uleb(payload, p)
             if not flags & FLAG_UNDEFINED or flags & FLAG_EXPLICIT_NAME:
                 n, p = _uleb(payload, p)
                 name = payload[p:p + n].decode('utf-8')
@@ -291,7 +350,8 @@ def _localize_symtab(payload, keep, what):
             name = payload[p:p + n].decode('utf-8')
             p += n
             if not flags & FLAG_UNDEFINED:
-                for _ in range(3):
+                index, p = _uleb(payload, p)  # its segment, then offset and size
+                for _ in range(2):
                     _, p = _uleb(payload, p)
         elif kind == KIND_SECTION:
             _, p = _uleb(payload, p)
@@ -299,9 +359,13 @@ def _localize_symtab(payload, keep, what):
             raise WebLibraryError('%s: unknown symbol kind %d' % (what, kind))
         rest = payload[start:p]
         defined = not flags & FLAG_UNDEFINED
+        in_comdat = ((kind == KIND_FUNCTION and index in comdat_functions) or
+                     (kind == KIND_DATA and index in comdat_segments))
         if (defined and kind != KIND_SECTION and not flags & FLAG_LOCAL and name is not None):
             if _keep_global(name, keep) or flags & (FLAG_EXPORTED | FLAG_NO_STRIP):
                 kept.append(name)
+            elif in_comdat:
+                shared += 1
             else:
                 flags = (flags & ~FLAG_WEAK) | FLAG_LOCAL
                 localized += 1
@@ -310,7 +374,7 @@ def _localize_symtab(payload, keep, what):
         out += rest
     if p != len(payload):
         raise WebLibraryError('%s: the symbol table has %d bytes left over' % (what, len(payload) - p))
-    return bytes(out), kept, localized
+    return bytes(out), kept, localized, shared
 
 
 def localize_archive(data, name, what):
@@ -359,13 +423,20 @@ def cmd_fetch(args, log=print):
             if _sha256(data) != lib['sha256']:
                 raise WebLibraryError('%s: %s does not match its pin' % (lib['name'], path))
             note = '%s at %s' % (lib['repository'], lib['commit'][:12])
-        obj, kept, localized = localize_archive(data, lib['name'], lib['name'] + '.a')
+        obj, kept, localized, shared = localize_archive(data, lib['name'], lib['name'] + '.a')
         out = os.path.join(args.out, lib['name'] + '.o')
         with open(out, 'wb') as f:
             f.write(obj)
-        log('%s: %s, %d bytes; %d symbol(s) made local, global: %s'
-            % (lib['name'], note, len(data), localized, ', '.join(sorted(kept))))
+        log('%s: %s, %d bytes; %s, global: %s'
+            % (lib['name'], note, len(data), _localized_note(localized, shared), ', '.join(sorted(kept))))
     return 0
+
+
+def _localized_note(localized, shared):
+    note = '%d symbol(s) made local' % localized
+    if shared:
+        note += ', %d of C++ inline and template code (COMDAT) left to the linker' % shared
+    return note
 
 
 def cmd_pin(args, log=print):
@@ -392,14 +463,14 @@ def cmd_localize(args, log=print):
     with open(args.archive, 'rb') as f:
         data = f.read()
     if data.startswith(WASM_MAGIC):
-        obj, kept, localized = localize(data, args.keep, args.archive)
+        obj, kept, localized, shared = localize(data, args.keep, args.archive)
     else:
         if len(args.keep) != 1 or not args.keep[0].endswith('_web_exports'):
             raise WebLibraryError('an archive needs exactly one --keep <name>_web_exports')
-        obj, kept, localized = localize_archive(data, args.keep[0][:-len('_web_exports')], args.archive)
+        obj, kept, localized, shared = localize_archive(data, args.keep[0][:-len('_web_exports')], args.archive)
     with open(args.out, 'wb') as f:
         f.write(obj)
-    log('%s: %d symbol(s) made local, global: %s' % (args.out, localized, ', '.join(sorted(kept))))
+    log('%s: %s, global: %s' % (args.out, _localized_note(localized, shared), ', '.join(sorted(kept))))
     return 0
 
 

@@ -1,0 +1,90 @@
+Name: markdownText
+
+Type: property
+
+Syntax: set the markdownText of [<chunk> of] <field> to <markdownString>
+
+Summary:
+Specifies the contents of a <field>, with its text <format|formatting>
+represented as Markdown.
+
+Associations: field
+
+Introduced: 9.7.1
+
+OS: mac, windows, linux, android
+
+Platforms: desktop, server, mobile
+
+Example:
+set the markdownText of field "Notes" to URL ("file:" & tReadmePath)
+
+Example:
+put the markdownText of field "Notes" into URL ("file:" & tSavePath)
+
+Example:
+set the markdownText of line 2 of field "Notes" to "**Done**"
+
+Value:
+The <markdownText> of a field is a string.
+
+Description:
+Use the <markdownText> property to show text written in Markdown, or to
+save a field's styled text as Markdown.
+
+Setting the <markdownText> of a field (or a chunk of a field) sets its
+text and the styles that Markdown can say. Each line of the Markdown is
+a line of the field, and a blank line between them is left out (but
+not inside a block of code between "```" or "~~~" lines, where an empty
+line is an empty line of the field). It reads:
+* headings, "# Heading" to "###### Heading", or text underlined with
+  "===" or "---": bold, at the sizes the <HTMLText> gives h1 to h6
+* "**bold**", "*italic*" and "***bold italic***" (or the same with "_")
+* "`code`", and code between "```" or "~~~" lines or indented four
+  spaces: in Courier, with no Markdown read inside it
+* "[text](address)": the text, with its <linkText> set to the address
+* "- item", "* item" and "+ item": a bulleted list, and "1. item": a
+  numbered list
+* "> text": a quote, indented
+* "\*" and the like: the character after the backslash, as it is
+
+A rule ("---" alone) is left out. Anything else, tables and HTML among
+them, is shown as the text it is.
+
+Getting the <markdownText> gives the text of the field (or chunk of a
+field) as Markdown, with a blank line between its lines: bold, italic,
+Courier, links, the heading sizes above, lists and indented lines are
+written as Markdown, and other styling (colors, other fonts and sizes) is
+left out, as the <RTFText> leaves out what RTF cannot say. The items of
+a list follow one another with no blank line between them. Two or more
+lines in a row that are all in Courier are written as one block of code,
+between "```" lines, with any empty lines among them kept; one such line
+on its own is written between backticks. Characters
+that Markdown would read as markup are written with a backslash before
+them, so a field's plain text comes back as the same text when the
+<markdownText> is set to what it gave. Lines that start with four spaces
+or a tab are the one exception: Markdown reads them as code.
+
+Before the field's <markdownText> is got or set, a <getProp> or
+<setProp> markdownText handler is sent to it, as for a custom property,
+and the field's text is given or set only when no handler takes the
+message, or one passes it. No message is sent for a chunk of a field.
+
+>*Note:* "markdownText" is no word of the language. A field that holds
+> a custom property named "markdownText" (in its default custom
+> property set) keeps it: its markdownText is that custom property, as
+> it always was. So is the markdownText of every object that is not a
+> field, and of a field whose <customPropertySet> is not the default.
+> A field that holds no such custom property gives its Markdown, where
+> before it gave empty, and setting its markdownText sets its text,
+> where before it made the custom property. This property is new in
+> OXT-Beyond 0.2.8-dp.3, from HyperXTalk, where Emily-Elizabeth Howard
+> wrote it.
+
+References: HTMLText (property), RTFText (property),
+styledText (property), text (property), linkText (property),
+listStyle (property), customPropertySet (property),
+getProp (control structure), setProp (control structure),
+field (object)
+
+Tags: text processing

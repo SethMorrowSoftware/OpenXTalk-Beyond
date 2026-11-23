@@ -644,6 +644,87 @@ Boolean MCS_unlink(MCStringRef p_path)
 	return MCsystem -> DeleteFile(*t_native_path);
 }
 
+// OXT-Beyond: "move file <path> to trash" and "show <path> in finder"
+// (MCFilesExecMoveToTrash and MCFilesExecRevealFile)
+bool MCS_movetotrash(MCStringRef p_path)
+{
+	MCAutoStringRef t_resolved_path;
+	MCAutoStringRef t_native_path;
+
+#ifndef _WIN32
+	// A symbolic link goes to the trash itself, never the file or folder it
+	// points to: MCS_resolvepath puts a link's target in its place when the
+	// last part of the path is a link (realpath on Linux and macOS), so
+	// here only the folder that holds it is resolved and its name is put
+	// back. (HyperXTalk resolved the whole path, so trashing a link to a
+	// folder trashed the folder and left the link pointing at nothing.)
+	// Windows resolves a path by its letters alone and follows no link.
+	uindex_t t_length = MCStringGetLength(p_path);
+	while (t_length > 1 && MCStringGetCharAtIndex(p_path, t_length - 1) == '/')
+		t_length--;
+
+	uindex_t t_slash;
+	bool t_has_slash = MCStringLastIndexOfChar(p_path, '/', t_length, kMCStringOptionCompareExact, t_slash);
+	uindex_t t_leaf_start = t_has_slash ? t_slash + 1 : 0;
+
+	MCAutoStringRef t_leaf;
+	if (!MCStringCopySubstring(p_path, MCRangeMakeMinMax(t_leaf_start, t_length), &t_leaf))
+		return false;
+
+	// "~" or "~name" alone is a home folder, and "." or ".." no name of
+	// its own: those are resolved whole, as before
+	bool t_split = !MCStringIsEmpty(*t_leaf) &&
+		!MCStringIsEqualToCString(*t_leaf, ".", kMCStringOptionCompareExact) &&
+		!MCStringIsEqualToCString(*t_leaf, "..", kMCStringOptionCompareExact) &&
+		(t_has_slash || MCStringGetCharAtIndex(p_path, 0) != '~');
+
+	if (t_split)
+	{
+		MCAutoStringRef t_folder, t_resolved_folder;
+		if (t_has_slash && t_slash == 0)
+			t_folder = MCSTR("/");
+		else if (t_has_slash)
+		{
+			if (!MCStringCopySubstring(p_path, MCRangeMakeMinMax(0, t_slash), &t_folder))
+				return false;
+		}
+		else
+			t_folder = kMCEmptyString;
+
+		if (!MCS_resolvepath(*t_folder, &t_resolved_folder))
+			return false;
+
+		uindex_t t_folder_length = MCStringGetLength(*t_resolved_folder);
+		bool t_ends_with_slash = t_folder_length > 0 &&
+			MCStringGetCharAtIndex(*t_resolved_folder, t_folder_length - 1) == '/';
+		if (!MCStringFormat(&t_resolved_path, t_ends_with_slash ? "%@%@" : "%@/%@", *t_resolved_folder, *t_leaf))
+			return false;
+	}
+	else
+#endif
+	if (!MCS_resolvepath(p_path, &t_resolved_path))
+		return false;
+
+	if (!MCS_pathtonative(*t_resolved_path, &t_native_path))
+		return false;
+
+	return MCsystem -> MoveToTrash(*t_native_path);
+}
+
+bool MCS_revealfile(MCStringRef p_path)
+{
+	MCAutoStringRef t_resolved_path;
+	MCAutoStringRef t_native_path;
+
+	if (!MCS_resolvepath(p_path, &t_resolved_path))
+		return false;
+
+	if (!MCS_pathtonative(*t_resolved_path, &t_native_path))
+		return false;
+
+	return MCsystem -> RevealInFileManager(*t_native_path);
+}
+
 Boolean MCS_backup(MCStringRef p_old_name, MCStringRef p_new_name)
 {
     MCAutoStringRef t_old_resolved, t_new_resolved;

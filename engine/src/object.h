@@ -16,8 +16,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
-   CHANGELOG.md say what changed. */
+   Seth Morrow (2026), Emily-Elizabeth Howard (2026) and
+   Stam Kapetanakis (2026); its Git history and CHANGELOG.md say what
+   changed. */
 
 //
 // Base class for all display objects
@@ -999,6 +1000,11 @@ public:
 	// OXT-Beyond: the background and words of the list an option menu or a
 	// combo box shows, where the usual colours could not be read (object.cpp)
 	bool getmenulistcolors(MCContextType dc_type, MCColor &r_back, MCColor &r_fore);
+	// OXT-Beyond: the words of a field or button with no colour from its
+	// own up to its stack, drawn black on a light background in the dark
+	// appearance, as LiveCode Community drew them (object.cpp)
+	void getlegacywords(uint2 p_di, MCContextType p_type, MCColor &x_words);
+	bool getwordsbackcolor(MCContextType p_type, MCColor &r_back);
 	void setforeground(MCDC *dc, uint2 di, Boolean rev, Boolean hilite = False, bool selected = false);
 	Boolean setcolor(uint2 index, const MCString &eptr);
 	Boolean setcolors(const MCString &data);
@@ -1525,6 +1531,10 @@ public:
 	virtual void SetEffectiveRectangle(MCExecContext& ctxt, MCRectangle p_rect);
 
 	void GetEncoding(MCExecContext& ctxt, intenum_t& r_encoding);
+
+    // OXT-Beyond: whether the current custom property set holds a property
+    // of this name (objectpropsets.cpp)
+    bool hascustomprop(MCNameRef p_name);
 
     void GetCustomKeys(MCExecContext& ctxt, MCStringRef& r_string);
     void SetCustomKeys(MCExecContext& ctxt, MCStringRef p_string);

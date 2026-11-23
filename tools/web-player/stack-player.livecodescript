@@ -1554,10 +1554,12 @@ private function playerErrorText pError
 end playerErrorText
 
 -- An extension whose code is a native library with no build for the web
--- (torrentxt's libtorrent, enetxt's ENet; sodiumxt, coinxt, box2dxt and
--- datachannelxt are linked into the web engine): its first call fails with
--- "unable to load foreign library". That is said in plain words, with the
--- library's name, rather than as the extension's error trace.
+-- (torrentxt's libtorrent, enetxt's ENet; sodiumxt, coinxt, box2dxt,
+-- box3dxt, render3dxt, datachannelxt, audioxt, xlsxt, gamepadxt, webpxt,
+-- barcodext and midixt are linked into the web engine): its first call
+-- fails with "unable to load foreign library". That is said in plain
+-- words, with the library's name, rather than as the extension's error
+-- trace.
 private function playerNativeLibrary pError
    local tOffset, tName
    put offset("unable to load foreign library '", pError) into tOffset

@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,finish"
+constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,shortcut-copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -253,6 +253,68 @@ on ed_new_stack
    if the number of controls of card 1 of stack sStack is not 0 then throw "the new stack is not empty"
    edShotStack sStack, "01-new-stack"
 end ed_new_stack
+
+-- The Window menu lists the IDE's windows that are open, not only the
+-- user's stacks, the script editors and the Dictionary, the Message Box,
+-- the Tools palette and the Project Browser (OpenXTalkPaul, openxtalk.org
+-- p=26643): Tools > Extension Manager, then Object > Stack Inspector, and
+-- each has its line, after the lines the menu had, which stay as they
+-- were; and with the stack in front of the Extension Manager, its line
+-- picked brings it back in front
+on ed_window_menu
+   local tEM, tPI, tItems, tLine, tLabels, tStackAt, tToolsAt, tEMAt, tPIAt, tLast
+   put revIDEPaletteToStackName("extension manager") into tEM
+   edFront
+   edMenu "Tools", "Extension Manager"
+   if not edWaitFor("edOpen(pAx)", 10000, tEM) then throw "Tools > Extension Manager opened nothing"
+   edCloseInspectors
+   edFront
+   edMenu "Object", "Stack Inspector"
+   put edInspector(5000) into tPI
+   put edMenuItems("Window") into tItems
+   set the itemDelimiter to tab
+   repeat for each line tLine in tItems
+      put item 2 of tLine & ", " after tLabels
+   end repeat
+   set the itemDelimiter to comma
+   edRecord "INFO the Window menu:" && char 1 to -3 of tLabels && "(" & edMenuNames(tItems) & ")"
+   put edMenuAt(tItems, the name of stack sStack) into tStackAt
+   put edMenuAt(tItems, "stack" && quote & "revTools" & quote) into tToolsAt
+   put edMenuAt(tItems, "stack" && quote & tEM & quote) into tEMAt
+   put edMenuAt(tItems, "stack" && quote & tPI & quote) into tPIAt
+   put the number of lines of tItems into tLast
+   if tStackAt is 0 then throw "the Window menu does not list the stack" && sStack
+   if tToolsAt is 0 then throw "the Window menu does not list the Tools palette"
+   if tEMAt is 0 then throw "the Window menu does not list the open Extension Manager"
+   if tPIAt is 0 then throw "the Window menu does not list the open Inspector" && tPI
+   if line tEMAt of tItems is not ("stack" && quote & tEM & quote & tab & "Extension Manager" & tab & true) then
+      throw "the Extension Manager's line is" && line tEMAt of tItems
+   end if
+   -- (named by what it inspects, its title)
+   set the itemDelimiter to tab
+   if not (item 2 of line tPIAt of tItems begins with "Inspector: ") then
+      throw "the Inspector's line is" && line tPIAt of tItems
+   end if
+   set the itemDelimiter to comma
+   if not (tStackAt < tToolsAt and tToolsAt < tEMAt and tToolsAt < tPIAt) then
+      throw "the Window menu's lines are out of order: the stack" && tStackAt & ", Tools" && tToolsAt & ", the Extension Manager" && tEMAt & ", the Inspector" && tPIAt
+   end if
+   if line tLast of tItems is not ("Send Window to Back" & tab & "Send Window to Back" & tab & true) then
+      throw "the Window menu does not end with Send Window to Back:" && line tLast of tItems
+   end if
+   edCloseInspectors
+   go stack sStack
+   if not edWaitFor("edFrontOf(pAx, pBx)", 3000, sStack, tEM) then
+      throw "the stack did not come in front of the Extension Manager:" && edJoin(the windows)
+   end if
+   edMenu "Window", "stack" && quote & tEM & quote
+   if not edWaitFor("edFrontOf(pAx, pBx)", 5000, tEM, sStack) then
+      throw "Window > Extension Manager did not bring it in front of the stack:" && edJoin(the windows)
+   end if
+   edShotStack tEM, "01-window-menu"
+   close stack tEM
+   edFront
+end ed_window_menu
 
 on ed_make_button
    edMake "Button", "button", "02-make-button"
@@ -606,6 +668,125 @@ on ed_copy_paste
    if the script of last button of card 1 of stack sStack is not the script of tButton then throw "the pasted button has not the button's script"
    edShotStack sStack, "22-pasted"
 end ed_copy_paste
+
+-- Copy and Paste by their shortcuts, Cmd+C and Cmd+V (Ctrl on Windows
+-- and Linux), pressed on the system's keyboard where its keys reach the
+-- IDE: the button copy-paste made selected, copied and pasted, then text
+-- in the stack's field copied and pasted. Each must work the first time
+-- it is pressed: on macOS 15.2 a person found that the two "don't work
+-- the first time. The second time I do this it works fine" (CamelCaps,
+-- openxtalk.org p=26676, in 0.2.7 and 0.2.8-dp.2). A press that does
+-- nothing is pressed again, so that the failure says whether a second
+-- press does what the first did not
+on ed_shortcut_copy_paste
+   local tButton, tCount, tMiss, tField, tFirst, tKept
+   -- (the copy that copy-paste made, which lies on the button: a click
+   -- there is on it)
+   get edControl("button")
+   put the long id of last button of card 1 of stack sStack into tButton
+   put the number of buttons of card 1 of stack sStack into tCount
+   -- the button
+   edSelect tButton
+   set the clipboardData["text"] to "OXT Everyday clipboard"
+   put edPressedOnce("c", "with the button selected did not copy it", "the clipboard is " & quote & "objects" & quote) into tMiss
+   if tMiss is empty then
+      put edPressedOnce("v", "pasted no button", "the number of buttons of card 1 of stack sStack > pAx", tCount) into tMiss
+   end if
+   if tMiss is empty then
+      if the number of buttons of card 1 of stack sStack is not tCount + 1 then put "one press of" && edShortcutName("v") && "pasted" && the number of buttons of card 1 of stack sStack - tCount && "buttons" into tMiss
+   end if
+   if tMiss is empty then
+      if the label of last button of card 1 of stack sStack is not the label of tButton then put "what" && edShortcutName("v") && "pasted is not a copy of the button (" & the label of last button of card 1 of stack sStack & ")" into tMiss
+   end if
+   if tMiss is empty then edShotStack sStack, "22b-shortcut-pasted"
+   -- (the pastes taken away: the tasks after work on the buttons there
+   -- were before)
+   revIDEDeselectAll
+   repeat while the number of buttons of card 1 of stack sStack > tCount
+      delete last button of card 1 of stack sStack
+   end repeat
+   -- text in the stack's field, in Run mode: copied, then pasted at its
+   -- end after a click elsewhere and a click back in it, as a person
+   -- copies a line and pastes it. Before each key the menus are as the
+   -- IDE builds them with no text selected and no field focused (the
+   -- build a click elsewhere makes), so that Copy and Paste are disabled
+   -- in them: a click in a field or a selection of text in it builds
+   -- nothing, as it never has, and each key must find its item enabled
+   -- all the same. (The Script Editor answers both keys itself, before
+   -- the menu bar's accelerator: Copy and Paste there worked the first
+   -- time before this, and are not the menu bar's to test)
+   if tMiss is empty then
+      put edControl("field") into tField
+      put the text of tField into tKept
+      put "Copy me" into tFirst
+      set the text of tField to tFirst
+      edToolTile "com.livecode.tool.Browse"
+      if not edWaitFor("the tool is " & quote & "browse tool" & quote, 3000) then put "Run in the Tools palette did not choose the Browse tool (" & the tool & ")" into tMiss
+   end if
+   if tMiss is empty then
+      set the clipboardData["text"] to "OXT Everyday clipboard"
+      put edMenusBuiltBare("Copy") into tMiss
+   end if
+   if tMiss is empty then
+      edClickAt sStack, the loc of tField
+      select text of tField
+      put edPressedOnce("c", "with the field's text selected did not copy it", "the clipboardData[" & quote & "text" & quote & "] is pAx", tFirst) into tMiss
+   end if
+   if tMiss is empty then put edMenusBuiltBare("Paste") into tMiss
+   if tMiss is empty then
+      edClickAt sStack, the loc of tField
+      select after text of tField
+      put edPressedOnce("v", "did not paste the copied text into the field", "the text of pAx is pBx", tField, tFirst & tFirst) into tMiss
+   end if
+   if tMiss is empty then edShotStack sStack, "22c-shortcut-pasted-text"
+   -- (the field and the tool as they were, whatever happened)
+   select empty
+   if tField is not empty then set the text of tField to tKept
+   edToolTile "com.livecode.tool.Pointer"
+   get edWaitFor("the tool is " & quote & "pointer tool" & quote, 3000)
+   -- (and the keys let go: the clicks of the tasks after are plain)
+   if tMiss is empty then put edKeysHeld(edShortcutName("v")) into tMiss
+   if tMiss is not empty then throw tMiss
+   edRecord "INFO" && edShortcutName("c") && "and" && edShortcutName("v") && "copied and pasted the button, and text in its field, each the first time it was pressed"
+end ed_shortcut_copy_paste
+
+-- No text selected and no field focused, nothing selected, and the
+-- menus built as the IDE builds them then (as a click elsewhere builds
+-- them): empty if the item pItem of the Edit menu (Copy or Paste) is
+-- disabled in them, as it must be for the key after to test anything;
+-- else why not, for a throw
+function edMenusBuiltBare pItem
+   select empty
+   revIDEDeselectAll
+   focus on nothing
+   send "revMenubarBuildMenus" to stack "revMenuBar"
+   if edWaitFor("edBuiltOff(pAx)", 3000, pItem) then return empty
+   return "with no text selected the menus were built with" && pItem && "enabled (" & edJoin(the text of button "Edit" of group "revMenuBar" of stack "revMenuBar") & ")"
+end edMenusBuiltBare
+
+-- whether the Edit menu as the IDE last built it has pItem disabled
+function edBuiltOff pItem
+   return ("(&" & pItem) is in the text of button "Edit" of group "revMenuBar" of stack "revMenuBar"
+end edBuiltOff
+
+-- The shortcut Cmd (Ctrl) and pLetter pressed once, and empty if pTrue
+-- (an expression of pAx and pBx, as edWaitFor takes them) is then true.
+-- If not, what it did not do (pDid) in words, for a throw, and whether a
+-- second press made pTrue true: a person found Cmd+C and Cmd+V doing
+-- nothing the first time and working the second (openxtalk.org p=26676)
+function edPressedOnce pLetter, pDid, pTrue, pAx, pBx
+   local tVia, tMiss
+   put edShortcut(pLetter) into tVia
+   if edWaitFor(pTrue, 3000, pAx, pBx) then return empty
+   put edShortcutName(pLetter) && "(" & tVia & ")" && pDid && "the first time it was pressed" into tMiss
+   get edShortcut(pLetter)
+   if edWaitFor(pTrue, 3000, pAx, pBx) then
+      put "; pressed a second time, it did" after tMiss
+   else
+      put "; nor did a second press" after tMiss
+   end if
+   return tMiss
+end edPressedOnce
 
 -- Edit > Duplicate on the pasted one: a third, offset from it
 on ed_duplicate
@@ -1939,6 +2120,155 @@ on ed_standalone_engine_missing
    edFront
    edShotStack sStack, "41-standalone-engine-missing"
 end ed_standalone_engine_missing
+
+-- File > Import As Control > Image File... with the system's own file
+-- dialog (the systemFileSelector true, as a person has it) and a lot of
+-- windows open, on macOS: the dialog must open, on the screen, in front
+-- of the IDE's windows. A person on macOS 15.2 found that "with a lot of
+-- windows/stacks open" the item's "Finder window does not always open"
+-- (CamelCaps, openxtalk.org p=26676). The dialog holds the IDE until it
+-- closes, so the IDE cannot look at it: a watcher of its own
+-- (edDialogWatcher), started before the item is picked, lists the
+-- system's windows until a new window of the IDE's is there, writes what
+-- it found and which windows were in front of it, and presses Escape,
+-- which cancels the dialog. Three times: with the stack in front, after
+-- a palette was, and after a stack that was just made. Last of the
+-- tasks, so that a dialog that held the IDE for good holds no task after
+-- it
+on ed_import_image_system_dialog
+   local tMany, tName, tFront, tRound, tFile, tFound, tMiss, tCount, tN, i
+   if the platform is not "MacOS" then
+      edRecord "INFO import-image-system-dialog: the system's file dialog is looked at on macOS (CamelCaps, p=26676)"
+      return "skipped"
+   end if
+   if sStack is empty or there is not a stack sStack then throw "the task's stack is not there"
+   -- (a lot of windows: a dozen stacks over the screen, and the palettes
+   -- a person has open)
+   lock messages
+   repeat with i = 1 to 12
+      put "Everyday Many" && i into tName
+      if there is a stack tName then delete stack tName
+      create stack tName
+      set the rect of stack tName to (40 + i * 30) & "," & (60 + i * 24) & "," & (440 + i * 30) & "," & (360 + i * 24)
+      put tName & return after tMany
+   end repeat
+   unlock messages
+   repeat for each line tName in tMany
+      go stack tName
+   end repeat
+   revIDEOpenPalette "message box"
+   revIDEOpenPalette "project browser"
+   put the number of images of card 1 of stack sStack into tCount
+   set the systemFileSelector to true
+   repeat for each item tRound in "the stack,a palette,a new stack"
+      put empty into tFront
+      switch tRound
+         case "a palette"
+            if there is a stack "Message Box" then go stack "Message Box"
+            break
+         case "a new stack"
+            put "Everyday Many New" into tFront
+            if there is a stack tFront then delete stack tFront
+            create stack tFront
+            set the rect of stack tFront to "300,200,700,500"
+            go stack tFront
+            break
+      end switch
+      -- (the item is the stack in front's: Import As Control is enabled
+      -- for a stack that can be edited)
+      edFront
+      -- (a file of each round's own: "the stack" and "a new stack" both
+      -- ended in "stack", and the third round found the first's files,
+      -- picked the item before its watcher had listed a window and read
+      -- the first round's record)
+      add 1 to tN
+      put sWork & "/dialog-" & tN & ".txt" into tFile
+      if there is a file tFile then delete file tFile
+      if there is a file (tFile & ".base") then delete file (tFile & ".base")
+      edDialogWatcher tFile
+      if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then
+         put tRound & ": the watcher did not start" & return after tMiss
+         next repeat
+      end if
+      edMenu "File", "Import As Control|image"
+      -- (the dialog has closed: Escape, or the watcher's last try)
+      if not edWaitFor("there is a file pAx", 15000, tFile) then
+         put tRound & ": the watcher wrote nothing" & return after tMiss
+         next repeat
+      end if
+      put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound
+      edRecord "INFO import-image-system-dialog, after" && tRound & ":" && edJoin(tFound)
+      if line 1 of tFound is not "opened" then
+         put tRound & ":" && line 1 of tFound & return after tMiss
+      else if line 2 of tFound is not "in front" then
+         put tRound & ": the dialog opened behind" && line 2 of tFound & return after tMiss
+      else if line 3 of tFound is not "closed" then
+         put tRound & ": Escape did not close the dialog (" & line 3 of tFound & ")" & return after tMiss
+      end if
+      if tFront is not empty and there is a stack tFront then delete stack tFront
+   end repeat
+   set the systemFileSelector to false
+   repeat for each line tName in tMany
+      if there is a stack tName then delete stack tName
+   end repeat
+   edFront
+   if the number of images of card 1 of stack sStack is not tCount then put "a cancelled dialog imported an image" & return after tMiss
+   if tMiss is not empty then throw "the system's file dialog with a lot of windows open:" && edJoin(tMiss)
+   edRecord "INFO File > Import As Control > Image File... opened the system's file dialog in front of a dozen stacks and the palettes, three times"
+end ed_import_image_system_dialog
+
+-- A watcher of the system's windows, for a dialog that holds the IDE
+-- while it is open: osascript, in the background, lists the windows
+-- (CGWindowListCopyWindowInfo, which needs no permission for what it is
+-- asked here: owners, layers and bounds) and writes pFile & ".base" once
+-- it has listed those there before. Then, for up to ten seconds, it looks
+-- for a window of the IDE's that was not there before (or of the system's
+-- service that shows an open panel for a program, should the system show
+-- it that way: its owner's name has "Open" or "Panel" in it). pFile says, a
+-- line each: "opened" or what it found instead; "in front" or the
+-- windows in front of it that overlap it (each owner, layer and bounds;
+-- below the Dock's layer, 20, and the menu bar's: a window of the IDE's
+-- or of any program, not the system's own);
+-- "closed" or what is still there after Escape, pressed up to four
+-- times; the dialog; then every window on the screen, front to back, as
+-- they were while the dialog was open
+command edDialogWatcher pFile
+   local tScript
+   put "ObjC.import('CoreGraphics'); ObjC.import('Foundation'); " & \
+         "var pid = " & the processID & "; var path = '" & pFile & "'; " & \
+         "function all() { return ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(0, 0))) || []; } " & \
+         "function shown() { return ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo(17, 0))) || []; } " & \
+         "function write(p, t) { $.NSString.alloc.initWithUTF8String(t).writeToFileAtomicallyEncodingError(p, true, 4, null); } " & \
+         "function box(w) { var b = w.kCGWindowBounds || {}; return [b.X, b.Y, b.Width, b.Height].join(','); } " & \
+         "function say(w) { return w.kCGWindowOwnerName + ' ' + w.kCGWindowOwnerPID + ' layer ' + w.kCGWindowLayer + ' at ' + box(w) + (w.kCGWindowIsOnscreen ? '' : ' (not on the screen)'); } " & \
+         "function meets(a, b) { var p = a.kCGWindowBounds, q = b.kCGWindowBounds; " & \
+         "return p.X < q.X + q.Width && q.X < p.X + p.Width && p.Y < q.Y + q.Height && q.Y < p.Y + p.Height; } " & \
+         "function esc() { [true, false].forEach(function (d) { $.CGEventPost(0, $.CGEventCreateKeyboardEvent(null, 53, d)); delay(0.1); }); } " & \
+         "function ours(w) { return (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20; } " & \
+         "function area(w) { return w.kCGWindowBounds.Width * w.kCGWindowBounds.Height; } " & \
+         "var before = {}; all().forEach(function (w) { before[w.kCGWindowNumber] = true; }); write(path + '.base', 'listed'); " & \
+         "var t0 = Date.now(), seen = {}, order = []; " & \
+         "function look() { all().forEach(function (w) { if (ours(w) && seen[w.kCGWindowNumber] === undefined) { seen[w.kCGWindowNumber] = Date.now() - t0; order.push(w); } }); " & \
+         "var on = shown().filter(function (w) { return ours(w) && w.kCGWindowBounds.Width > 1 && w.kCGWindowBounds.Height > 1; }); " & \
+         "on.sort(function (a, b) { return (b.kCGWindowLayer - a.kCGWindowLayer) || (area(b) - area(a)); }); return on.length ? on[0] : null; } " & \
+         "var found = null; for (var i = 0; i < 40 && !order.length; i++) { delay(0.25); found = look(); } " & \
+         "for (var j = 0; j < 32 && order.length && !found; j++) { delay(0.25); found = look(); } " & \
+         "var lines = [], now = [], at = -1; if (found) { delay(0.5); found = look() || found; now = shown(); " & \
+         "now.forEach(function (w, n) { if (w.kCGWindowNumber == found.kCGWindowNumber) at = n; }); } " & \
+         "if (!order.length) { lines.push('no new window of the IDE in ten seconds'); lines.push(''); } " & \
+         "else if (!found) { lines.push('opened, but not on the screen in eight seconds'); lines.push(''); } " & \
+         "else if (at < 0) { lines.push('opened, but it left the screen: ' + say(found)); lines.push(''); } else { lines.push('opened'); " & \
+         "var over = now.slice(0, at).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20 && w.kCGWindowBounds.Width > 1 && meets(w, found); }); " & \
+         "lines.push(over.length ? over.map(say).join('; ') : 'in front'); } " & \
+         "var aim = found || order[0], gone = false; for (var k = 0; k < 4 && !gone; k++) { esc(); delay(1.5); " & \
+         "gone = !aim || !all().some(function (w) { return w.kCGWindowNumber == aim.kCGWindowNumber && (w.kCGWindowIsOnscreen || !found); }); } " & \
+         "lines.push(gone ? 'closed' : 'still open after Escape four times'); " & \
+         "lines.push('the dialog: ' + (found ? say(found) : 'none on the screen')); " & \
+         "lines.push('new windows: ' + (order.length ? order.map(function (w) { return say(w) + ' at ' + seen[w.kCGWindowNumber] + ' ms'; }).join('; ') : 'none')); " & \
+         "(now.length ? now : shown()).filter(function (w) { return w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 24; }).forEach(function (w) { lines.push(say(w)); }); " & \
+         "write(path, lines.join(String.fromCharCode(10)));" into tScript
+   get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")
+end edDialogWatcher
 
 -- the stack closed and deleted from memory; what was changed set back
 on ed_finish
@@ -3946,6 +4276,29 @@ function edMenuState pItems, pPath
    return empty
 end edMenuState
 
+-- the line of pItems (edMenuItems) whose pick is pPath, or 0
+function edMenuAt pItems, pPath
+   local tAt
+   set the itemDelimiter to tab
+   repeat for each line tLine in pItems
+      add 1 to tAt
+      if item 1 of tLine is pPath then return tAt
+   end repeat
+   return 0
+end edMenuAt
+
+-- whether the window pStack is in front of the window pOther (the
+-- windows: front to back)
+function edFrontOf pStack, pOther
+   local tAt, tStackAt, tOtherAt
+   repeat for each line tWindow in the windows
+      add 1 to tAt
+      if tWindow is pStack and tStackAt is empty then put tAt into tStackAt
+      if tWindow is pOther and tOtherAt is empty then put tAt into tOtherAt
+   end repeat
+   return tStackAt is not empty and tOtherAt is not empty and tStackAt < tOtherAt
+end edFrontOf
+
 function edMenuNames pItems
    local tNames
    set the itemDelimiter to tab
@@ -4219,7 +4572,7 @@ command edToolsBack pMB
    get edWaitFor("edOpen(" & quote & "revTools" & quote & ")", 5000)
 end edToolsBack
 
--- a key's virtual key code on macOS (Down, Up, Return, Escape, m, x)
+-- a key's virtual key code on macOS (Down, Up, Return, Escape, m, x, c, v)
 function edMacKeyCode pKey
    switch pKey
       case "Down"
@@ -4234,6 +4587,10 @@ function edMacKeyCode pKey
          return 46
       case "x"
          return 7
+      case "c"
+         return 8
+      case "v"
+         return 9
    end switch
    return empty
 end edMacKeyCode

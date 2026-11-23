@@ -46,7 +46,9 @@ import check_macho_floor  # noqa: E402
 import check_native_deps  # noqa: E402
 import platform_matrix  # noqa: E402
 
-X86_LIBS = ('sodiumxt.so', 'box2dxt.so', 'torrentxt.so', 'datachannelxt.so', 'curlxt.so')
+X86_LIBS = ('sodiumxt.so', 'box2dxt.so', 'torrentxt.so', 'datachannelxt.so', 'curlxt.so', 'box3dxt.so',
+            'audioxt.so', 'xlsxt.so', 'gamepadxt.so', 'webpxt.so', 'barcodext.so', 'render3dxt.so',
+            'midixt.so')
 
 
 def needs(**versions):
@@ -133,13 +135,32 @@ class ElfFloorMatrix(unittest.TestCase):
                 'Extensions/x/code/x86-linux/torrentxt.so': needs(GLIBC='2.38'),
                 'Extensions/x/code/x86-linux/datachannelxt.so': needs(GLIBC='2.38'),
                 # curlxt's (0.2.8-dp.2): GLIBCXX too, which its own limit covers
-                'Extensions/x/code/x86-linux/curlxt.so': needs(GLIBC='2.34', GLIBCXX='3.4.29')}
+                'Extensions/x/code/x86-linux/curlxt.so': needs(GLIBC='2.34', GLIBCXX='3.4.29'),
+                # box3dxt's (#606): built where Box2Dxt's is, so the same glibc
+                'Extensions/x/code/x86-linux/box3dxt.so': needs(GLIBC='2.34'),
+                # audioxt's (#611): built where Box2Dxt's is, so the same glibc
+                # (pthread_* and dl* moved into libc in 2.34)
+                'Extensions/x/code/x86-linux/audioxt.so': needs(GLIBC='2.34'),
+                # xlsxt's (its first release libraries, 2026-11-21): stat() at 2.33
+                'Extensions/x/code/x86-linux/xlsxt.so': needs(GLIBC='2.33'),
+                # gamepadxt's: SDL's C23 calls (__isoc23_vsscanf and others),
+                # measured on the suite's committed library
+                'Extensions/x/code/x86-linux/gamepadxt.so': needs(GLIBC='2.38'),
+                # webpxt's is under the floor and needs no row; barcodext's,
+                # C++ like TorrentXT's, needs glibc 2.38 (__isoc23_strtol)
+                'Extensions/x/code/x86-linux/webpxt.so': needs(GLIBC='2.29'),
+                'Extensions/x/code/x86-linux/barcodext.so': needs(GLIBC='2.38'),
+                # render3dxt's (#607): the same lane, and pthreads like box3dxt's
+                'Extensions/x/code/x86-linux/render3dxt.so': needs(GLIBC='2.34'),
+                # midixt's: C++ with its runtime inside it, so glibc 2.38
+                # (__isoc23_strtoul), measured on the suite's committed library
+                'Extensions/x/code/x86-linux/midixt.so': needs(GLIBC='2.38')}
 
     def test_shipped_package_passes(self):
         t = self.tree()
         code, out = self.run_check(t.root, self.shipped())
         self.assertEqual(code, 0, out)
-        self.assertIn('5 exceptions above', out)
+        self.assertIn('12 exceptions above', out)
 
     def test_new_file_over_the_floor_fails_with_path_and_version(self):
         t = self.tree(['Externals/new.so'])

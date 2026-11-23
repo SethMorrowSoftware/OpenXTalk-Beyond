@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "system.h"
@@ -115,4 +119,13 @@ bool MCSystemLockFile(IO_handle p_file, bool p_shared, bool p_wait)
 		t_op |= LOCK_NB;
 	
 	return 0 == flock(t_fd, t_op);
+}
+
+// OXT-Beyond: a session file or the session index: its owner alone reads
+// and writes it. A file another user owns stays as it is.
+void MCSystemMakeFilePrivate(IO_handle p_file)
+{
+	int t_fd = fileno((FILE*)p_file->GetFilePointer());
+	if (t_fd >= 0)
+		fchmod(t_fd, S_IRUSR | S_IWUSR);
 }

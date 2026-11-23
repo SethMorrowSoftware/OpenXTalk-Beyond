@@ -487,6 +487,17 @@ bool MCS_name_to_host_and_port(MCStringRef p_name, MCStringRef &r_host, MCNumber
 
 bool MCS_host_and_port_to_sockaddr(MCStringRef p_host, MCNumberRef p_port, struct sockaddr_in *r_addr, MCHostNameResolveCallback p_callback, void *p_context)
 {
+    // OXT-Beyond: MCS_name_to_host_and_port gives a nil host for a name with
+    // nothing before its colon ("", ":80", "::1"), and MCValueIsEmpty(nil)
+    // crashed the engine: open socket to "" and hostAddressToName("") did,
+    // in LiveCode Community 9.6.3 too. No host is no address, and the result
+    // says so, as it does for a host name that no server knows.
+    if (p_host == nil || p_port == nil)
+    {
+        MCresult->sets("can't resolve hostname");
+        return false;
+    }
+
     if (MCValueIsEmpty(p_host) || MCValueIsEmpty(p_port))
         return false;
     

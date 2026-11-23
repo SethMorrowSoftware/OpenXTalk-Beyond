@@ -2,21 +2,24 @@
 <!-- The xTalk Suite's extensions on OXT-Beyond's GitHub Pages site
      (extensions/), in the web stacks gallery's look (../games/): the night
      sky, the fire rim, the stitched seam. tools/pages/build_pages.py puts
-     a card for each extension (its EXTENSIONS table) at the
-     EXTENSIONS_LIST marker, each linking its .lce packages in the newest
-     xTalk Suite release that has them (pages.yml lists its files). It keeps
-     the SUITE_RELEASE, SUITE_SUMS and SUITE_MORE blocks only with such a
-     release, and the SUITE_NONE block only without one, so no link here
-     leads to a file that is not there. PLUGINS_LIST is OXT-Beyond's own two
-     plugins (PLUGINS), linked in the release the front page's Downloads
-     links. -->
+     a card for every extension at the EXTENSIONS_LIST marker, each linking
+     its .lce packages in the newest xTalk Suite release that has them
+     (pages.yml lists its files): the ones its EXTENSIONS table writes, and
+     after them one for each extension of the release that the table does
+     not name yet, made from its own packages. It keeps the SUITE_RELEASE
+     and SUITE_SUMS blocks only with such a release, and the SUITE_NONE
+     block only without one, so no link here leads to a file that is not
+     there; and the BUILT_IN block only when it was told which extensions
+     the OXT-Beyond releases it offers have built in, the line each card
+     then has. PLUGINS_LIST is OXT-Beyond's own two plugins (PLUGINS),
+     linked in the release the front page's Downloads links. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Extensions · OXT-Beyond</title>
 <link rel="icon" type="image/svg+xml" href="../brand/icon.svg">
-<meta name="description" content="The xTalk Suite's extensions: cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr for xTalk. Built into OXT-Beyond, and as .lce packages for LiveCode Community 9, OpenXTalk and HyperXTalk.">
+<meta name="description" content="The xTalk Suite's extensions for xTalk: cryptography, networking from HTTP to BitTorrent and Tor, 2D and 3D physics, sound, MIDI, game controllers, PDF, Excel and more. Many built into OXT-Beyond, and all as .lce packages for LiveCode Community 9, OpenXTalk and HyperXTalk.">
 <meta name="theme-color" content="#0a0f1a">
 <style>
   /* Always the night: the page is the logo's dark tile, as the web stacks
@@ -146,6 +149,10 @@
   .ext .what { margin: 0; color: #c9d3e2; font-size: .96rem; flex: 1; }
   .ext .needs { margin: 0; color: var(--muted); font-size: .88rem; }
   .ext .needs::before { content: "\2192\00a0"; color: var(--amber); }
+  /* Whether OXT-Beyond has it built in: a tick, or the package to install */
+  .ext .built { margin: 0; color: var(--muted); font-size: .88rem; }
+  .ext .built::before { content: "\2713\00a0"; color: var(--teal); font-weight: 700; }
+  .ext .built.no::before { content: "\2193\00a0"; color: var(--amber); }
   .ext .soon { margin: 0; color: var(--muted); font-size: .92rem; }
   .ext .source { align-self: flex-start; font-size: .9rem; }
   .files { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -204,7 +211,7 @@
       <div>
         <p class="eyebrow">The xTalk Suite</p>
         <h1>Extensions <span class="flame">Beyond</span></h1>
-        <p class="lead">Cryptography, BitTorrent, real-time and peer-to-peer networking, 2D physics, Bitcoin and Ethereum, Tor and Nostr, all from plain xTalk script. Each one is a thin layer over a proven library, or plain script. They are built into OXT-Beyond, so there is nothing to install there. Download a package to use one in LiveCode Community 9.6.3, OpenXTalk or HyperXTalk, and the xTalk Assistant and the xTalk MCP Bridge with them.</p>
+        <p class="lead">Cryptography and Bitcoin, the internet from HTTP to BitTorrent, WebRTC and Tor, 2D and 3D physics, game controllers, sound, MIDI and stage lighting, PDF, Excel, WebP pictures and barcodes, all from plain xTalk script. Each one is a thin layer over a proven library, or plain script. Many come built into OXT-Beyond, so there is nothing to install there<!-- @BUILT_IN@ -->, and each card says from which release<!-- /@BUILT_IN@ -->. Download a package to use one in LiveCode Community 9.6.3, OpenXTalk or HyperXTalk, and the xTalk Assistant and the xTalk MCP Bridge with them.</p>
         <!-- @SUITE_RELEASE@ -->
         <p class="release"><span class="tag">@SUITE_TAG@</span><span>The packages of the newest xTalk Suite release</span><a href="@SUITE_TAG_URL@">Release notes</a><!-- @SUITE_SUMS@ --><a href="@SUITE_SUMS_URL@">Checksums (SHA256SUMS)</a><!-- /@SUITE_SUMS@ --></p>
         <!-- /@SUITE_RELEASE@ -->
@@ -235,21 +242,14 @@
     </div>
   </section>
 
-  <!-- @SUITE_MORE@ -->
-  <section class="shelf" aria-labelledby="more-packages">
-    <h2 id="more-packages">More from the suite <small>Packages new since this page was written</small></h2>
-    <div class="files">@SUITE_MORE_LIST@</div>
-  </section>
-  <!-- /@SUITE_MORE@ -->
-
   <section class="shelf" aria-labelledby="installing">
     <h2 id="installing">Installing a package <small>In any IDE built on LiveCode Community 9</small></h2>
     <ol class="steps">
       <li><b>Download</b> the extension's <kbd>.lce</kbd> file, and its helpers, Kit or script layer if you want them.</li>
       <li>Open <b>Tools &gt; Extension Manager</b>, click <b>+</b> and choose the file.</li>
-      <li>Install a library <b>before</b> what is built on it: TorrentXT before its Helpers, CoinXT before its script layer, OnionXT before its web server. A plugin appears in <b>Development &gt; Plugins</b>.</li>
+      <li>Install a library <b>before</b> what is built on it, in the order its card lists them: TorrentXT before its Helpers, curlxt before its Helpers and its Helpers before its tsNet calls. A plugin appears in <b>Development &gt; Plugins</b>.</li>
     </ol>
-    <p class="note">The native libraries carry their builds for Windows, macOS 10.15 or later and Linux (64-bit and 32-bit x86, and 64-bit ARM), and the IDE picks the right one. In OXT-Beyond a package you install is used in place of the built-in copy; uninstall it in the Extension Manager to go back.</p>
+    <p class="note">The native libraries carry their builds for Windows, macOS 10.15 or later and Linux (64-bit and 32-bit x86, and 64-bit ARM), and the IDE picks the right one; a card says when one needs more. In OXT-Beyond a package you install is used in place of the built-in copy; uninstall it in the Extension Manager to go back.</p>
   </section>
 </main>
 

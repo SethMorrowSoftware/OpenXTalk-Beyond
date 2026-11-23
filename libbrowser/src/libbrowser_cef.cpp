@@ -25,6 +25,9 @@
 
 #include "libbrowser_cef.h"
 #include "libbrowser_cef_source.h"
+#if defined(__linux__)
+#include "libbrowser_cef_desktop_lnx.h"
+#endif
 
 #include <include/cef_app.h>
 #include <include/cef_parser.h>
@@ -659,7 +662,17 @@ bool MCCefInitialise(void)
 		setitimer(ITIMER_REAL, &t_new_timer, &t_old_timer);
 		BackupSignalHandlers();
 #endif
+#if defined(__linux__)
+		{
+			// OXT-Beyond: [[ CEF 156 ]] Chromium starts as on a desktop
+			// with no name, or on GNOME and its like it loads GTK 3 into
+			// this GTK 2 process and ends it (libbrowser_cef_desktop_lnx.h)
+			MCCefLinuxDesktopNameHider t_no_desktop_name;
+			t_success = CefInitialize(t_args, t_settings, t_app, nil);
+		}
+#else
 		t_success = CefInitialize(t_args, t_settings, t_app, nil);
+#endif
 		
 #if defined(TARGET_PLATFORM_POSIX)
 		RestoreSignalHandlers();

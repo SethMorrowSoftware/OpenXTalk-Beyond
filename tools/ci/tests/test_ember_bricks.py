@@ -68,6 +68,7 @@ files it is made from, without a browser or an engine:
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -1226,6 +1227,71 @@ class ThePointer(unittest.TestCase):
         self.assertIn('browser_name not in MOUSE_BROWSERS', told)
         self.assertIn("expect('a desktop\\'s page plays with a mouse', s.get('pointer') == 'mouse', s)", body)
 
+    def test_a_tablet_with_a_trackpad_plays_a_level_too(self):
+        # A tablet with a trackpad or a mouse (an iPad with its keyboard)
+        # answers "both" to mwPointer(), and the game plays it with the
+        # mouse: the check plays the level a second time on a tablet's
+        # page that says so, which no browser Playwright drives can be
+        check = read('tools', 'ci', 'ember_bricks_check.py')
+        main = check[check.index('\ndef main('):]
+        desktop = main.index('problems += check_pointer(p, args.browser, url, args.timeout, args.shots)\n')
+        self.assertLess(desktop, main.index(
+            'problems += check_pointer(p, args.browser, url, args.timeout, args.shots, tablet=True)'))
+        self.assertLess(main.index('if args.no_pointer:'), desktop)
+        self.assertTrue(ember_bricks_check.TABLET['has_touch'])
+        self.assertGreater(ember_bricks_check.TABLET['viewport']['width'], 900)
+        self.assertEqual(ember_bricks_check.TABLET_BROWSERS, ('chromium',))
+        body = check[check.index('\ndef check_pointer('):check.index('\ndef check_lobby(')]
+        self.assertRegex(body, r"Player\(playwright, browser, browser_name, 'tablet', TABLET,[^)]*"
+                               r"clipboard=False, init_script=BOTH_POINTERS\)")
+        self.assertIn("expect('the tablet with a trackpad plays with the mouse', s.get('pointer') == 'mouse', s)",
+                      body)
+        # the game asks the page the same questions as mwPointer() does
+        library = read('extensions', 'script-libraries', 'mobileweb', 'mobileweb.livecodescript')
+        for query in ('(any-pointer: coarse)', '(any-pointer: fine)'):
+            self.assertIn(query, library)
+            self.assertIn(query, ember_bricks_check.POINTERS)
+        self.assertIn('if mwPointer() is "touch" then', game_script())
+
+        # the page's script is set before the page loads
+        browser = mock.MagicMock()
+        context = browser.new_context.return_value
+        order = []
+        context.add_init_script.side_effect = lambda script: order.append('script')
+        context.new_page.side_effect = lambda: order.append('page') or mock.MagicMock()
+        with mock.patch.object(ember_bricks_check.time, 'sleep'), \
+                mock.patch.object(ember_bricks_check.mobile_web_check, 'Fingers'):
+            ember_bricks_check.Player(None, browser, 'chromium', 'tablet', ember_bricks_check.TABLET,
+                                      'http://127.0.0.1:1/', 5, None, scene='pointer', clipboard=False,
+                                      init_script=ember_bricks_check.BOTH_POINTERS)
+        self.assertEqual(order, ['script', 'page'])
+        context.add_init_script.assert_called_once_with(ember_bricks_check.BOTH_POINTERS)
+        self.assertNotIn('permissions', browser.new_context.call_args.kwargs)
+        # and a page made without one has none
+        browser = mock.MagicMock()
+        with mock.patch.object(ember_bricks_check.time, 'sleep'):
+            ember_bricks_check.Player(None, browser, 'webkit', 'desktop', ember_bricks_check.DUEL_HOST,
+                                      'http://127.0.0.1:1/', 5, None, scene='pointer', clipboard=False)
+        browser.new_context.return_value.add_init_script.assert_not_called()
+
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is not installed')
+    def test_the_tablets_page_says_it_has_a_pointer_and_nothing_else(self):
+        # BOTH_POINTERS answers (any-pointer: fine) as matched and leaves
+        # every other question to the browser
+        script = ('var asked = [];'
+                  'var window = {matchMedia: function (q) { asked.push(q);'
+                  ' return {matches: q === "(any-pointer: coarse)", media: q}; }};'
+                  + ember_bricks_check.BOTH_POINTERS +
+                  'var m = function (q) { return window.matchMedia(q).matches; };'
+                  'console.log(JSON.stringify([m("(any-pointer: coarse)"), m("(any-pointer: fine)"),'
+                  ' m("(any-pointer:fine)"), m("(pointer: fine)"), m("(prefers-color-scheme: dark)"), asked]));')
+        out = subprocess.run([shutil.which('node'), '-e', script], capture_output=True, text=True, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        coarse, fine, tight, primary, dark, asked = json.loads(out.stdout)
+        self.assertEqual((coarse, fine, tight, primary, dark), (True, True, True, False, False))
+        # (the browser is still asked, each time)
+        self.assertEqual(len(asked), 5)
+
     def test_the_mouses_page_asks_for_no_clipboard(self):
         # WebKit knows no clipboard permission, and refuses the first page
         # of a context that asks for one ("Unknown permission:
@@ -1310,11 +1376,22 @@ class EngineTests(unittest.TestCase):
             self.assertEqual(lines[1:3], ['exit %s' % name, 'end if'], name)
         self.assertEqual(len(re.findall(r'\bnoPointerToHide\(', tests)), 6)
         phone = body('TestAPhoneOrATabletHidesNoPointer')
-        self.assertEqual(phone[:4], ['if st("platform") is not "mobile" then',
-                                     'TestSkip "a mouse on a phone or a tablet", "this is not a phone or a tablet"',
-                                     'exit TestAPhoneOrATabletHidesNoPointer', 'end if'])
         self.assertIn('game "ebTestSet", "pointer", "mouse"', phone)
         self.assertEqual(len([line for line in phone if line.startswith('TestAssert ') and 'pointerShown()' in line]), 3)
+        # ... and it runs everywhere, not only in the Android job (which
+        # a change to tests/ alone does not start): on a desktop and in a
+        # page the game is told that it is in a phone's app, by a hook of
+        # its own, and told back where it was after
+        self.assertNotIn('TestSkip', ' '.join(phone))
+        self.assertEqual(phone[:5], ['local tPlatform', 'put st("platform") into tPlatform',
+                                     'if tPlatform is not "mobile" then', 'game "ebTestSet", "platform", "mobile"',
+                                     'end if'])
+        self.assertEqual(phone[5], 'TestAssert "the game is in a phone\'s or a tablet\'s app", st("platform") is "mobile"')
+        self.assertEqual(phone[-2:], ['game "ebTestSet", "platform", tPlatform',
+                                      'TestAssert "the game is where it was again", st("platform") is tPlatform'])
+        script = game_script()
+        hook = script[script.index('\ncommand ebTestSet pName, pValue\n'):script.index('\nend ebTestSet\n')]
+        self.assertRegex(hook, r'case "platform"\n(?:\s*--[^\n]*\n)*\s*put pValue into sPlatform\n\s*break')
         # (a finger's test runs everywhere: it is not about the platform)
         self.assertNotIn('noPointerToHide', ' '.join(body('TestAFingerHasNoPointerToHide')))
         self.assertNotIn('"mobile"', ' '.join(body('TestAFingerHasNoPointerToHide')))

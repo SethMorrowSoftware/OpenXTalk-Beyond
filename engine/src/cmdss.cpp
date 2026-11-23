@@ -16,7 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
 
 #include "prefix.h"
 
@@ -1335,6 +1336,30 @@ Parse_stat MCShow::parse(MCScriptPoint &sp)
 		(PE_SHOW_BADTARGET, sp);
 		return PS_ERROR;
 	}
+	// OXT-Beyond: "show <path> in finder" (or "in explorer", the same on
+	// every system) reveals a file or folder in the desktop's file manager.
+	// From HyperXTalk (Emily-Elizabeth Howard, commit fa24a0db, #539),
+	// without its words in the show table: "finder" and "explorer" are no
+	// words of the language, so "show finder", a variable or a control of
+	// that name, is read as before. Before, "show <path> in finder"
+	// compiled as "show <path>" followed by a call of a handler "in", and
+	// stopped when it ran, as no object has a path for its name. "show
+	// button 1 in finder", which named an object, showed it before it
+	// stopped, and still does: an object's reference is never read as a
+	// path here
+	if (ton->noobjectchunks())
+	{
+		MCScriptPoint t_before_in(sp);
+		Symbol_type t_type;
+		if (sp.skip_token(SP_FACTOR, TT_IN, PT_IN) == PS_NORMAL &&
+			sp.next(t_type) == PS_NORMAL && t_type == ST_ID &&
+			(sp.token_is_cstring("finder") || sp.token_is_cstring("explorer")))
+		{
+			reveal = true;
+			return PS_NORMAL;
+		}
+		sp.restore(t_before_in);
+	}
 	if (sp.skip_token(SP_FACTOR, TT_PREP, PT_AT) == PS_NORMAL)
 	{
 		if (sp.parseexp(False, True, &location) != PS_NORMAL)
@@ -1364,6 +1389,15 @@ Parse_stat MCShow::parse(MCScriptPoint &sp)
 
 void MCShow::exec_ctxt(MCExecContext &ctxt)
 {
+	if (reveal)
+	{
+		MCAutoStringRef t_path;
+		if (!ctxt . EvalExprAsStringRef(ton, EE_SHOW_NOOBJ, &t_path))
+			return;
+		MCFilesExecRevealFile(ctxt, *t_path);
+		return;
+	}
+
 	switch (which)
 	{
 	case SO_GROUPS:

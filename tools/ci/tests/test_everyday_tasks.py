@@ -28,6 +28,9 @@ Linux, Windows and macOS. The script itself runs only on an engine
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1229,6 +1232,342 @@ class MessageBoxShortcut(BuildTasks, unittest.TestCase):
         self.assertLess(typed, gone)
         self.assertLess(gone, works.index('go stack tTop'))
         self.assertIn('edRecord "INFO the system\'s keyboard reaches the IDE:" && tWorks', works)
+
+
+class ShortcutCopyPaste(BuildTasks, unittest.TestCase):
+    """shortcut-copy-paste presses Cmd+C and Cmd+V (Ctrl on Windows and
+    Linux), each once. On macOS 15.2 a person found that the two "don't
+    work the first time. The second time I do this it works fine"
+    (CamelCaps, openxtalk.org p=26676, in 0.2.7 and 0.2.8-dp.2). The menu
+    bar built its menus a millisecond after the mouseDown the engine sends
+    it before an accelerator, and the engine picks the item as soon as
+    that mouseDown returns: Copy was still disabled as the last build left
+    it. The menu bar now builds at once for the mouseDown sent to its group
+    itself (revmenubar.livecodescript, generateMenuGroup)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.menubar = read(os.path.join(ROOT, 'ide', 'Toolset', 'palettes', 'menubar', 'revmenubar.livecodescript'))
+        cls.body = cls.handlers['ed_shortcut_copy_paste']
+        # (its code alone: a comment of it says what the task asks)
+        cls.code = '\n'.join(line for line in cls.body.split('\n') if not line.lstrip().startswith('--'))
+
+    def test_the_task_follows_copy_paste(self):
+        names = tasks(self.text)
+        self.assertEqual(names.index('shortcut-copy-paste'), names.index('copy-paste') + 1)
+        # (duplicate, after it, works on the button copy-paste pasted, so
+        # the task takes away only what its own keys pasted)
+        self.assertEqual(names.index('duplicate'), names.index('shortcut-copy-paste') + 1)
+        self.assertIn('put the number of buttons of card 1 of stack sStack into tCount', self.code)
+        self.assertIn('repeat while the number of buttons of card 1 of stack sStack > tCount\n'
+                      '      delete last button of card 1 of stack sStack\n', self.code)
+
+    def test_the_letters_are_the_menu_items(self):
+        copy = re.search(r'enableMenuItem\("&Copy" && tSelectionLabel & "/(\w)\|copy"', self.menubar)
+        paste = re.search(r'enableMenuItem\("&Paste"&& tClipboardLabel & "/(\w)\|paste"', self.menubar)
+        self.assertIsNotNone(copy, 'Edit > Copy has no shortcut')
+        self.assertIsNotNone(paste, 'Edit > Paste has no shortcut')
+        c, v = copy.group(1).lower(), paste.group(1).lower()
+        # a button, then text in a field
+        self.assertEqual(self.code.count('edPressedOnce("%s",' % c), 2)
+        self.assertEqual(self.code.count('edPressedOnce("%s",' % v), 2)
+        # and no other key: each press is one the task asks about
+        self.assertEqual(self.code.count('edShortcut('), 0)
+        self.assertEqual(self.code.count('edPressedOnce('), 4)
+
+    def test_a_mac_presses_c_and_v(self):
+        codes = self.function('edMacKeyCode')
+        # (kVK_ANSI_C and kVK_ANSI_V)
+        self.assertRegex(codes, r'case "c"\n\s*return 8\n')
+        self.assertRegex(codes, r'case "v"\n\s*return 9\n')
+
+    def test_each_key_must_work_the_first_time(self):
+        once = self.function('edPressedOnce')
+        first = once.index('put edShortcut(pLetter) into tVia')
+        done = once.index('if edWaitFor(pTrue, 3000, pAx, pBx) then return empty')
+        self.assertLess(first, done)
+        # a miss is a miss of the first press, whatever a second does
+        missed = once.index('&& pDid && "the first time it was pressed" into tMiss')
+        self.assertLess(done, missed)
+        second = once.index('get edShortcut(pLetter)')
+        self.assertLess(missed, second)
+        self.assertIn('put "; pressed a second time, it did" after tMiss', once)
+        self.assertIn('put "; nor did a second press" after tMiss', once)
+        self.assertRegex(once, r'\n\s*return tMiss\n\s*$')
+        # (the task throws what the presses missed)
+        self.assertIn('if tMiss is not empty then throw tMiss', self.code)
+
+    def test_what_each_key_did_is_asked(self):
+        # the button: Copy put objects on the clipboard over text the task
+        # put there, and Paste made one copy of the button, not two
+        self.assertLess(self.code.index('set the clipboardData["text"] to "OXT Everyday clipboard"'),
+                        self.code.index('edPressedOnce("c", "with the button selected'))
+        self.assertIn('"the clipboard is " & quote & "objects" & quote) into tMiss', self.code)
+        self.assertIn('if the number of buttons of card 1 of stack sStack is not tCount + 1 then', self.code)
+        self.assertIn('if the label of last button of card 1 of stack sStack is not the label of tButton then', self.code)
+        # the field: Copy copied its text, and Paste put it after the text
+        self.assertIn('"the clipboardData[" & quote & "text" & quote & "] is pAx", tFirst) into tMiss', self.code)
+        self.assertIn('"the text of pAx is pBx", tField, tFirst & tFirst) into tMiss', self.code)
+
+    def test_the_button_is_the_copy_on_top(self):
+        # copy-paste's paste lies over the button it copied: a click there
+        # is on the paste, so the task selects the paste
+        self.assertIn('put the long id of last button of card 1 of stack sStack into tButton\n', self.code)
+        self.assertLess(self.code.index('into tButton'), self.code.index('edSelect tButton'))
+
+    def test_the_fields_keys_find_their_items_disabled(self):
+        # A click in a field and a selection of its text build nothing: the
+        # menus are as the last build left them. Before each of the field's
+        # keys they are built with nothing selected, so that the item is
+        # disabled in them, and the key must find it enabled all the same
+        copy_built = self.code.index('put edMenusBuiltBare("Copy") into tMiss')
+        copy_pressed = self.code.index('edPressedOnce("c", "with the field\'s text selected')
+        self.assertLess(copy_built, self.code.index('select text of tField'))
+        self.assertLess(self.code.index('select text of tField'), copy_pressed)
+        paste_built = self.code.index('put edMenusBuiltBare("Paste") into tMiss')
+        self.assertLess(copy_pressed, paste_built)
+        self.assertLess(paste_built, self.code.index('select after text of tField'))
+        self.assertLess(self.code.index('select after text of tField'), self.code.index('edPressedOnce("v", "did not paste'))
+        # (in Run mode, where a person types and selects text)
+        self.assertLess(self.code.index('edToolTile "com.livecode.tool.Browse"'), copy_built)
+        bare = self.function('edMenusBuiltBare')
+        for step in ('select empty', 'revIDEDeselectAll', 'focus on nothing'):
+            self.assertLess(bare.index(step), bare.index('send "revMenubarBuildMenus" to stack "revMenuBar"'))
+        self.assertIn('if edWaitFor("edBuiltOff(pAx)", 3000, pItem) then return empty', bare)
+        # disabled is how the menu bar writes it: the item in parentheses
+        enable = re.search(r'^function enableMenuItem pItem, pEnabled\n(.*?)^end enableMenuItem', self.menubar, re.M | re.S)
+        self.assertIsNotNone(enable)
+        self.assertIn('return "(" & pItem', enable.group(1))
+        self.assertIn('return ("(&" & pItem) is in the text of button "Edit" of group "revMenuBar" of stack "revMenuBar"',
+                      self.function('edBuiltOff'))
+
+    def test_the_stack_and_the_tool_are_as_they_were(self):
+        kept = self.code.index('put the text of tField into tKept')
+        self.assertLess(kept, self.code.index('set the text of tField to tFirst'))
+        throw = self.code.index('if tMiss is not empty then throw tMiss')
+        tail = self.code[self.code.index('edShotStack sStack, "22c-shortcut-pasted-text"'):throw]
+        for step in ('select empty', 'if tField is not empty then set the text of tField to tKept',
+                     'edToolTile "com.livecode.tool.Pointer"',
+                     'get edWaitFor("the tool is " & quote & "pointer tool" & quote, 3000)'):
+            self.assertIn(step, tail)
+        self.assertNotIn('throw', tail, 'a throw here would leave the field and the tool for the tasks after')
+        # (and no key held for the clicks after)
+        self.assertIn('if tMiss is empty then put edKeysHeld(edShortcutName("v")) into tMiss', tail)
+
+    def test_the_menu_bar_builds_at_once_for_its_groups_own_mousedown(self):
+        group = re.search(r'^on generateMenuGroup\n(.*?)^end generateMenuGroup', self.menubar, re.M | re.S)
+        self.assertIsNotNone(group, 'generateMenuGroup not found')
+        script = group.group(1)
+        down = script.index('put "on mouseDown" & return &')
+        built = script.index('"if the long id of the target is the long id of me then" & return &', down)
+        now = script.index('"revMenubarBuildMenus true" & return &', built)
+        later = script.index('"else" & return &', now)
+        sent = script.index('"send revMenubarBuildMenus to this stack in 1 millisecond" & return &', later)
+        ended = script.index('"end if" & return &', sent)
+        self.assertLess(ended, script.index('"pass mousedown" & return &', down))
+        # and a build for it is not skipped for one already waiting, which
+        # would build later; every other build still is
+        build = re.search(r'^command revMenubarBuildMenus pNow\n(.*?)^end revMenubarBuildMenus', self.menubar, re.M | re.S)
+        self.assertIsNotNone(build, 'revMenubarBuildMenus takes no pNow')
+        self.assertRegex(build.group(1), r'^\s*if pNow is not true and the pendingmessages contains "revMenubarBuildMenus" '
+                                         r'then exit revMenubarBuildMenus')
+        # (pNow is passed by the group alone: the other builds wait their turn)
+        self.assertEqual(self.menubar.count('revMenubarBuildMenus true'), 1)
+
+
+class ImportImageSystemDialog(BuildTasks, unittest.TestCase):
+    """import-image-system-dialog picks File > Import As Control > Image
+    File... with the system's own file dialog and a lot of windows open,
+    on macOS, where a person found that "with a lot of windows/stacks
+    open" the dialog "does not always open" (CamelCaps, openxtalk.org
+    p=26676). The dialog holds the IDE while it is open, so a watcher
+    started before the item is picked (osascript, in the background) lists
+    the system's windows, writes what it found and presses Escape."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.body = cls.handlers['ed_import_image_system_dialog']
+        cls.code = '\n'.join(line for line in cls.body.split('\n') if not line.lstrip().startswith('--'))
+        cls.watcher = cls.handlers['edDialogWatcher']
+
+    def watcher_script(self):
+        """The watcher's JavaScript as the shell gets it, the IDE's process
+        ID and the file put in."""
+        expr = self.watcher.split('put "', 1)[1].split(' into tScript', 1)[0]
+        expr = '"' + expr.replace('& \\\n', '&')
+        parts = []
+        for text, name in re.findall(r'"([^"]*)"|& (the processID|pFile) &', expr):
+            parts.append({'the processID': '1234', 'pFile': '/tmp/dialog.txt'}.get(name, text))
+        return ''.join(parts)
+
+    def test_the_task_is_the_last_before_finish(self):
+        # a dialog that held the IDE for good holds no task after it
+        names = tasks(self.text)
+        self.assertEqual(names[-2:], ['import-image-system-dialog', 'finish'])
+
+    def test_it_is_macos_s(self):
+        self.assertRegex(self.code, r'^\s*local [^\n]*\n\s*if the platform is not "MacOS" then\n[^\n]*\n\s*return "skipped"\n')
+
+    def test_the_systems_dialog_with_a_lot_of_windows_open(self):
+        made = self.code.index('repeat with i = 1 to 12')
+        self.assertIn('create stack tName', self.code[made:])
+        self.assertIn('revIDEOpenPalette "message box"', self.code)
+        self.assertIn('revIDEOpenPalette "project browser"', self.code)
+        on = self.code.index('set the systemFileSelector to true')
+        self.assertLess(made, on)
+        self.assertLess(on, self.code.index('repeat for each item tRound in "the stack,a palette,a new stack"'))
+
+    def test_the_watcher_starts_before_the_item_is_picked(self):
+        started = self.code.index('edDialogWatcher tFile')
+        listed = self.code.index('if not edWaitFor("there is a file pAx", 15000, tFile & ".base") then')
+        picked = self.code.index('edMenu "File", "Import As Control|image"')
+        self.assertLess(started, listed)
+        self.assertLess(listed, picked)
+        # (and what it wrote is read once the dialog has closed)
+        self.assertLess(picked, self.code.index('put textDecode(URL ("binfile:" & tFile), "UTF-8") into tFound'))
+
+    def test_each_round_has_its_own_files(self):
+        # "the stack" and "a new stack" once both wrote dialog-stack.txt:
+        # the third round found the first's files already there, so it
+        # picked the item before its own watcher had listed a window and
+        # read the first round's record (#623's Intel Mac: the same windows
+        # at the same milliseconds both times)
+        loop = self.code[self.code.index('repeat for each item tRound in'):]
+        loop = loop[:loop.index('end repeat')]
+        named = re.search(r'put sWork & "/dialog-" & (.+?) & "\.txt" into tFile', loop)
+        self.assertIsNotNone(named)
+        self.assertEqual(named.group(1), 'tN')
+        self.assertEqual(loop.count('add 1 to tN'), 1)
+        self.assertLess(loop.index('add 1 to tN'), named.start())
+        self.assertRegex(self.code, r'^\s*local [^\n]*\btN\b')
+        # (and nothing in their place before the watcher starts)
+        started = loop.index('edDialogWatcher tFile')
+        for gone in ('if there is a file tFile then delete file tFile',
+                     'if there is a file (tFile & ".base") then delete file (tFile & ".base")'):
+            self.assertLess(named.end(), loop.index(gone))
+            self.assertLess(loop.index(gone), started)
+
+    def test_each_round_asks_for_the_dialog_in_front_and_closed(self):
+        for line in ('if line 1 of tFound is not "opened" then',
+                     'else if line 2 of tFound is not "in front" then',
+                     'else if line 3 of tFound is not "closed" then'):
+            self.assertIn(line, self.code)
+        # (each round's record, whatever it found)
+        self.assertIn('edRecord "INFO import-image-system-dialog, after" && tRound & ":" && edJoin(tFound)', self.code)
+
+    def test_the_ide_is_as_it_was_before_the_throw(self):
+        throw = self.code.index('if tMiss is not empty then throw')
+        self.assertEqual(self.code.count('throw'), 2, 'a throw before the rounds end would leave the stacks and the dialog setting')
+        tail = self.code[self.code.index('end repeat\n   set the systemFileSelector to false'):throw]
+        self.assertIn('if there is a stack tName then delete stack tName', tail)
+        # (a cancelled dialog imports nothing)
+        self.assertIn('if the number of images of card 1 of stack sStack is not tCount then', tail)
+
+    def test_the_watcher_reaches_osascript_as_written(self):
+        # one argument in double quotes to the shell: no double quote,
+        # backslash or backtick in it, and no $ the shell would expand
+        script = self.watcher_script()
+        self.assertTrue(script.startswith("ObjC.import('CoreGraphics');"), script[:60])
+        for char in '"\\`':
+            self.assertNotIn(char, script)
+        self.assertIsNone(re.search(r'\$[A-Za-z_{(]', script))
+        self.assertIn('get shell("osascript -l JavaScript -e " & quote & tScript & quote & " >/dev/null 2>&1 &")', self.watcher)
+
+    def test_the_watcher_lists_before_it_looks_and_presses_escape(self):
+        script = self.watcher_script()
+        self.assertIn('var pid = 1234;', script)
+        base = script.index("write(path + '.base', 'listed');")
+        self.assertLess(script.index('all().forEach(function (w) { before[w.kCGWindowNumber] = true; });'), base)
+        self.assertLess(base, script.index('var found = null;'))
+        # (Escape is key 53, kVK_Escape, down and up)
+        self.assertIn('$.CGEventCreateKeyboardEvent(null, 53, d)', script)
+        self.assertLess(script.index('var found = null;'), script.index('esc(); delay(1.5);'))
+        self.assertIn("lines.push(gone ? 'closed' : 'still open after Escape four times');", script)
+        self.assertIn("write(path, lines.join(String.fromCharCode(10)));", script)
+
+    def test_the_dialog_is_the_new_window_on_the_screen(self):
+        # The first run on an Intel Mac (#623, 2026-11-22) took the first
+        # new window for the dialog: after a palette, the Open and Save
+        # Panel Service's own window, never on the screen, while the panel
+        # the IDE showed (its layer 8 window, 800 x 448 in the middle of
+        # the screen) was in front; after a stack, a 0 x 0 window of the
+        # IDE's, one second before the panel was looked for again. The
+        # dialog is now the new window ON the screen, the highest layer
+        # and then the largest, of the IDE or the panel service
+        script = self.watcher_script()
+        self.assertIn("function ours(w) { return (w.kCGWindowOwnerPID == pid || /Open|Panel/.test(w.kCGWindowOwnerName || '')) && !before[w.kCGWindowNumber] && w.kCGWindowLayer >= 0 && w.kCGWindowLayer < 20; }", script)
+        self.assertIn("var on = shown().filter(function (w) { return ours(w) && w.kCGWindowBounds.Width > 1 && w.kCGWindowBounds.Height > 1; });", script)
+        self.assertIn("on.sort(function (a, b) { return (b.kCGWindowLayer - a.kCGWindowLayer) || (area(b) - area(a)); });", script)
+        # (eight seconds more for it to show, once a new window is there:
+        # a dialog that never shows is the report's)
+        self.assertIn('for (var j = 0; j < 32 && order.length && !found; j++) { delay(0.25); found = look(); }', script)
+        self.assertIn("else if (!found) { lines.push('opened, but not on the screen in eight seconds'); lines.push(''); }", script)
+        # (every new window is written, with when it came)
+        self.assertIn("lines.push('new windows: ' + ", script)
+        self.assertIn("seen[w.kCGWindowNumber] = Date.now() - t0;", script)
+
+    @unittest.skipUnless(shutil.which('node'), 'node runs the watcher against the windows macOS listed')
+    def test_the_watcher_reads_what_the_intel_mac_listed(self):
+        # The watcher's script run against CGWindowListCopyWindowInfo as it
+        # answered on the Mac runners (#623's first runs), and as it would
+        # for a dialog that shows late, never shows, or shows behind another
+        # window
+        mock = r"""
+const src = require('fs').readFileSync(process.argv[2], 'utf8');
+const W = (n, pid, owner, layer, x, y, w, h, on) => ({ kCGWindowNumber: n, kCGWindowOwnerPID: pid, kCGWindowOwnerName: owner, kCGWindowLayer: layer, kCGWindowBounds: { X: x, Y: y, Width: w, Height: h }, kCGWindowIsOnscreen: on });
+const panel = W(9, 1234, 'OXT-Beyond', 8, 560, 156, 800, 448, true);
+const service = W(8, 77, 'Open and Save Panel Service', 0, 100, 532, 800, 448, false);
+const zero = W(7, 1234, 'OXT-Beyond', 0, 0, 0, 0, 0, false);
+const finder = W(5, 55, 'Finder', 0, 0, 0, 1440, 900, true);
+const grown = W(7, 1234, 'OXT-Beyond', 8, 112, 84, 800, 448, true);
+const cases = { 'a palette': [[1, service], [1.25, panel]], 'grows': [[1, zero], [1.25, grown]], 'late': [[1, zero], [3.5, panel]], 'never shown': [[1, zero]],
+                'behind': [[1, panel], [1, finder]], 'none': [] };
+const out = {};
+for (const name of Object.keys(cases)) {
+  let t = 0, closed = false, file = '';
+  const base = [W(1, 1234, 'OXT-Beyond', 0, 100, 100, 400, 300, true), W(3, 99, 'Dock', 20, 0, 0, 1920, 1080, true)];
+  // (a window listed again later is the same window, changed: the last listing of each number wins)
+  const list = (o) => { const by = new Map(); if (!closed) cases[name].filter(a => t >= a[0]).forEach(a => { by.delete(a[1].kCGWindowNumber); by.set(a[1].kCGWindowNumber, a[1]); }); let l = Array.from(by.values()).reverse().concat(base); return o === 17 ? l.filter(w => w.kCGWindowIsOnscreen) : l; };
+  const $ = { CGWindowListCopyWindowInfo: list, CGEventCreateKeyboardEvent: (n, k, d) => ({ k, d }),
+              CGEventPost: (p, e) => { if (e.k === 53 && e.d) closed = true; },
+              NSString: { alloc: { initWithUTF8String: (s) => ({ writeToFileAtomicallyEncodingError: (p) => { if (p === '/tmp/dialog.txt') file = s; } }) } } };
+  new Function('ObjC', '$', 'delay', 'Date', src)({ import() {}, deepUnwrap: x => x, castRefToObject: x => x }, $, (s) => { t += s; }, { now: () => Math.round(t * 1000) });
+  out[name] = file.split(String.fromCharCode(10));
+}
+console.log(JSON.stringify(out));
+"""
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            with open(os.path.join(work, 'watcher.js'), 'w') as f:
+                f.write(self.watcher_script())
+            with open(os.path.join(work, 'mock.js'), 'w') as f:
+                f.write(mock)
+            run = subprocess.run(['node', os.path.join(work, 'mock.js'), os.path.join(work, 'watcher.js')],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        found = json.loads(run.stdout)
+        # (after a palette on the Intel Mac: the service's window a poll
+        # before the panel, and the dialog is the panel)
+        self.assertEqual(found['a palette'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['a palette'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 560,156,800,448')
+        self.assertIn('Open and Save Panel Service 77 layer 0 at 100,532,800,448 (not on the screen) at 1000 ms', found['a palette'][4])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 1250 ms', found['a palette'][4])
+        # (after a stack on the Apple Silicon Mac: the IDE's new window is
+        # 0 x 0 and off the screen, and a poll later the same window is the
+        # panel, at layer 8 in the middle of the screen)
+        self.assertEqual(found['grows'][:3], ['opened', 'in front', 'closed'])
+        self.assertEqual(found['grows'][3], 'the dialog: OXT-Beyond 1234 layer 8 at 112,84,800,448')
+        self.assertEqual(found['grows'][4], 'new windows: OXT-Beyond 1234 layer 0 at 0,0,0,0 (not on the screen) at 1000 ms')
+        # (a panel that shows two and a half seconds after the first window)
+        self.assertEqual(found['late'][:3], ['opened', 'in front', 'closed'])
+        self.assertIn('OXT-Beyond 1234 layer 8 at 560,156,800,448 at 3500 ms', found['late'][4])
+        # (one that never shows, as CamelCaps found)
+        self.assertEqual(found['never shown'][:3], ['opened, but not on the screen in eight seconds', '', 'closed'])
+        self.assertEqual(found['never shown'][3], 'the dialog: none on the screen')
+        self.assertEqual(found['behind'][:2], ['opened', 'Finder 55 layer 0 at 0,0,1440,900'])
+        self.assertEqual(found['none'][:2], ['no new window of the IDE in ten seconds', ''])
 
 
 class QuickStartFirstLesson(BuildTasks, unittest.TestCase):

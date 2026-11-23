@@ -116,6 +116,29 @@ static Visual_effects effectside(Visual_effects p_direction, Visual_effects p_no
 	}
 }
 
+// OXT-Beyond: shrink goes to and stretch comes from top, center or bottom,
+// and their steps below switch on it with an unreachable default too, which
+// any other direction reached, none above all ("visual effect shrink"). That
+// did not crash, but where the effect played was the compiler's choice:
+// clang's code (macOS, iOS, Android, the web) played center, GCC's (Linux)
+// bottom, and MSVC's (Windows), whose default does nothing, left the place
+// unset. Center is now the place such an effect takes everywhere, as most
+// builds played it (2026-11-20; Linux's bottom is the difference, listed in
+// the release notes).
+static Visual_effects effectplace(Visual_effects p_direction)
+{
+	switch (p_direction)
+	{
+		case VE_TOP:
+		case VE_CENTER:
+		case VE_BOTTOM:
+			return p_direction;
+			
+		default:
+			return VE_CENTER;
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct MCStackEffectContext
@@ -842,6 +865,9 @@ Boolean shrinkeffect_step(const MCRectangle &drect, MCStackSurface *p_target, MC
 	
 	uint32_t t_top, t_bottom;
 	
+	// OXT-Beyond: top, center or bottom (see effectplace)
+	dir = effectplace(dir);
+	
 	switch (dir)
 	{
 		case VE_TOP:
@@ -891,6 +917,9 @@ Boolean stretcheffect_step(const MCRectangle &drect, MCStackSurface *p_target, M
 	uint2 height = drect.height * delta / duration;
 	
 	uint32_t t_top;
+	
+	// OXT-Beyond: top, center or bottom (see effectplace)
+	dir = effectplace(dir);
 	
 	switch (dir)
 	{

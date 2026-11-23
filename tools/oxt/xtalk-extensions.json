@@ -85,7 +85,7 @@
     {
       "name": "TorrentXT",
       "repository": "SethMorrowSoftware/TorrentXT",
-      "commit": "b644cf5d2e941557d108633bf0ee1e4d0a216e2d",
+      "commit": "fb2debf98529c1f4a944fbfd5445cbb1ff0da590",
       "version": "0.1.0",
       "version_from": {
         "path": "src/torrent.lcb",
@@ -95,17 +95,17 @@
       "files": [
         {"path": "src/torrent.lcb", "role": "source", "sha256": "18c9caf822db5844167db785a2cac5dbb4cd90d814f1487131542690111d8d56", "size": 131262},
         {"path": "examples/torrent-helpers.livecodescript", "role": "source", "sha256": "2111f040a841380867084f65ce82852efcf34141e6e84edd432927808168aafd", "size": 13943},
-        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "71996897f05796934450b996d6392e8fa557d4757bbc7f3a666469d37d700095", "size": 922},
+        {"path": "src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "262b3ab702f0a4e66c50700e34825178b14af5b8971aca42ccc7ae2f7a8549ba", "size": 922},
         {"path": "src/code/x86_64-win32/torrentxt.dll", "role": "library", "sha256": "25878fd15e8b873e29cf4f7fc56bb9e6d9546451fe485d52367e12ac8af490d1", "size": 12140544, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86-win32/torrentxt.dll", "role": "library", "sha256": "bda664531083c9a0b8ed627fef325c04bed2d138a0d1ed044935322b99fa2bf6", "size": 9599488, "imports": ["MSWSOCK.dll", "CRYPT32.dll", "IPHLPAPI.DLL", "bcrypt.dll", "WS2_32.dll", "KERNEL32.dll", "USER32.dll", "ADVAPI32.dll"]},
         {"path": "src/code/x86_64-linux/torrentxt.so", "role": "library", "sha256": "66a64519afcc4c257a5ee7583c23b0d541d205ade9e706f0d9ac43cde81cf50f", "size": 12999968},
         {"path": "src/code/x86-linux/torrentxt.so", "role": "library", "sha256": "65c0a7892b4bb056cc85aadaf9b8fc2ba9f60be12b3912a70ff1f92273190254", "size": 6721400},
         {"path": "src/code/arm64-linux/torrentxt.so", "role": "library", "sha256": "a582e8efc8ead9f3ebcafdec5dce111d4d57a497dae0414248c2abfcef845eaf", "size": 11827040},
         {"path": "src/code/universal-mac/torrentxt.dylib", "role": "library", "sha256": "8c4d538692d0c37f08c03d8aed751d59d1ca977782534f70c7fbae32a72c6273", "size": 27096944},
-        {"path": "src/code/arm64-android/torrentxt.so", "role": "library", "sha256": "96b709ea4bce5ccbf3fce1634f539bb4840e51f610c61eb33056b763dc522cbf", "size": 11078360},
-        {"path": "src/code/armv7-android/torrentxt.so", "role": "library", "sha256": "149844cfc9ba0a52ad541471b01411ed7a1fe46dbbc589688e0ea932f9646a1d", "size": 7637088},
-        {"path": "src/code/x86_64-android/torrentxt.so", "role": "library", "sha256": "798b011e84252640a816b61ad79001a7a7aea097c2e5dcc6f69545f06a9e32a0", "size": 11560376},
-        {"path": "src/code/x86-android/torrentxt.so", "role": "library", "sha256": "e597932608e16229147c332c2c25b693ad47f49e78fbf48a6f978097bf2e512d", "size": 10439356},
+        {"path": "src/code/arm64-android/torrentxt.so", "role": "library", "sha256": "5b1305bbde608004aa9bee40a3636a86f987f02144e581863995bccbe6437114", "size": 11052528},
+        {"path": "src/code/armv7-android/torrentxt.so", "role": "library", "sha256": "b2b01656381293c8dfd70a0562e26e0b0bfd23896ec0791654dd4a47789d40a2", "size": 7622696},
+        {"path": "src/code/x86_64-android/torrentxt.so", "role": "library", "sha256": "a90132956156154f2e0f8e5e5a73a18a03a5b3a1a47421c96389e2e159e51cab", "size": 11539624},
+        {"path": "src/code/x86-android/torrentxt.so", "role": "library", "sha256": "04d13fd6bbbea3ea213ca55558a66c372d6cab444e418a9292925407c275eaab", "size": 10217792},
         {"path": "LICENSE", "role": "licence", "sha256": "e5c72da08962da9f2bf47cfb842ccf4177e19755fed2ad4268efecf4ce821f09", "size": 1481},
         {"path": "THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "3f4dc64338c71d6222238cff54f6b1aeb3e02af9e0b9f086a63ff81bd4c4254c", "size": 11757},
         {"path": "LICENSE.txt", "repository": "openssl/openssl", "commit": "d3c1b1169b3569ff3069e5b399f47b2b28e03d79", "ref": "openssl-3.6.4", "role": "licence", "name": "OpenSSL-LICENSE.txt", "comment": "OpenSSL 3 (Apache-2.0) is statically linked into torrentxt; the member's own licence files do not carry its licence text", "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a", "size": 10175}
@@ -321,6 +321,232 @@
         {"kind": "lcs", "id": "curlHelpers", "folder": "curlHelpers", "stack": "curlHelpers", "main": "curlxt/src/curl-helpers.livecodescript", "title": "curlxt helpers", "author": "Seth Morrow Software", "requires": ["org.openxtalk.library.curl"], "probe": "cuWaitingCount()", "expect": "^0$"},
         {"kind": "lcs", "id": "tsNetCompat", "folder": "tsNetCompat", "stack": "tsNetCompat", "main": "curlxt/src/tsnet.livecodescript", "title": "tsNet calls (curlxt)", "author": "Seth Morrow Software", "requires": ["curlHelpers"], "probe": "tsNetVersion()", "expect": "^1\\.4\\.5$", "comment": "the tsNet calls by name, written from tsNet's public dictionary over curlxt; libURL is untouched"}
       ]
+    },
+    {
+      "name": "box3dxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "1def494651479913b916293eef461bf0993ffd6c",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "box3dxt/src/box3dxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link Box3D (MIT, Erin Catto)",
+      "files": [
+        {"path": "box3dxt/src/box3dxt.lcb", "role": "source", "sha256": "2546bb1e642d892af6219e09a62326e717cc55ccb566d417df6c9c68180cf61f", "size": 250341},
+        {"path": "box3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "98302d3f5894fa3b963f5339077f17151a7191435293fe71107cad03d37f8ec1", "size": 996},
+        {"path": "box3dxt/src/code/x86_64-win32/box3dxt.dll", "role": "library", "sha256": "5c24121f2bdd3fc10525c6b94d9858e086bb52ddebe882110edb75ad7d59ad4f", "size": 1187840, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86-win32/box3dxt.dll", "role": "library", "sha256": "9be45cc82fededf311d0115d463c3a848fd7acb7b68d5b474408b5954c364e00", "size": 1042944, "imports": ["KERNEL32.dll"]},
+        {"path": "box3dxt/src/code/x86_64-linux/box3dxt.so", "role": "library", "sha256": "dc3280f79968b7deeecb8c03aec218fbf85a438d78a2a4869ad2ea22f1c18ce1", "size": 1440416},
+        {"path": "box3dxt/src/code/x86-linux/box3dxt.so", "role": "library", "sha256": "97c4e191e7d806a991b5f6a697335dde06b7747905cad6b14b3b19aee555c7b4", "size": 1705700},
+        {"path": "box3dxt/src/code/arm64-linux/box3dxt.so", "role": "library", "sha256": "3100b1ece356b00adf4465e1eb1acc8fdf3d6e01fd69611be9bc5ca4aa3a2a2b", "size": 1182368},
+        {"path": "box3dxt/src/code/universal-mac/box3dxt.dylib", "role": "library", "sha256": "323df1c661eb2560c4261686c8f2df98677d65de19f0839d80dd10b4cde890f1", "size": 2242656},
+        {"path": "box3dxt/src/code/arm64-android/box3dxt.so", "role": "library", "sha256": "d2c2e28a52a513b3e455496da5ace6d93a2da5cf639755ae9cc50f2cbe7ab618", "size": 840472},
+        {"path": "box3dxt/src/code/armv7-android/box3dxt.so", "role": "library", "sha256": "397879f731434bdf3a662035804825b374ab768814829e9c14f588eacac41b69", "size": 739552},
+        {"path": "box3dxt/src/code/x86_64-android/box3dxt.so", "role": "library", "sha256": "4723341dfc5604342f022858d8ff5dacb4b25a0fa4a969126748bb6bfdea7b3d", "size": 1050616},
+        {"path": "box3dxt/src/code/x86-android/box3dxt.so", "role": "library", "sha256": "68d7b02deba34b890457b648c9577d1e973e3d42567f3d451469ea51d6ee07a6", "size": 1167048},
+        {"path": "box3dxt/LICENSE", "role": "licence", "sha256": "1cb3cec0f02fcb94ae9dd37f0984e29f5ac5336993f39dd680eb0cda0d725956", "size": 2307}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.boxthreed", "folder": "org.openxtalk.library.boxthreed", "main": "box3dxt/src/box3dxt.lcb", "probe": "b3LibraryVersion()", "expect": "^box3dxt ABI [0-9]+; "}
+      ]
+    },
+    {
+      "name": "audioxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "4c55eed6c34377506f13c260ca0e2f0ee7c2f56f",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "audioxt/src/audioxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries contain miniaudio (David Reid; public domain or MIT No Attribution), with its dr_wav, dr_flac and dr_mp3 decoders",
+      "files": [
+        {"path": "audioxt/src/audioxt.lcb", "role": "source", "sha256": "3de4fe631adf1a27996cf878493db9dd54607f701e408e29668fa278cddf4ce8", "size": 81340},
+        {"path": "audioxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "bb3a40cfb762a23b1585869203b4908e7ed9a1434780cc2e16fe339e8e0c3999", "size": 996},
+        {"path": "audioxt/src/code/x86_64-win32/audioxt.dll", "role": "library", "sha256": "3fbc7b41c1d4adb69c1289bd4cda3c894f13b79084de332569b4e2a2ab581029", "size": 730112, "imports": ["KERNEL32.dll"]},
+        {"path": "audioxt/src/code/x86-win32/audioxt.dll", "role": "library", "sha256": "09f4dc8fc11171c4109e699f6b45ff90424d49ab8b70dec0af3c7be5352c05b5", "size": 617984, "imports": ["KERNEL32.dll"]},
+        {"path": "audioxt/src/code/x86_64-linux/audioxt.so", "role": "library", "sha256": "39ac36460e09e3bdf04cc4331f1a4ab4a5aa306b8029d47ba12ee65895449b8b", "size": 848200},
+        {"path": "audioxt/src/code/x86-linux/audioxt.so", "role": "library", "sha256": "db80e24796b658a92117bd335a8ad1239631757803e619a1b00d87b0d0d7186b", "size": 899740},
+        {"path": "audioxt/src/code/arm64-linux/audioxt.so", "role": "library", "sha256": "e5700c49fce4b0b7605dc6a124f81f4aea3b19b751d3e3d87f8acdd8a2ef9494", "size": 921600},
+        {"path": "audioxt/src/code/universal-mac/audioxt.dylib", "role": "library", "sha256": "2bc59b648879d7162d3867ee6dff50d2a836f9f798ed44b0c8ed2e0a3e60cd74", "size": 1417872},
+        {"path": "audioxt/src/code/arm64-android/audioxt.so", "role": "library", "sha256": "1173c2ab0329c0d04b401754f98008f27f5a6c1af83550633f71266e0ccc3ba1", "size": 484384},
+        {"path": "audioxt/src/code/armv7-android/audioxt.so", "role": "library", "sha256": "19c315c41eb6895c2b3fd70336ed2eab2150721f6838d49c2b8e22a041526b08", "size": 374572},
+        {"path": "audioxt/src/code/x86_64-android/audioxt.so", "role": "library", "sha256": "212c40baa09b2de4205673950fb17abf4570ba85d173e314f7749adfdc49e48c", "size": 539032},
+        {"path": "audioxt/src/code/x86-android/audioxt.so", "role": "library", "sha256": "462b9bd4a257e6f6be1a17897a5658e41c649eeba605b4378bdddc3ae5601d4b", "size": 557140},
+        {"path": "audioxt/LICENSE", "role": "licence", "sha256": "4d4ba585e200a0dd5b0fdccf40ee19dd458f42c605480fcdd18477f148d1ed92", "size": 2404}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.audioxt", "folder": "org.openxtalk.library.audioxt", "main": "audioxt/src/audioxt.lcb", "probe": "auLibraryVersion()", "expect": "^audioxt ABI [0-9]+; miniaudio [0-9]"}
+      ]
+    },
+    {
+      "name": "xlsxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "9ebbd6e3c7ec19f20c8fa1bb68072a4cd844c343",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "xlsxt/src/xlsxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link libxlsxwriter (BSD-2-Clause), zlib (the zlib licence) and Expat (MIT)",
+      "files": [
+        {"path": "xlsxt/src/xlsxt.lcb", "role": "source", "sha256": "36b04df085428b811ccdf9f80a96d0c05ce795b7d46e70da35753c532adb0e30", "size": 95489},
+        {"path": "xlsxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "8eeed1f6fa70a9714d6b1fd7286404da850c2f6d573d502605cea8d549077b3b", "size": 974},
+        {"path": "xlsxt/src/code/x86_64-win32/xlsxt.dll", "role": "library", "sha256": "3033da2a805558ed1372ad4e01f81203d58ce78eb22b8173c982a0d763ab8a13", "size": 774144, "imports": ["KERNEL32.dll"]},
+        {"path": "xlsxt/src/code/x86-win32/xlsxt.dll", "role": "library", "sha256": "c64dfe5ed8e82fc61319ee0e4580355912a1f44041324680b1391c57ffc4ad61", "size": 640000, "imports": ["KERNEL32.dll"]},
+        {"path": "xlsxt/src/code/x86_64-linux/xlsxt.so", "role": "library", "sha256": "339a9999f5d6dd4f71995bc3f0746fb580ad470617e8be4282af4a6f53fd7aa4", "size": 763120},
+        {"path": "xlsxt/src/code/x86-linux/xlsxt.so", "role": "library", "sha256": "45b66dce6098622665a46e110457c73b53a15dd2a332af54f30a0e451b28f685", "size": 806208},
+        {"path": "xlsxt/src/code/arm64-linux/xlsxt.so", "role": "library", "sha256": "bd0ea30bae9250576aceca2ed2aa7395db0dbe7d39d6bd02dce4d851877b5380", "size": 792816},
+        {"path": "xlsxt/src/code/universal-mac/xlsxt.dylib", "role": "library", "sha256": "bc3ffba96a2bba9678a9eb56c6cff64a0313af7aee5114f16448fcc860591bce", "size": 1391144},
+        {"path": "xlsxt/src/code/arm64-android/xlsxt.so", "role": "library", "sha256": "dd22c23dab78e4d254b4839bfb7bf35d7e636936ee01cb090a2e9abbfea9ab19", "size": 593768},
+        {"path": "xlsxt/src/code/armv7-android/xlsxt.so", "role": "library", "sha256": "7da1753bb0c1d419fe81337ed89cfc124f3aa4e3712f805808b5556599951948", "size": 434240},
+        {"path": "xlsxt/src/code/x86_64-android/xlsxt.so", "role": "library", "sha256": "743127477af9fccd812a7e23591db0df2005c059ba0ae38757384eabe97e9cfc", "size": 640552},
+        {"path": "xlsxt/src/code/x86-android/xlsxt.so", "role": "library", "sha256": "aa6e480765d5873421bea0346cd1c3bd244061e08cba50eedaebf3c08338f0e2", "size": 645360},
+        {"path": "xlsxt/LICENSE", "role": "licence", "sha256": "8fd9a78ff32a09a94995b5afd6bbf794f883c348cfba7c4a4fbbaecc6e8ff507", "size": 1298},
+        {"path": "xlsxt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "50e5e350ba76f7791f256643d82310322f7464b83a655c13d8eb98c414599d91", "size": 9915}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.xlsxt", "folder": "org.openxtalk.library.xlsxt", "main": "xlsxt/src/xlsxt.lcb", "probe": "xlLibraryVersion()", "expect": "^xlsxt ABI [0-9]+; libxlsxwriter [0-9]"}
+      ]
+    },
+    {
+      "name": "gamepadxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "49531a2325d8123fc9ab67f92d38a7b6dc78597e",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "gamepadxt/src/gamepadxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link SDL 3 (zlib licence, Sam Lantinga) and the HIDAPI it carries (BSD-style)",
+      "files": [
+        {"path": "gamepadxt/src/gamepadxt.lcb", "role": "source", "sha256": "fe90fbce8a66fdfa8a299f1ae552d7eb09f37c15c97c30fe79c90f7905f4579b", "size": 43674},
+        {"path": "gamepadxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "923aaf84b15a55b865c692669b579088344de67f067eb52fe42be03f08d4793b", "size": 647},
+        {"path": "gamepadxt/src/code/x86_64-win32/gamepadxt.dll", "role": "library", "sha256": "0a1024568dd19d5b3f8af15ff5391dbf11ee2f9b6bb5be0a52095c20c0ca91ea", "size": 1936384, "imports": ["KERNEL32.dll", "USER32.dll", "WINMM.dll", "ole32.dll", "SETUPAPI.dll", "SHELL32.dll"]},
+        {"path": "gamepadxt/src/code/x86-win32/gamepadxt.dll", "role": "library", "sha256": "6b15c6fb640c0d01a485881b23b26ba337decbb02f9bc5e34165bb4050d42ff5", "size": 1558528, "imports": ["KERNEL32.dll", "USER32.dll", "WINMM.dll", "ole32.dll", "SETUPAPI.dll", "SHELL32.dll"]},
+        {"path": "gamepadxt/src/code/x86_64-linux/gamepadxt.so", "role": "library", "sha256": "dd456a0de5103a691a5bad1ee296f0f101659efae2a954f1f2006b1f577609cd", "size": 2501616},
+        {"path": "gamepadxt/src/code/x86-linux/gamepadxt.so", "role": "library", "sha256": "67bf8928e3eda9abd3d5cb7f3496df482851f56c97945260e1c1101926160bbb", "size": 2357156},
+        {"path": "gamepadxt/src/code/arm64-linux/gamepadxt.so", "role": "library", "sha256": "ffa33cc9576a7919e423a7366b2317ae98d73f98e85a4ed24bcbc848829c9fed", "size": 2328944},
+        {"path": "gamepadxt/src/code/universal-mac/gamepadxt.dylib", "role": "library", "sha256": "7a9f84076e562d0141186d76682e28af56667da888edbc7be2754b9484f44719", "size": 3842016},
+        {"path": "gamepadxt/LICENSE", "role": "licence", "sha256": "10b95e1da16adf0170406196ef259441f330db88446431bfe53403f5cd371eb2", "size": 3849}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.gamepadxt", "folder": "org.openxtalk.library.gamepadxt", "main": "gamepadxt/src/gamepadxt.lcb", "probe": "gpLibraryVersion()", "expect": "^SDL 3\\.[0-9]+\\.[0-9]+$"}
+      ]
+    },
+    {
+      "name": "webpxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "eec2e21cbb84c765dec8ea3db3cb9aefe6e38bd8",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "webpxt/src/webpxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link libwebp (BSD-3-Clause, Google)",
+      "files": [
+        {"path": "webpxt/src/webpxt.lcb", "role": "source", "sha256": "d7d39ee788f2c100ab0b79cd0423524e60aa34da8915e40cf4eba4f1101892ec", "size": 35987},
+        {"path": "webpxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "6052403037cd31ebcb8815d82f6f28ec9d80c6f4f88e167b0c8d0022379a05c1", "size": 985},
+        {"path": "webpxt/src/code/x86_64-win32/webpxt.dll", "role": "library", "sha256": "09fe70b1b09fe599a1d89699247ae6acdae9a215009f8a380c3b57b9e616a30b", "size": 581632, "imports": ["KERNEL32.dll"]},
+        {"path": "webpxt/src/code/x86-win32/webpxt.dll", "role": "library", "sha256": "08ccaf2dafe84b99697634212d9b3c2c0c54d9a0f4df2375bda611b349344204", "size": 458752, "imports": ["KERNEL32.dll"]},
+        {"path": "webpxt/src/code/x86_64-linux/webpxt.so", "role": "library", "sha256": "1be63180d7628803e1627cf3a611b6512ca088e81049abf451fea244b2788291", "size": 813448},
+        {"path": "webpxt/src/code/x86-linux/webpxt.so", "role": "library", "sha256": "e5bef70d43e0b85eb0aef6e99458ffdb05ededb89aa4a587e6e12427b6399d8f", "size": 706064},
+        {"path": "webpxt/src/code/arm64-linux/webpxt.so", "role": "library", "sha256": "495b821ef519c6448303ce0a6efa35ce73322d7cb19d0209de971f4151e73d29", "size": 657840},
+        {"path": "webpxt/src/code/universal-mac/webpxt.dylib", "role": "library", "sha256": "a67b14dc5e3f40f4e863e06b2971e9c873101446edf03def1ed6e37adcf31baf", "size": 1272064},
+        {"path": "webpxt/src/code/arm64-android/webpxt.so", "role": "library", "sha256": "f4acb96d31901eda51c547ab16f7a3fa85de17c764b448c3b8c450f88fca18d9", "size": 487328},
+        {"path": "webpxt/src/code/armv7-android/webpxt.so", "role": "library", "sha256": "c8185574b6c60a0771a1b616a897c41cb851ad8f3851d9b8004e1e4de77eb73b", "size": 380892},
+        {"path": "webpxt/src/code/x86_64-android/webpxt.so", "role": "library", "sha256": "973eb6723fd529d89c56aeede83c245ae8626f827485de5da5619a233f7a6afb", "size": 665192},
+        {"path": "webpxt/src/code/x86-android/webpxt.so", "role": "library", "sha256": "ea5254a4156504027aeb62e694fe1721b944c93654002a4c610fc2eb3f6bbca4", "size": 726592},
+        {"path": "webpxt/LICENSE", "role": "licence", "sha256": "77132331cb42e0343def3265c1a76e07753a7afec5aa19e64341d0c4701202e3", "size": 4367}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.webpxt", "folder": "org.openxtalk.library.webpxt", "main": "webpxt/src/webpxt.lcb", "probe": "wpLibraryVersion()", "expect": "^webpxt ABI [0-9]+; "}
+      ]
+    },
+    {
+      "name": "barcodext",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "4daa6dadbe201aa0ab26fad02931a9c3c8f6eaf8",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "barcodext/src/barcodext.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries statically link zxing-cpp (Apache-2.0) and its Zint backend (BSD-3-Clause)",
+      "files": [
+        {"path": "barcodext/src/barcodext.lcb", "role": "source", "sha256": "22d0ff6645b340c89fbba4978cb6370553d05cc84893be71aa5968c42b98c710", "size": 32224},
+        {"path": "barcodext/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "2308b6bcbcb231c487e18495539b689650ff62fd9d8d8f7329e0fbd925ee66eb", "size": 1018},
+        {"path": "barcodext/src/code/x86_64-win32/barcodext.dll", "role": "library", "sha256": "2a96d4095ad42e4064e956841ad18f3aceebe7d6b7670c95c00982a3aaac0dd8", "size": 1856000, "imports": ["KERNEL32.dll"]},
+        {"path": "barcodext/src/code/x86-win32/barcodext.dll", "role": "library", "sha256": "44c7a7f3c2878ff3f6fdb0bd2c1c32c684e2c75d5ff5746eff415d73cfc871a6", "size": 1652224, "imports": ["KERNEL32.dll"]},
+        {"path": "barcodext/src/code/x86_64-linux/barcodext.so", "role": "library", "sha256": "686de3a3c101fc23d5e6c62521e2cd86a5d9e1490a4e853b9f5072c1a5d31d61", "size": 2809048},
+        {"path": "barcodext/src/code/x86-linux/barcodext.so", "role": "library", "sha256": "405fa837f2fd014ac3c9dd54e0f38e27ca0683e85d2a2b13989b2e0d4f42dc94", "size": 2819608},
+        {"path": "barcodext/src/code/arm64-linux/barcodext.so", "role": "library", "sha256": "fafe86bdc345b322f66acf049ded4cb1f98de6da14380aee18306be6245a2e73", "size": 2637064},
+        {"path": "barcodext/src/code/universal-mac/barcodext.dylib", "role": "library", "sha256": "3de972eb13f34bd975c02daa9e53d148a76c6429bb2523271a3602d12bad0012", "size": 3081520},
+        {"path": "barcodext/src/code/arm64-android/barcodext.so", "role": "library", "sha256": "34454146781435cc11013999f64dcec802030da67308b4c7eb7e1a4c19d6a53f", "size": 1617392},
+        {"path": "barcodext/src/code/armv7-android/barcodext.so", "role": "library", "sha256": "4b3eefc77dc4d8b2b5eebef7261b0d7f78d5df71eae5c80a5bade6b2a0839be3", "size": 1233508},
+        {"path": "barcodext/src/code/x86_64-android/barcodext.so", "role": "library", "sha256": "662b6c305448960590631be297f62a4e5eedbd6f3b76183469f7eb31603a5ba6", "size": 1719920},
+        {"path": "barcodext/src/code/x86-android/barcodext.so", "role": "library", "sha256": "bc3c90143186e87e88df17b10838c84f066abe2037bc80aa1dc032942b0d3bd3", "size": 1762272},
+        {"path": "barcodext/LICENSE", "role": "licence", "sha256": "45491895d4fce7e4e3a90373db673a6c6ffb04bc14a94fe4bc18471a738ee8ac", "size": 17328}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.barcodext", "folder": "org.openxtalk.library.barcodext", "main": "barcodext/src/barcodext.lcb", "probe": "bcLibraryVersion()", "expect": "^barcodext ABI [0-9]+; "}
+      ]
+    },
+    {
+      "name": "render3dxt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "f6c0b1a703bdece39f19f4196cad5444e1c2791a",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "render3dxt/src/render3dxt.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow); the libraries compile in stb_image (MIT, Sean Barrett) and fast_obj (MIT, thisistherk)",
+      "files": [
+        {"path": "render3dxt/src/render3dxt.lcb", "role": "source", "sha256": "45e567b4d22a4b66637ce5fc14e757137d18d2f8c41b3cf26b3d78ab351f4615", "size": 87166},
+        {"path": "render3dxt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "e5d5aff1e32ac292e7438330f823f7d3e98a939ad2b4dd58b254b3a515d8d455", "size": 1029},
+        {"path": "render3dxt/src/code/x86_64-win32/render3dxt.dll", "role": "library", "sha256": "d9bb41c255e7ef7588a8662a539658aefc1cc125e2aaa42ab79ec754cda5cab5", "size": 338944, "imports": ["KERNEL32.dll"]},
+        {"path": "render3dxt/src/code/x86-win32/render3dxt.dll", "role": "library", "sha256": "6a10c3e4c1ec48c3c4dde0cfb4180e6cda566ce6f7296cd650779efba5b1b308", "size": 284672, "imports": ["KERNEL32.dll"]},
+        {"path": "render3dxt/src/code/x86_64-linux/render3dxt.so", "role": "library", "sha256": "1fbac86d43742610532c3519c10aa061d0480a34bf93f3faa74a7327ce0ffa62", "size": 252336},
+        {"path": "render3dxt/src/code/x86-linux/render3dxt.so", "role": "library", "sha256": "4347b3cb0986295a2565c25f8f75b380ea4f40271ed20a05691f554f45b836a7", "size": 267832},
+        {"path": "render3dxt/src/code/arm64-linux/render3dxt.so", "role": "library", "sha256": "bba52a439f785678aeb7d50a6337d4e8cf5d2d1c4e81c8779c23452a0e30db0d", "size": 330248},
+        {"path": "render3dxt/src/code/universal-mac/render3dxt.dylib", "role": "library", "sha256": "907aa75c1ca4753998c7595f6d5360614296651d4f1324dba81553c24cf90a26", "size": 444080},
+        {"path": "render3dxt/src/code/arm64-android/render3dxt.so", "role": "library", "sha256": "56835a756252855a1f47c4c0f7ec7b27e9e4b076a807c7c22e0c49854fc98b0d", "size": 179056},
+        {"path": "render3dxt/src/code/armv7-android/render3dxt.so", "role": "library", "sha256": "5f0a93f92517c7cd22605473cd0ec2f52cb9be8504d5b81f7e08d6caf97904ed", "size": 129172},
+        {"path": "render3dxt/src/code/x86_64-android/render3dxt.so", "role": "library", "sha256": "d374d56a899750ef7bca13695494b6f3298e6954e16fdc3fd562767c5402fc85", "size": 194696},
+        {"path": "render3dxt/src/code/x86-android/render3dxt.so", "role": "library", "sha256": "5410cd2f52bff298a4ff8e1a043e90308eda04d9111bb50260892c0dbe2b1887", "size": 188560},
+        {"path": "render3dxt/LICENSE", "role": "licence", "sha256": "fe240d483adf531bb32009ad1b1635758ec6ff4d9080a963b87d3e670a305c4c", "size": 3678}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.renderthreed", "folder": "org.openxtalk.library.renderthreed", "main": "render3dxt/src/render3dxt.lcb", "probe": "r3LibraryVersion()", "expect": "^render3dxt [0-9.]+ ABI [0-9]+; "}
+      ]
+    },
+    {
+      "name": "midixt",
+      "repository": "SethMorrowSoftware/xtalk-suite",
+      "commit": "75d071308ffefc2c8e015a14fffb4c76a7ca9f61",
+      "version": "0.1.0",
+      "version_from": {
+        "path": "midixt/src/midi.lcb",
+        "pattern": "^\\s*metadata\\s+version\\s+is\\s+\"([^\"]+)\""
+      },
+      "licence": "MIT (Seth Morrow Software and the ShowControl contributors); the libraries statically link RtMidi (MIT, Gary P. Scavone) and, on Linux, use the system's ALSA library",
+      "files": [
+        {"path": "midixt/src/midi.lcb", "role": "source", "sha256": "317bf3e2a9992779cb69005fa156b3a647b68736c18c62b98c6efd3e408352bf", "size": 34997},
+        {"path": "midixt/src/code/MANIFEST.sha256", "role": "code-manifest", "sha256": "c0fd9c84cb9cce83b4bd6bab2594afd6c4299a0f92260140c410769dd48161fa", "size": 626},
+        {"path": "midixt/src/code/x86_64-win32/midixt.dll", "role": "library", "sha256": "d864270451634434437e2aa435a5864c779caf430aaf168476991579f8b2b11d", "size": 308736, "imports": ["WINMM.dll", "KERNEL32.dll"]},
+        {"path": "midixt/src/code/x86-win32/midixt.dll", "role": "library", "sha256": "5d52eba3d83f541e17e6dca1fbad0c9ffce5b3083de5ae50ede7ea336e3df57a", "size": 250368, "imports": ["WINMM.dll", "KERNEL32.dll"]},
+        {"path": "midixt/src/code/x86_64-linux/midixt.so", "role": "library", "sha256": "7ba6428fc6656e57321a49411924b6a4ad3c61aa9466dca5f5319ed8fc9a7e6e", "size": 1261680},
+        {"path": "midixt/src/code/x86-linux/midixt.so", "role": "library", "sha256": "ec80fa35fe645c864ed1294c7d62aad7017a702c613400648eb014c090ce0bff", "size": 1182144},
+        {"path": "midixt/src/code/arm64-linux/midixt.so", "role": "library", "sha256": "24bfd0653a7aa4b80e408af418a05d1372d5971a6f93028f47583b8a12006084", "size": 1380448},
+        {"path": "midixt/src/code/universal-mac/midixt.dylib", "role": "library", "sha256": "862495bfe118af9ceb73d90abd2cba87bae2fa944243f0224b8dc4333e40e616", "size": 207776},
+        {"path": "midixt/LICENSE", "role": "licence", "sha256": "8a2bf7b87c7e1ff6078257d0bb481ef8ab549daa28b1d2c958f2c2ab6b89366c", "size": 1367},
+        {"path": "midixt/THIRD-PARTY-LICENSES.md", "role": "licence", "sha256": "a6f0db32b9c725b288cd247a8ed4fa2d442f34db77e9ae18a4af9871c31c9d52", "size": 2339}
+      ],
+      "extensions": [
+        {"kind": "lcb", "id": "org.openxtalk.library.midi", "folder": "org.openxtalk.library.midi", "main": "midixt/src/midi.lcb", "probe": "midiVersion()", "expect": "^2$"}
+      ]
     }
   ],
   "web_libraries": {
@@ -360,6 +586,78 @@
         "path": "datachannelxt/src/code/wasm32-emscripten/datachannelxt.a",
         "sha256": "c9e6cda8ecf7b7dbabac92039c7f823ae597722674b8bf148693e0a2021d9cbc",
         "size": 24142,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "box3dxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "1def494651479913b916293eef461bf0993ffd6c",
+        "path": "box3dxt/src/code/wasm32-emscripten/box3dxt.a",
+        "sha256": "31a0bb2807b8b60d4c545c3f4743df1cf1bffe7199c89697ea7d4fceb10c1450",
+        "size": 1853732,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "audioxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "4c55eed6c34377506f13c260ca0e2f0ee7c2f56f",
+        "path": "audioxt/src/code/wasm32-emscripten/audioxt.a",
+        "sha256": "9f16eba0c0c35c32fba93520cce82706df814d343694a30f1e6a8ee4e4ca81d2",
+        "size": 720234,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "xlsxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "9ebbd6e3c7ec19f20c8fa1bb68072a4cd844c343",
+        "path": "xlsxt/src/code/wasm32-emscripten/xlsxt.a",
+        "sha256": "29efa861fc88373eb019e68860befdbe88383e7df1672c1810e9ae3b1cf6221c",
+        "size": 877288,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "gamepadxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "49531a2325d8123fc9ab67f92d38a7b6dc78597e",
+        "path": "gamepadxt/src/code/wasm32-emscripten/gamepadxt.a",
+        "sha256": "e8dc9dc0de06ff07399196a241feec640219e1b92d3961c4e3788cf7f977397f",
+        "size": 1425762,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "webpxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "eec2e21cbb84c765dec8ea3db3cb9aefe6e38bd8",
+        "path": "webpxt/src/code/wasm32-emscripten/webpxt.a",
+        "sha256": "ba8a8f62a93e5f4a7fd9f8f7fd2beb5dd999f50e695b5252f7a5d628702f133a",
+        "size": 553056,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "barcodext",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "4daa6dadbe201aa0ab26fad02931a9c3c8f6eaf8",
+        "path": "barcodext/src/code/wasm32-emscripten/barcodext.a",
+        "sha256": "7c51c85345cff8f763ade733bbd85cd7d8dd48fa10a664faa8a62e8749ff2383",
+        "size": 2599884,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "render3dxt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "f6c0b1a703bdece39f19f4196cad5444e1c2791a",
+        "path": "render3dxt/src/code/wasm32-emscripten/render3dxt.a",
+        "sha256": "effcc94ab3bf70fea29586511d156f917b6a389da6d589af9d4017f8717625a2",
+        "size": 213442,
+        "emscripten": "6.0.12"
+      },
+      {
+        "name": "midixt",
+        "repository": "SethMorrowSoftware/xtalk-suite",
+        "commit": "75d071308ffefc2c8e015a14fffb4c76a7ca9f61",
+        "path": "midixt/src/code/wasm32-emscripten/midixt.a",
+        "sha256": "4af1a75989f65fa50c3465f6fe0ae95712fdd5367b44f0207949c941780dc9b3",
+        "size": 86354,
         "emscripten": "6.0.12"
       }
     ]

@@ -1341,11 +1341,20 @@ int X_close(void)
 		delete[] MCfiles; /* Allocated with new[] */
 	if (MCprocesses != NULL)
 		delete[] MCprocesses; /* Allocated with new[] */
+	// OXT-Beyond: under the socket list's lock. Off Windows a thread polls
+	// the sockets (MCSocketsPoll) until MCSocketsFinalize, far below,
+	// stops it; deleting them here without the lock let that thread read
+	// the freed list and write into a freed socket, a heap corruption
+	// that could abort or hang an engine at quit.
+#ifdef MCSSL
+	MCSocketsDeleteAll();
+#else
 	if (MCnsockets)
 		while (MCnsockets)
 			delete MCsockets[--MCnsockets];
 	if (MCsockets != NULL)
 		delete MCsockets;
+#endif
 
 	while (MCsavegroupptr != NULL)
 	{

@@ -55,12 +55,15 @@ with `put url`; **Web Audio Piano**, sound made through `do ... as
 **QR Studio**, QR codes from the QR library, downloaded as PNG files;
 **Talking Robot**, the browser's speech voices; **2048**, a game of
 sliding tiles; **Quake Map**, live earthquakes from the USGS on a map;
-**Beat Box**, a drum machine timed by Web Audio; **Kanban Board**,
+**Beat Box**, a drum machine timed by Web Audio; **Beyond Beats**, a
+beat studio with a channel rack, a playlist, a piano roll and a mixer,
+its sounds made by Web Audio; **Kanban Board**,
 cards dragged between columns; **Markdown Notes**, Markdown styled as you
 type; **UI Gallery**, modern controls in a light and a dark theme;
 **Photo Lab**, a photo of your own with looks and adjustments, downloaded
 at full size; **Box2Dxt Platformer**, the xTalk Suite's seven scrolling
-levels on Box2D; and three that the build makes), and **About**, which says in plain English
+levels on Box2D; **Render3D Tour**, ten small 3D scenes drawn by the
+xTalk Suite's render3dxt; and three that the build makes), and **About**, which says in plain English
 what works on the web, what works differently and what does not. The
 stack then takes the page (`?mode=window` opens it in a window of its own
 instead), and the bar above it has **Library** (back home), **Reload**
@@ -86,8 +89,14 @@ stack while it is open (a name the player's own files have there,
 `DroidSansCombined.ttf` or an `extensionNN` folder, is not linked). A script error shows in a dialog with the object and the line.
 
 The xTalk Suite's native libraries that have a web build (box2dxt's
-Box2D, so the platformer and the Box2D games; sodiumxt, coinxt, and
-datachannelxt over the browser's own WebRTC) are linked into the web
+Box2D, so the platformer and the Box2D games; box3dxt's Box3D and its
+renderer; render3dxt, so the Render3D Tour; sodiumxt, coinxt,
+datachannelxt over the browser's own WebRTC, audioxt's miniaudio over
+Web Audio, xlsxt's Excel files, written into the page's own file
+system, gamepadxt, which reads game controllers through the browser's
+Gamepad API, webpxt's WebP pictures, barcodext's barcodes and midixt,
+which reaches MIDI devices through the browser's Web MIDI once the
+visitor allows it) are linked into the web
 engine the player is built on, as into every HTML5 standalone's
 (EXPERIMENTAL; `engine/src/em-xtalk-web.cpp`).
 
@@ -203,7 +212,9 @@ answering no.
 | `wobble-forts.livecodescript`, `wobble-forts-stack.livecodescript`, `wobble-forts/` | build `stacks/Wobble Forts.oxtstack` from Kenney's pictures, sounds and font and its levels (see below) |
 | `puzzle-almanac.livecodescript`, `puzzle-almanac-stack.livecodescript`, `puzzle-almanac/` | build `stacks/Puzzle Almanac.oxtstack` from Kenney's pictures and sounds, Atkinson Hyperlegible, its puzzles and its words (see below) |
 | `ember-bricks.livecodescript`, `ember-bricks-stack.livecodescript`, `ember-bricks/` | build `stacks/Ember Bricks.oxtstack` from its levels, the sounds made for it and Atkinson Hyperlegible (see below) |
+| `beyond-beats.livecodescript`, `beyond-beats-stack.livecodescript`, `beyond-beats/` | build `stacks/Beyond Beats.oxtstack` with its audio core (see below) |
 | `box2dxt-platformer.livecodescript`, `box2dxt_platformer_files.py`, `box2dxt-platformer/pin.json` | build `stacks/Box2Dxt Platformer.oxtstack` from the xTalk Suite's platformer and sheets, as pinned (see below) |
+| `render3d-tour.livecodescript`, `render3d-tour-stack.livecodescript` | build `stacks/Render3D Tour.oxtstack` from its script alone (see below) |
 | `assets/` | the page's logo and pictures, copied beside it |
 | `build_player.py` | starts the IDE with the script above, puts the page in place, packs the zip and, with `--check`, drives the player in headless Chromium |
 
@@ -446,6 +457,40 @@ are `wfPageHidden` (the page is hidden: a level pauses) and `wfState`, so
 that `tools/pages/check_wobble_forts_page.py` can ask the game how it is
 there; `build_player.py --check` runs that check on the player it builds.
 
+## The Render3D Tour
+
+`stacks/Render3D Tour.oxtstack` shows what render3dxt, the xTalk Suite's
+3D renderer, can do, one thing at a time. It has ten exhibits: a sun
+and its planets, with moons, a ring and a comet, where a click on a planet
+flies the camera to it; the
+shapes made to measure and a model; textures from a checkerboard, from
+imageData and from a PNG with gaps; five materials; a sun and three
+coloured lamps to switch by a click; a model read from the text of an OBJ
+file; hills built corner by corner; fog between two rows of columns;
+finding what is under the pointer and what a ray meets; and 225 cubes
+moved in one call a frame. Drag the picture to look round, and turn the
+wheel (or press + and -) to come closer. Every texture and model is made
+in its script: the stack carries no file.
+
+The picture is an ordinary image, 640 by 480, whose imageData render3dxt
+writes. On a desktop the next picture is drawn on other threads while the
+engine does its own work; in a browser there are none, so it is drawn at
+once, and Smooth edges starts off there. The corner of the picture says
+how many pictures a second it is showing. An engine without render3dxt
+opens the stack on a notice and draws nothing.
+
+`render3d-tour.livecodescript` builds it with any OXT-Beyond engine
+(`<engine> -ui tools/web-player/render3d-tour.livecodescript`), from
+`render3d-tour-stack.livecodescript`.
+`tests/lcs/webplayer/render3d-tour.livecodescript` opens it on a desktop
+engine and drives every exhibit through the hooks its script has
+(`rtTestBegin`, `rtTestStep`, `rtClickView`, `rtHoverView`, `rtState`);
+with `OXT_RENDER3DXT` set to a folder that has the extension it checks the
+pictures, the click on a lamp and on a ball, the labels, the camera and
+that closing gives back everything render3dxt made.
+`tools/ci/tests/test_render3d_tour.py` holds the committed stack to its
+script.
+
 ## The Box2Dxt platformer
 
 `stacks/Box2Dxt Platformer.oxtstack` is the xTalk Suite's platformer
@@ -605,7 +650,12 @@ where it points at nothing and is in the ball's way; it shows over the
 score and the pause button beside the arena, on a pause and on every
 other screen, and outside the window. (The engine has one cursor for
 all of its windows, so the game gives it back whenever its frames stop,
-and leaves alone one that another script holds locked.)
+and leaves alone one that another script holds locked.) In a browser the
+same goes for a tablet's trackpad or mouse, an iPad's with its keyboard
+say, since its page says that it has a pointer as well as a touch
+screen. In an app on a phone or a tablet a mouse's pointer is the
+system's own, which the engine does not hide, and the game leaves it as
+it is.
 
 **The Online Duel** is a match between two players, each on their own
 wall: the same wall for both, three minutes on the clock, most points
@@ -752,7 +802,10 @@ No check goes to the public relays, which CI must neither lean on nor
 write to. Last, in both browsers, a desktop's page plays a level with a
 mouse: the pointer the page shows is hidden over the arena, shows over
 the pause button and on a pause, and is hidden again when the level goes
-on. CI runs it in web.yml, after Puzzle Almanac's check. To run it
+on. Then a tablet's page with a trackpad plays it the same way: a page
+with a touch screen that is made to say it has a pointer too, as an
+iPad with its keyboard says, which no browser the check drives can be.
+CI runs it in web.yml, after Puzzle Almanac's check. To run it
 yourself:
 
 ```sh
@@ -763,3 +816,103 @@ The stack's `cJavascriptHandlers` are `ebPageHidden` (the page is hidden:
 a level pauses), `ebPasted` (the page hands the game the text its PASTE
 button read off the clipboard) and `ebState` and `ebRectOf`, so that a
 check can ask the game how it is.
+
+## Beyond Beats
+
+A beat studio for a browser, grown from Beat Box (which stays as it is,
+the short example). Four views, one at a time:
+
+- **Channels**, the rack: up to twelve channels, each a sound with its
+  own volume, pan, mute and solo, and a row of pads for the pattern
+  shown. A pattern has 16 or 32 steps, a step off or on at a velocity
+  from 1 to 9 (a click puts one on, a drag paints a row, a shift-click or
+  right-click makes it loud, soft or normal). A channel's name opens the
+  sound picker; its colour chooses it for the piano roll.
+- **Piano roll**: notes for the chosen channel in the pattern shown, two
+  octaves at a time from C1 to B6. A click adds a note and a drag makes it
+  longer; a drag moves one by steps and semitones, or its right end makes
+  it longer or shorter; a click takes it away and a shift-click makes it
+  louder or softer. A key plays its note.
+- **Playlist**: eight tracks of 128 bars, 32 shown at a time. A click puts
+  the chosen pattern in (a 32-step pattern takes two bars) or takes a
+  block out, a drag paints or clears a track, a shift-click chooses a
+  block's pattern, and a click on the ruler is where Song mode starts.
+- **Mixer**: a strip a channel, with a filter, a reverb send, a delay
+  send, pan, a fader with its meter, mute, solo and a tuning, and the
+  master's volume and meter; the reverb is a room or a hall and the delay
+  an eighth, a dotted eighth or a quarter, with its feedback.
+
+Up to sixteen patterns are made, cloned, cleared, deleted and renamed in
+the list beside the views. Pattern mode plays the pattern shown; Song mode
+plays the playlist. The sounds are a kit of sixteen, five synths (a saw
+lead, a square bass, a soft pad, a pluck and keys) and up to eight samples
+of the user's own (a WAV, MP3 or OGG file of up to 4 MB, loaded from the
+picker or the File menu). Undo and Redo (also Ctrl+Z and Ctrl+Shift+Z or
+Ctrl+Y) go back over the last sixty changes, a drag being one; a sample
+loaded over another is a change too, and Undo brings back the other's
+sound with its name (each sample's file has a key of its own, and a file
+no step can reach any more is deleted). The song is
+kept in the browser's storage and is there on the next visit; the File
+menu saves it as a file to download (its samples inside it) and opens one
+again, exports the song or pattern as a WAV file, loads a sample, starts a
+new song (pressed twice) or brings the demo back. Songs saved by the first
+version still open.
+
+The stack owns the song and the screen; the page owns the sound and the
+clock. `beyond-beats/audio-core.js`, kept in the stack as the custom
+property `cAudioCore` and run once with `do ... as "JavaScript"`, makes
+`window.beyondBeats`: the kit, made sample by sample from oscillators and
+seeded noise, and the synths, made of oscillators, a filter and envelopes
+(no sound files, so nothing to license, and the same sounds in every
+browser); for each channel a filter, a fader, a stereo panner, a meter and
+sends to a reverb (a convolver with a made impulse) and a tempo-synced
+delay; a master gain, a limiter and a soft clip; and a scheduler that
+books each step on the audio clock a tenth of a second ahead, so a slow
+frame of the engine never moves the beat. Stop fades out every voice it
+booked in a few milliseconds, a long note still sounding as well as a
+step booked ahead, and the reverb and delay ring on. Swing moves every second
+sixteenth later by up to half a step. The stack tells the core the song
+after every change (`beyondBeats.set`) and asks it about sixty times a
+second which step is sounding and how loud each channel is, to move the
+playhead and the meters. Export renders the song again offline
+(`OfflineAudioContext`) through the same mixer and hands the browser a
+WAV file. The core never calls back into the stack. Outside a browser the
+stack opens and edits as well and its playhead runs, without sound.
+
+The stack is never edited by hand. Its script is
+`beyond-beats-stack.livecodescript` and its controls are made by
+`beyond-beats.livecodescript`; change them or the core, then build it
+again with any OXT-Beyond engine:
+
+```sh
+<engine> -ui tools/web-player/beyond-beats.livecodescript
+```
+
+`tests/lcs/webplayer/beyond-beats.livecodescript` drives the song, the
+screen and the files on a desktop engine (and in the web engine, with
+`tools/ci/web_tests.py`): the rack (pads and the points they are at,
+velocity, a painted row, 16 and 32 steps, tempo and swing, the sliders,
+mute and solo, channels and the sound picker), patterns, the views and
+the layout, the playlist (blocks, drags, scrolling, Song mode and where
+it starts), the piano roll (adding, stretching, moving and deleting
+notes, velocity, the channel and octaves), the mixer and the master,
+undo and redo (a sample loaded over another among them), New and Demo,
+what the page is told, song files and samples, a file that is not a song,
+and Play in both modes.
+`tools/ci/beyond_beats_check.py` checks the rest in headless Chromium: the
+audio core alone, its songs rendered offline and measured sample by sample
+(the kit and the synths, each step on its sample, swing, volume, velocity,
+pan, mute, solo, notes and tuning, the filter, the reverb and the delay,
+the playlist, user samples, the limiter, the meters, the live clock, Stop
+silencing a held note and a step booked ahead, and the WAV export), and
+the stack in a Stack Player (Play starts the page's
+core with the stack's song, a pad clicked is in it at once, the views and
+the pattern list answer, Song mode plays the playlist, and Stop stops
+it). `build_player.py --check` runs both;
+`tools/ci/tests/test_beyond_beats.py` holds the stack to its files. To run
+the browser check yourself, with a Stack Player you have built or
+downloaded:
+
+```sh
+python3 tools/ci/beyond_beats_check.py --player <StackPlayer folder> --shots <folder>
+```

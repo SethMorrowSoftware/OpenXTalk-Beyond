@@ -718,3 +718,17 @@ on TestNumbersWithCommas
       TestAssert "commas:" && word 1 of tCase && "is" && word 2 of tCase, tOut is word 2 of tCase
    end repeat
 end TestNumbersWithCommas
+
+-- The Mobile Web library's word of the whole screen, gained or lost
+-- whoever did it (the button, the phone's back gesture, the browser
+-- itself): the button's icon follows then. It followed only the next
+-- tap of a sound button or layout, and none comes where the page keeps
+-- its size while the screen is whole (after 0.2.8-dp.2)
+on TestTheFullScreenIconFollowsTheBrowser
+   dispatch "fullScreenChanged" to card "Fort" of stack kStack with true
+   TestAssert "the whole screen given: the icon is to make it smaller", \
+         the cPicture of image "Title Full Icon" of card "Fort" of stack kStack is "icon-smaller"
+   dispatch "fullScreenChanged" to card "Fort" of stack kStack with false
+   TestAssert "and taken back: to make it larger", \
+         the cPicture of image "Title Full Icon" of card "Fort" of stack kStack is "icon-larger"
+end TestTheFullScreenIconFollowsTheBrowser

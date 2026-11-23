@@ -620,6 +620,7 @@ MCSocket::MCSocket(MCNameRef n, MCNameRef f, MCObject *o, MCNameRef m, Boolean d
 	accepting = a;
 	connected = False;
 	shared = s;
+	orphaned = False;
 	fd = sock;
 	closing = doread = added = waiting = False;
 	revents = nil;

@@ -16,7 +16,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 /* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
    (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
-   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+   Seth Morrow (2026) and Emily-Elizabeth Howard (2026); its Git history and
+   CHANGELOG.md say what changed. */
 
 //
 // MCField class declarations
@@ -249,6 +250,10 @@ private:
 
     // MM-2014-08-11: [[ Bug 13149 ]] Used to flag if a recompute is required during the next draw.
     bool m_recompute : 1;
+
+	// OXT-Beyond: the colour of a paragraph's or a text run's own that the
+	// words being drawn or read are on (getwordsback), else nil
+	const MCColor *m_words_back;
 	
 	static int2 clickx;
 	static int2 clicky;
@@ -291,6 +296,22 @@ public:
 
 	MCField();
 	MCField(const MCField &fref);
+
+	// OXT-Beyond: the colour of a paragraph's or a text run's own that the
+	// words being drawn or read are on: MCParagraph::draw and MCBlock::draw
+	// set it for the time they draw them, MCBlock::GetEffectiveForeColor
+	// for the time it reads them; nil otherwise. getlegacywords judges the
+	// words on it. setwordsback returns the colour it replaces
+	const MCColor *getwordsback(void) const
+	{
+		return m_words_back;
+	}
+	const MCColor *setwordsback(const MCColor *p_back)
+	{
+		const MCColor *t_old = m_words_back;
+		m_words_back = p_back;
+		return t_old;
+	}
 	// virtual functions from MCObject
 	virtual ~MCField();
 	virtual Chunk_term gettype() const;
@@ -521,6 +542,8 @@ public:
 	// MCField HTML functions in fieldh.cc
 	Exec_stat sethtml(uint4 parid, MCValueRef data);
 	Exec_stat setrtf(uint4 parid, MCStringRef data);
+	// OXT-Beyond: the markdownText (from HyperXTalk, fieldmarkdown.cpp)
+	Exec_stat setmarkdown(uint4 parid, MCStringRef data);
 	void setstyledtext(uint32_t part_id, MCArrayRef p_text);
 	Exec_stat setpartialtext(uint4 parid, MCStringRef p_text);
 #ifdef _MACOSX
@@ -579,6 +602,13 @@ public:
 
 	// MW-2012-03-07: [[ FieldImport ]] Conver the htmlText string to a list of paragraphs.
     MCParagraph *importhtmltext(MCValueRef p_data);
+
+	// OXT-Beyond: Markdown import / export (from HyperXTalk, fieldmarkdown.cpp).
+	//   No property of the property tables: a field's markdownText is reached
+	//   as a custom property is (MCChunk::getsetmarkdowntext in chunk.cpp).
+	MCParagraph *importmarkdowntext(MCStringRef p_text);
+	bool exportasmarkdowntext(uint32_t p_part_id, int32_t p_start_index, int32_t p_finish_index, MCStringRef& r_text);
+	bool exportasmarkdowntext(MCParagraph *p_paragraphs, int32_t p_start_index, int32_t p_finish_index, MCStringRef& r_text);
 
 	// MW-2012-03-05: [[ FieldImport ]] Add a paragraph with the given styling to the end of the supplied
 	//   paragraphs list.
@@ -694,6 +724,8 @@ public:
 	void GetEffectiveHtmlText(MCExecContext& ctxt, uint32_t part, MCValueRef& r_text);
 	void GetRtfText(MCExecContext& ctxt, uint32_t part, MCStringRef& r_text);
 	void SetRtfText(MCExecContext& ctxt, uint32_t part, MCStringRef p_text);
+	void GetMarkdownText(MCExecContext& ctxt, uint32_t part, MCStringRef& r_text);
+	void SetMarkdownText(MCExecContext& ctxt, uint32_t part, MCStringRef p_text);
 	void GetStyledText(MCExecContext& ctxt, uint32_t part, MCArrayRef& r_array);
 	void SetStyledText(MCExecContext& ctxt, uint32_t part, MCArrayRef p_array);
 	void GetEffectiveStyledText(MCExecContext& ctxt, uint32_t part, MCArrayRef& r_array);
@@ -775,6 +807,8 @@ public:
     void GetUnicodeFormattedTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCDataRef& r_value);
     void GetRtfTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef& r_value);
     void SetRtfTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef value);
+    void GetMarkdownTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef& r_value);
+    void SetMarkdownTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCStringRef p_value);
     void GetHtmlTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCValueRef& r_value);
     void GetEffectiveHtmlTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCValueRef& r_value);
     void SetHtmlTextOfCharChunk(MCExecContext& ctxt, uint32_t p_part_id, int32_t p_start, int32_t p_finish, MCValueRef value);

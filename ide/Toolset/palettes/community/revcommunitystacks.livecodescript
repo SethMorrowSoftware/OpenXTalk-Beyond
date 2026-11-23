@@ -1341,18 +1341,51 @@ end csMakeFolder
 -- whose name is one the IDE keeps for its own windows is not opened: the
 -- IDE would take it for a part of itself. Nor is one with a substack of
 -- such a name.
+--
+-- A stack that draws what it shows when it opens (its openStack makes
+-- its controls, or fills its cards) shows its cards bare when it is
+-- opened this way: that is what not running it means. To see it run,
+-- revCommunityStacksOpenToRun opens it (richmond62, openxtalk.org
+-- p=26654: Puzzle Almanac, opened to look at, showed a bare card and its
+-- sprites, and he could not play it in the IDE).
 command revCommunityStacksOpenToRead pFile
-   local tName, tResult, tError, tTaken, tKept, tSub
+   return csOpenCopy(pFile, false)
+end revCommunityStacksOpenToRead
+
+-- OXT-Beyond: opens the stack file pFile to run it, as File > Open opens
+-- a stack: with the browse tool, and with its opening scripts running, as
+-- the scripts of the user's own stacks run. Returns empty in the result,
+-- or "error: " and a sentence. A stack the IDE would take for a part of
+-- itself is not opened, as revCommunityStacksOpenToRead does not open it;
+-- that is checked with messages locked, before any of it runs. An error
+-- in the stack's own scripts as it opens is the stack's: the IDE shows it
+-- as it shows any stack's (it is not caught here).
+command revCommunityStacksOpenToRun pFile
+   return csOpenCopy(pFile, true)
+end revCommunityStacksOpenToRun
+
+-- Opens the copy pFile: to run it when pRun is true, else to look at it
+private function csOpenCopy pFile, pRun
+   local tName, tResult, tError, tTaken, tKept, tSub, tGo
    if pFile is empty or there is no file pFile then
       return "error: The copy's file is not there:" && pFile
    end if
    try
-      revIDESetTool "pointer"
+      if pRun then
+         revIDESetTool "browse"
+      else
+         revIDESetTool "pointer"
+      end if
    catch tError
-      choose pointer tool
+      if pRun then
+         choose browse tool
+      else
+         choose pointer tool
+      end if
    end try
    lock messages
    put empty into tResult
+   put false into tGo
    try
       -- (naming the file loads the stack; nothing of it runs for that)
       put the short name of stack pFile into tName
@@ -1379,6 +1412,9 @@ command revCommunityStacksOpenToRead pFile
       else if tKept is not empty then
          delete stack tName
          put "This stack holds a stack named" && quote & tKept & quote & ", a name the IDE keeps for its own windows, so it was not opened." into tResult
+      else if pRun then
+         -- (opened below, with messages)
+         put true into tGo
       else
          go stack pFile
          if the result is not empty then
@@ -1389,11 +1425,17 @@ command revCommunityStacksOpenToRead pFile
       put "The copy could not be opened." into tResult
    end try
    unlock messages
+   if tGo then
+      go stack pFile
+      if the result is not empty then
+         put "The copy could not be opened." into tResult
+      end if
+   end if
    if tResult is not empty then
       return "error:" && tResult
    end if
    return empty
-end revCommunityStacksOpenToRead
+end csOpenCopy
 
 -- True for a stack name that the IDE takes for one of its own
 private function csIsIDEName pName
@@ -1798,6 +1840,8 @@ private command csBuild
    set the textHeight of tObj to 21
    set the vScrollbar of tObj to true
    set the rightMargin of tObj to 14
+   -- (the last line of a long page comes wholly into view)
+   lkPageEnd tObj
    if lkDark() then
       lkScroller "pageThumb", tObj, "148,163,184", 45, empty
    else

@@ -34,11 +34,11 @@ this machine's) is read, and each library it needs must be
            and api-ms-win-crt-*), or a file in the same folder (the engine
            loads extension libraries with LOAD_WITH_ALTERED_SEARCH_PATH);
   Linux    a library of the base system (LINUX_SYSTEM: glibc, libstdc++,
-           libgcc_s, zlib, OpenSSL), or a file in the same folder that the
-           loader will look for there: the library must have $ORIGIN
-           itself (not $ORIGIN/lib) in its DT_RUNPATH or DT_RPATH, since
-           dlopen does not search the folder of the library that needs
-           another;
+           libgcc_s, zlib, OpenSSL, ALSA's), or a file in the same folder
+           that the loader will look for there: the library must have
+           $ORIGIN itself (not $ORIGIN/lib) in its DT_RUNPATH or DT_RPATH,
+           since dlopen does not search the folder of the library that
+           needs another;
   macOS    in /usr/lib or /System/Library, or @loader_path/<file> (or
            @rpath/<file> with an LC_RPATH that is @loader_path) with the
            file in the same folder. @executable_path is the engine's
@@ -95,13 +95,20 @@ import xtalk_extensions  # noqa: E402
 
 # Libraries every desktop Linux the Linux package supports has: glibc's
 # own libraries and loader, the GCC runtime that C++ code needs, zlib and
-# OpenSSL (whose version still sets a floor, which is reported).
+# OpenSSL (whose version still sets a floor, which is reported), and ALSA's
+# library, the system's sound and MIDI service, on which its sound servers
+# (PipeWire, PulseAudio) are built. midixt's libraries need it (RtMidi
+# reads and writes MIDI through ALSA's sequencer), as they need winmm.dll
+# on Windows and CoreMIDI on macOS; on a system without it only midixt
+# fails to load, with the library's name in its error. The browser widget
+# needs it too, so the launcher's list names its package
+# (Installer/linux/libraries.txt).
 LINUX_SYSTEM = (
     r'libc\.so\.6', r'libm\.so\.6', r'libdl\.so\.2', r'libpthread\.so\.0', r'librt\.so\.1',
     r'libresolv\.so\.2', r'libutil\.so\.1', r'libanl\.so\.1', r'libnsl\.so\.[12]',
     r'libcrypt\.so\.[12]', r'ld-linux[-a-z0-9_.]*\.so\.[12]', r'libstdc\+\+\.so\.6',
     r'libgcc_s\.so\.1', r'libatomic\.so\.1', r'libz\.so\.1', r'libssl\.so\.(3|1\.1)',
-    r'libcrypto\.so\.(3|1\.1)',
+    r'libcrypto\.so\.(3|1\.1)', r'libasound\.so\.2',
 )
 LINUX_SYSTEM_RX = re.compile(r'^(%s)$' % '|'.join(LINUX_SYSTEM))
 MAC_SYSTEM_PREFIXES = ('/usr/lib/', '/System/Library/')

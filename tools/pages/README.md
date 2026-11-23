@@ -8,13 +8,15 @@ Pages site, so that anyone can open them with nothing to download:
 | --- | --- |
 | `https://<owner>.github.io/<repository>/` | the front page ([index.html](index.html)), which links to both |
 | `.../ide/` | the web IDE |
-| `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens |
+| `.../dictionary/` | the IDE's Dictionary (xTalk Script and xTalk Builder), which Help > Dictionary Online opens; `#put` or `?entry=put` opens at that word (`&type=command` picks among entries of one name, `&api=builder` an xTalk Builder one), which the forum's `[dict]` tag links to ([test_dictionary_deep_link.py](../ci/tests/test_dictionary_deep_link.py)) |
 | `.../lessons/` | the lessons: xTalk from the first line to xTalk Builder, and the extensions that come with OXT-Beyond, a page a lesson, searchable ([lessons/](lessons/)) |
 | `.../player/` | the Stack Player |
-| `.../extensions/` | the xTalk Suite's extensions, built into OXT-Beyond, each with its `.lce` packages to download ([extensions/index.html](extensions/index.html)) |
+| `.../extensions/` | a card for every xTalk Suite extension, each with its `.lce` packages to download and the OXT-Beyond release it is built into ([extensions/index.html](extensions/index.html)) |
 | `.../play/` | the bare player: a stack and nothing around it (`?stack=`, `?play=`; see [tools/web-player](../web-player/README.md)), on the Stack Player's engine |
+| `.../try/` | the forum's "Try it in the browser": a stack attached to a post on openxtalk.org/forum (`?id=` the attachment, `?name=` its file, `?t=` the topic) plays in a boxed copy of the bare player at `try/box/`, in a frame without `allow-same-origin`, which takes the forum's stack files alone ([forum/index.html](forum/index.html), `forum_player` in build_pages.py, [test_pages_forum_player.py](../ci/tests/test_pages_forum_player.py)) |
 | `.../games/` | the web stacks gallery: the big ones on pages of their own (Pixel Platformer Maker and the others run their `standalone.zip` on the Stack Player's engine; Nova Rescue, Wobble Forts and Puzzle Almanac play the player's own samples in the bare player), and a card and a page for each of the Stack Player's samples |
 | `.../map/` | the [codebase map](../codebase-map/README.md), for contributors, with the binary stacks' scripts as files beside it (`stack-scripts/`, `stack-scripts.zip`) |
+| `.../welcome/` | the pages for people coming from LiveCode ([welcome/](welcome/README.md)): a front page, a guide, the GPL for in-house tools, and a stack checker that reads a stack in the visitor's browser, each with its own card for link previews |
 
 The front page is one self-contained file: its look (a night sky over an
 orange horizon, a small stack whose button answers as its script says,
@@ -106,24 +108,45 @@ as the others' checks do:
 python3 tools/pages/check_puzzle_almanac_page.py --player <StackPlayer folder or web-player zip> --shots <folder>
 ```
 
-The extensions page has a card for each xTalk Suite extension (sodiumxt,
-torrentxt, enetxt, datachannelxt, box2dxt, coinxt, onionxt and nostrxt),
-in the web stacks gallery's look, with its own repository and a link to
-each of its `.lce` packages. The packages are the files that the suite's
-`lce-packages.yml` attaches to a suite release, named
-`<package>-<version>.lce`; pages.yml finds the suite's newest release
-that has any and gives its file names to `build_pages.py`
+The extensions page has a card for every xTalk Suite extension, in the
+web stacks gallery's look: what it does, what it is built on, its own
+repository and a link to each of its `.lce` packages. The packages are
+the files that the suite's `lce-packages.yml` attaches to a suite
+release, named `<package>-<version>.lce`; pages.yml finds the suite's
+newest release that has any and gives its file names to `build_pages.py`
 (`--suite-release TAG --suite-assets FILE`), so the page links the files
 of the newest packaged release each time the site is built. Only the
-files the release has get a link; a package the page's table
-(`EXTENSIONS` in `build_pages.py`) does not name is linked under "More
-from the suite"; and without a release with packages each card links the
-suite's releases page instead. After them come OXT-Beyond's own two
-plugins, the xTalk Assistant and the xTalk MCP Bridge (`PLUGINS`), each
-linked to its `.lce` in the stable release the front page's Downloads
-links (`--release`; the preview's, `--preview`, while there is no stable
-release), or to OXT-Beyond's releases without one. The page goes
-up with every site, and the front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
+files the release has get a link, and without a release with packages
+each card links the suite's releases page instead.
+
+The page's table (`EXTENSIONS` in `build_pages.py`) writes a card for
+each of the suite's twenty members, in groups: cryptography, networking,
+physics and 3D, game controllers and sound, show control, then documents
+and pictures. A package belongs to the member its name starts with
+(`curlxt-tsnet` is curlxt's): one the table does not name goes on its
+member's card after the ones it does, and a member the table does not
+name yet, one that joined the suite after it was written, gets a card of
+its own made from its packages. pages.yml downloads them with the
+release's SHA256SUMS (`--suite-packages FOLDER`), and `build_pages.py` reads
+the manifest.xml and the api.lcdoc of each one whose checksum is the one
+listed, runs nothing in them and escapes what they say: the card's kind
+from what the package holds and its title, what it does from the first
+paragraph of its library entry, what it needs from the packages it
+requires, and its guide from its folder in the suite at that release.
+Give a new member a row in the table when it joins, so its card has
+words of its own; until then it is still on the page.
+
+Each card also says which OXT-Beyond release it is built into, of the
+two the front page offers, or that the newest of them does not have it,
+from each release's own `tools/oxt/xtalk-extensions.json` as tagged
+(`--release-built-in`, `--preview-built-in`; pages.yml takes them with
+`git show`); without them the cards say nothing of it. After the
+extensions come OXT-Beyond's own two plugins, the xTalk Assistant and
+the xTalk MCP Bridge (`PLUGINS`), each linked to its `.lce` in the
+stable release the front page's Downloads links (`--release`; the
+preview's, `--preview`, while there is no stable release), or to
+OXT-Beyond's releases without one. The page goes up with every site, and
+the front page has its card. [test_pages_extensions.py](../ci/tests/test_pages_extensions.py)
 holds it.
 
 With a release (`--release TAG --release-assets FILE`), the front page
@@ -271,6 +294,26 @@ with what changed beside any that differs.
 [test_pages_lessons.py](../ci/tests/test_pages_lessons.py) holds the
 build, the example rules (the palette's among them), the code the check
 runs on a card, the links and the picture comparison without an engine.
+
+## The welcome pages
+
+The welcome pages ([welcome/](welcome/README.md)) are four pages for
+people who use LiveCode, in the front page's look: a front page, a guide
+to coming over, the GPL for in-house tools, and a stack checker that
+reads a stack in the visitor's browser and runs nothing in it. They are
+written by hand: their own `src/build.py` writes them from
+`welcome/src/pages`, and `build_pages.py` copies the folder to the
+site's `welcome/` with every site, without its builder, tests and README.
+They show the site's logo (`../brand/`) and ask no other host for
+anything. Each names its one address and has the Open Graph and X tags a
+link preview reads, with a 1200 by 630 picture of its own in
+`welcome/share/`, drawn from `welcome/src/share.html`. Every fact on
+them names its release, so their downloads and their list of where every
+feature stands are changed by hand with each release (welcome/README.md,
+"Keeping it current").
+[test_pages_welcome.py](../ci/tests/test_pages_welcome.py) holds them,
+and [check_site_rest.py](check_site_rest.py) holds their front page at
+rest.
 
 ## Turning it on
 

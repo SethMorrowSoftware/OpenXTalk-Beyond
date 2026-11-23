@@ -199,16 +199,36 @@ class Window(unittest.TestCase):
         self.assertIn('if there is a folder pFolder or there is a file pFolder then', code(handler(self.text, 'csWrite')))
 
     def test_a_copy_opens_without_running(self):
-        opened = code(handler(self.text, 'revCommunityStacksOpenToRead'))
+        self.assertIn('return csOpenCopy(pFile, false)', code(handler(self.text, 'revCommunityStacksOpenToRead')))
+        opened = code(handler(self.text, 'csOpenCopy'))
         lock = opened.index('lock messages')
+        names = opened.index('csIsIDEName(tName)')
         go = opened.index('go stack pFile')
         unlock = opened.index('unlock messages')
-        self.assertLess(lock, go)
+        self.assertLess(lock, names)
+        self.assertLess(names, go)
         self.assertLess(go, unlock)
         self.assertIn('revIDESetTool "pointer"', opened)
-        self.assertIn('csIsIDEName(tName)', opened)
-        # the only place a stack of the gallery is opened
-        self.assertEqual(self.code.count('go stack'), 1)
+        # the only places a stack of the gallery is opened: this one, and
+        # Open and Run's below
+        self.assertEqual(self.code.count('go stack'), 2)
+
+    def test_a_copy_opened_to_run_is_checked_first(self):
+        # Open and Run (openxtalk.org p=26654): the same checks, with
+        # messages locked, and the stack opened only after they pass, with
+        # messages, as File > Open opens one, and with the browse tool
+        self.assertIn('return csOpenCopy(pFile, true)', code(handler(self.text, 'revCommunityStacksOpenToRun')))
+        opened = code(handler(self.text, 'csOpenCopy'))
+        unlock = opened.index('unlock messages')
+        self.assertIn('else if pRun then\n         put true into tGo\n      else\n         go stack pFile', opened)
+        run = opened.index('if tGo then\n      go stack pFile')
+        self.assertLess(unlock, run)
+        self.assertIn('revIDESetTool "browse"', opened)
+        # a refusal sets no tGo: tGo is set only in the branch after the
+        # three refusals (a name taken, the IDE's name, a substack of one)
+        self.assertLess(opened.index('else if tKept is tName then'), opened.index('else if pRun then'))
+        self.assertLess(opened.index('else if tKept is not empty then'), opened.index('else if pRun then'))
+        self.assertEqual(opened.count('put true into tGo'), 1)
 
     def test_the_limits_are_the_gallerys(self):
         for name, value in GALLERY_LIMITS.items():
@@ -344,6 +364,72 @@ class TheIndex(unittest.TestCase):
         self.assertIn('is not wholly in view', measure)
 
 
+class ThePage(unittest.TestCase):
+    """The page of the stack or library in front. With 0.2.8-dp.2 the last
+    line of a page longer than the window (the Easing library's) stayed
+    partly below it at the end of the scroll: its lower 8 points were cut
+    off (bwmilby on the forum, Linux and macOS). The page, like the
+    Release Notes' page and the About window's panel, is a label of the
+    kit's (a top margin of kTextInset, none below) that scrolls; the kit's
+    lkPageEnd gives it the bottom margin the engine's scroll needs. The
+    step community-stacks of the tour measures it in the IDE, and the
+    dp.2 engine, with the kit's lkLabel, put the last line 8 points below
+    a 364 point page before and wholly in it after."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.kit = read(KIT)
+        cls.tour = read(TOUR)
+
+    def test_the_kits_page_end_leaves_room_for_the_last_line(self):
+        # The engine stops a field's scroll at its text and two margins
+        # less twice TEXT_Y_OFFSET (MCField::vscroll); the margins must add
+        # up to that and 2 points more, for 2 points under the last line
+        end = code(handler(self.kit, 'lkPageEnd'))
+        m = re.search(r'set the bottomMargin of pObj to max\(the bottomMargin of pObj, (\d+) - the topMargin of pObj\)', end)
+        self.assertIsNotNone(m, 'lkPageEnd sets no bottom margin')
+        offset = int(re.search(r'^#define TEXT_Y_OFFSET (\d+)$', read(os.path.join(ENGINE, 'objdefs.h')), re.M).group(1))
+        self.assertEqual(int(m.group(1)), 2 * offset + 2)
+        # it only ever adds room: a bottom margin a window set is kept
+        self.assertNotIn('set the margins', end)
+        field = read(os.path.join(ENGINE, 'field.cpp'))
+        scroll = field[field.index('Exec_stat MCField::vscroll(int4 offset, Boolean doredraw)'):]
+        scroll = scroll[:scroll.index('\n}\n')]
+        self.assertIn('uint4 theight = textheight + topmargin + bottommargin - TEXT_Y_OFFSET * 2;', scroll)
+        # and a kit label has no bottom margin of its own: without
+        # lkPageEnd its last line is cut
+        label = code(handler(self.kit, 'lkLabel'))
+        self.assertIn('set the margins of tObj to "0," & kTextInset & ",0,0"', label)
+        self.assertEqual(constant(self.kit, 'kTextInset'), '4')
+
+    def test_every_page_that_scrolls_has_it(self):
+        pages = (
+            (WINDOW, 'csBuild', 'lkScroller "pageThumb", tObj'),
+            (os.path.join(TOOLSET, 'palettes', 'updates', 'revreleasenotes.livecodescript'), 'rnBuild',
+             'lkScroller "pageThumb", tObj'),
+            (os.path.join(TOOLSET, 'palettes', 'about', 'revabout.livecodescript'), None, 'lkScroller "panelThumb", tObj'),
+        )
+        for path, name, scroller in pages:
+            text = code(read(path))
+            if name is not None and re.search(r'^(?:private +)?(?:on|command) +%s\b' % name, text, re.M):
+                text = code(handler(read(path), name))
+            self.assertIn(scroller, text, path)
+            self.assertIn('lkPageEnd tObj', text, path)
+            # before the thumb is made, which measures the scroll
+            self.assertLess(text.index('lkPageEnd tObj'), text.index(scroller), path)
+
+    def test_the_tour_measures_it_in_the_ide(self):
+        step = handler(self.tour, 'tour_community_stacks')
+        self.assertIn('tourCsPageEnd tWin', step)
+        end = handler(self.tour, 'tourCsPageEnd')
+        self.assertIn('set the vScroll of field "page" of stack pWin to 30000', end)
+        self.assertIn('put the formattedRect of line -1 of field "page" of stack pWin into tRect', end)
+        self.assertIn('if item 4 of tRect > tBottom then\n      throw', end)
+        self.assertIn('throw "the tour\'s long page fits the page', end)
+        # the window's own text is put back
+        self.assertIn('set the htmlText of field "page" of stack pWin to tSaved', end)
+
+
 class Menu(unittest.TestCase):
     def test_the_file_menu_has_it(self):
         menubar = read(MENUBAR)
@@ -394,6 +480,22 @@ class Actions(unittest.TestCase):
         # opening is the user's choice, and what follows is said
         self.assertIn('case "Open It to Look"', copy)
         self.assertIn('its scripts run when you choose the browse tool', copy)
+        # and so is opening it to run (openxtalk.org p=26654: a stack that
+        # draws its screen as it opens shows its cards bare when it is
+        # opened to look at): the dialog says both, Open It to Look stays
+        # the last button (Return's), and Open and Run is the one before
+        self.assertIn('case "Open and Run"', copy)
+        # sent, so that no try waits under the copy's opening scripts: the
+        # window's Get a Copy calls this inside one, and while a try waits
+        # the engine shows no error (Codex review of #617)
+        self.assertIn('send "revIDECommunityStacksRunCopy tResult, tFileName" to me in 0 milliseconds', copy)
+        self.assertNotIn('revCommunityStacksOpenToRun', copy)
+        run = code(handler(self.text, 'revIDECommunityStacksRunCopy'))
+        self.assertIn('dispatch "revCommunityStacksOpenToRun" to stack __communityStacksFile() with pFile', run)
+        self.assertNotIn('try', run)
+        self.assertIn('shows its cards bare', copy)
+        self.assertIn('"Show the Folder" & return & "Done" & return & "Open and Run" & return & "Open It to Look" into tSpec["buttons"]', copy)
+        self.assertIn('with "Show the Folder" or "Done" or "Open and Run" or "Open It to Look"', copy)
         # nothing here opens the browser or any address
         self.assertNotIn('launch url', copy)
         self.assertNotIn('://', copy)
@@ -432,7 +534,8 @@ class Tests(unittest.TestCase):
         for name in ('TestSiteAndKey', 'TestVerify', 'TestParse', 'TestParseLeavesOutWhatBreaksTheRules',
                      'TestParseCleansWhatItKeeps', 'TestLoad', 'TestLoadOnlyFromHttps', 'TestGet',
                      'TestGetKeepsOnlyWhatTheListNames', 'TestOpenToRead', 'TestOpenToReadRefusesTheIDEsNames',
-                     'TestOpenToReadLeavesAnOpenStackAlone'):
+                     'TestOpenToReadLeavesAnOpenStackAlone', 'TestOpenToRun',
+                     'TestOpenToRunLetsTheStacksErrorsThrough', 'TestOpenToRunRefusesWhatOpenToReadRefuses'):
             self.assertIn('on %s\n' % name, tests)
 
 

@@ -36,11 +36,51 @@ on closeStack
    ## Unsubscribe from all messages
    revIDEUnsubscribe "idePreferenceChanged:idePropertyInspector_labels"
    
+   inspectorClosePopups
+   
    set the cSelectedObjects of me to empty
    
    # Unlock
    put false into sInspectorLock
 end closeStack
+
+-- OXT-Beyond: an inspector that closes takes the popup editors it opened
+-- with it (Fill gradient, Stroke gradient and the graphic effects). Left
+-- open, the popup had lost the inspector it reported to: its OK did
+-- nothing more, and a gradient's handles stayed on the card for good,
+-- the graphic's editMode still "fillGradient" (openxtalk.org "Known
+-- Bugs", in LiveCode Community 9.6.3 too). The fix is OpenXTalkPaul's,
+-- from OXT DPE (openxtalk.org p=15278: the inspector's closeStack closes
+-- any popup that is open); here only the popups this inspector opened
+-- are closed, so two inspectors can each have one, and the handles are
+-- taken off as the popup's own OK does.
+command inspectorClosePopups
+   local tStack, tTarget, tObject, tOurs
+   repeat for each line tStack in the openStacks
+      if not (tStack begins with "revPropertyPopup ") then next repeat
+      try
+         put the editorTarget of stack tStack into tTarget
+         put tTarget is empty or not exists(tTarget) or tTarget ends with the long id of me into tOurs
+         if tOurs then
+            if tStack ends with "Gradient" then
+               repeat for each line tObject in sSelectedObjects
+                  if exists(tObject) and word 1 of tObject is "graphic" \
+                        and the editMode of tObject is not "none" then
+                     set the editMode of tObject to "none"
+                  end if
+               end repeat
+            end if
+            lock messages
+            set the destroyStack of stack tStack to true
+            close stack tStack
+            if there is a stack tStack then delete stack tStack
+            unlock messages
+         end if
+      catch tError
+         unlock messages
+      end try
+   end repeat
+end inspectorClosePopups
 
 on resizeStack
    resizeInspector

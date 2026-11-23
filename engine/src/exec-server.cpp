@@ -14,6 +14,10 @@ for more details.
 You should have received a copy of the GNU General Public License
 along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
+/* Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
+   (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
+   Seth Morrow (2026); its Git history and CHANGELOG.md say what changed. */
+
 #include "prefix.h"
 
 #include "globdefs.h"
@@ -87,6 +91,27 @@ static MCExecEnumTypeInfo _kMCServerOutputTextEncodingTypeInfo =
 
 //////////
 
+// OXT-Beyond: the sessionCookieSameSite. Empty, the default, sends no
+// SameSite attribute. The values are those of MCServerCookieSameSite
+// (srvmain.h), which only the server engine includes.
+static MCExecEnumTypeElementInfo _kMCServerSessionCookieSameSiteTypeElementInfo[] =
+{
+	{ "", 0, false },
+	{ "lax", 1, false },
+	{ "strict", 2, false },
+	{ "none", 3, false },
+};
+
+static MCExecEnumTypeInfo _kMCServerSessionCookieSameSiteTypeInfo =
+{
+	"Server.SessionCookieSameSite",
+	sizeof(_kMCServerSessionCookieSameSiteTypeElementInfo) / sizeof(MCExecEnumTypeElementInfo),
+	_kMCServerSessionCookieSameSiteTypeElementInfo
+};
+
+//////////
+
+MCExecEnumTypeInfo *kMCServerSessionCookieSameSiteTypeInfo = &_kMCServerSessionCookieSameSiteTypeInfo;
 MCExecEnumTypeInfo *kMCServerErrorModeTypeInfo = &_kMCServerErrorModeTypeInfo;
 MCExecEnumTypeInfo *kMCServerOutputLineEndingsTypeInfo = &_kMCServerOutputLineEndingsTypeInfo;
 MCExecEnumTypeInfo *kMCServerOutputTextEncodingTypeInfo = &_kMCServerOutputTextEncodingTypeInfo;
@@ -295,4 +320,35 @@ void MCServerSetSessionId(MCExecContext& ctxt, MCStringRef p_value)
 		return;
 
 	ctxt . Throw();
+}
+
+// OXT-Beyond: the sessionCookieSecure and the sessionCookieSameSite. Like the
+// other session properties they can be read and set in every engine, and
+// only the server engine has a session cookie to give them to.
+#ifdef _SERVER
+extern bool MCsessioncookiesecure;
+extern intenum_t MCsessioncookiesamesite;
+#else
+static bool MCsessioncookiesecure = false;
+static intenum_t MCsessioncookiesamesite = 0;
+#endif
+
+void MCServerGetSessionCookieSecure(MCExecContext& ctxt, bool& r_value)
+{
+	r_value = MCsessioncookiesecure;
+}
+
+void MCServerSetSessionCookieSecure(MCExecContext& ctxt, bool p_value)
+{
+	MCsessioncookiesecure = p_value;
+}
+
+void MCServerGetSessionCookieSameSite(MCExecContext& ctxt, intenum_t& r_value)
+{
+	r_value = MCsessioncookiesamesite;
+}
+
+void MCServerSetSessionCookieSameSite(MCExecContext& ctxt, intenum_t p_value)
+{
+	MCsessioncookiesamesite = p_value;
 }

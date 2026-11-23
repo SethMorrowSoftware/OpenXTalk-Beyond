@@ -281,6 +281,12 @@ MCStack *MCStacklist::getstack(uint2 n)
 {
 	uint2 i;
 	MCStacknode *tptr = stacks;
+	// OXT-Beyond: with no stack open (an engine run with -ui before its
+	// script opens one) there is no list to walk, and topStack(1),
+	// topWindow(1) and currentWindow(1) crashed the engine (LiveCode
+	// Community 9.6.3 too). No stack, as for a number past the list's end.
+	if (tptr == NULL)
+		return NULL;
 	for (i = 1 ; i < n ; i++)
 	{
 		if (tptr->next() == stacks)

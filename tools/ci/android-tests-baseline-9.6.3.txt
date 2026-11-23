@@ -6,6 +6,28 @@
 # compiler) skips there, through the test library's requirements
 # (tests/_testlib.livecodescript), and is not here.
 
+lcs: core/array/keyword-keys: TestKeysThatAlreadyCompiled  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeysThatStillFail  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeys  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysCase  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysInStatements  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysNested  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/keyword-keys: TestKeywordKeysWithExplicitVariables  # 9.6.3 cannot compile the script: a word of the language as a key in brackets, new in 0.2.8-dp.3 (#627)
+lcs: core/array/kinds: TestAsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAScalar  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsAnArray  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestAsInExpressions  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestCompileErrors  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsADictionary  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsANumericSequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsASequence  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestIsStrictly  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestMarksIgnoredAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestNamesAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsCustomPropertyAsBefore  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestSequencesAsListsProperty  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
+lcs: core/array/kinds: TestTheMarkStays  # 9.6.3 cannot compile the script: LiveCode 11's array kinds and as, new in 0.2.8-dp.3 (#578)
 lcs: core/array/literals: TestAFreshArrayEachTime
 lcs: core/array/literals: TestAnElementIsWritten
 lcs: core/array/literals: TestBadKey
@@ -67,6 +89,15 @@ lcs: core/datetime/sql-date: TestSqlTextNotRecognisedUnlessNamed
 lcs: core/datetime/sql-date: TestSqlVariableNamesAProperty
 lcs: core/datetime/sql-date: TestSqlYearBefore1000
 lcs: core/datetime/sql-date: TestTheSqlDate
+lcs: core/engine-lcb/array-kinds: TestEditedSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestImportWidgetWithLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
+lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/engine: TestEffectiveRectIsUpdatedWhileScreenIsLocked
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleArithmetic
 lcs: core/engine/hypertalk-compatible: TestHyperTalkCompatibleBackgroundOrder
@@ -110,6 +141,31 @@ lcs: core/field/bidi-order: TestTerminatorBeforeANumberAndAWord
 lcs: core/field/bidi-order: TestTextAfterAClosedEmbedding
 lcs: core/field/bidi-order: TestTextAfterAClosedIsolate
 lcs: core/field/bidi-order: TestZWNJInAWord
+lcs: core/field/markdownText: TestChunks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeAsItIs  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeBlock  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeBlockFence  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeInEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCodeWithBackticks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestCustomPropertyRemovedGivesMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEmpty  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEscapedStarInEmphasis  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestEscapes  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHandlerThatPasses  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHeadingKeepsItsHash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestHeadings  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestLinks  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestListItemsLineByLine  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestListNumbersGoOn  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestLists  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestNoHangOrCrash  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestOneLineOfCodeIsASpan  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestOwnHandlerReadsTheMarkdown  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestPlainText  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestQuoteAndCode  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestSetextHeadings  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
+lcs: core/field/markdownText: TestUnicode  # the markdownText of a field, new in 0.2.8-dp.3 (#627); 9.6.3 reads it as a custom property
 lcs: core/field/return-before-image: TestReturnBeforeFirstCharImage
 lcs: core/field/return-before-image: TestReturnBeforeImageInParagraph
 lcs: core/field/return-before-image: TestReturnBeforeImageKeepsStyles
@@ -126,6 +182,21 @@ lcs: core/field/undo-typed-return: TestUndoReturnThenText
 lcs: core/field/undo-typed-return: TestUndoReturnTypedFirst
 lcs: core/field/undo-typed-return: TestUndoReturnTypedInALine
 lcs: core/field/undo-typed-return: TestUndoTextThenReturn
+lcs: core/files/trash: TestMoveCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestMoveRunsAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowCompilesAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowInFinderCompiles  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowMissingFile  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowObjectInFinderAsBefore  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestShowVariableHoldingAnObject  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashCompiles  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashFileOnLinux  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashFolderOnLinux  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashLinkNotWhatItPointsTo  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashMissingFile  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashNeedsDiskAccess  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashSameNameTwice  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
+lcs: core/files/trash: TestTrashTakesTheDefaultFolder  # 9.6.3 cannot compile the script: move file to trash and show in finder, new in 0.2.8-dp.3 (#627)
 lcs: core/filters/filters: TestFiltersMessageDigestUnknownType
 lcs: core/graphics/drawing: TestDrawingClip
 lcs: core/graphics/drawing: TestDrawingClipMalformed
@@ -182,6 +253,7 @@ lcs: core/interface/image-undo: TestRotateImageGetDataWorks
 lcs: core/interface/image-undo: TestRotateImageWorks
 lcs: core/interface/interface: TestImageIntersect
 lcs: core/interface/interface: TestIntersectWithRectangle
+lcs: core/interface/interface: TestPenBackAndFillBackOfAnObject # 9.6.3's engine stops the app: the penBack of an object reads an unset answer (fixed in OXT-Beyond's, #583)
 lcs: core/interface/show-cards: TestShowCardsCountOf65536
 lcs: core/interface/show-cards: TestShowEmptyCards
 lcs: core/interface/show-cards: TestShowMarkedCardsNoneMarked
@@ -206,10 +278,22 @@ lcs: core/multimedia/audioclipexport: TestExportAudioClipNotASoundFormat
 lcs: core/multimedia/audioclipexport: TestExportAudioClipWaveIsTheFileImported
 lcs: core/multimedia/audioclipexport: TestExportOlderFormsCompileAsBefore
 lcs: core/multimedia/audioclipexport: TestExportVideoClip
+lcs: core/network/datagram: TestDatagramReopenedListenerAnswersTheSenderAgain # 9.6.3's engine stops reading its sockets once a datagram listener that heard a sender closes (fixed in OXT-Beyond's, #628)
+? lcs: core/network/datagram: TestDatagramSenderIsListedAndAnswered # 9.6.3's engine: a sender's name an earlier datagram test left can stop it reading its sockets (fixed in OXT-Beyond's, #628)
+? lcs: core/network/datagram: TestDatagramSenderNameOutlivesItsListener # 9.6.3's engine: a sender's name an earlier datagram test left can stop it reading its sockets (fixed in OXT-Beyond's, #628)
+lcs: core/network/datagram: TestDatagramWriteAfterListenerClosedFails # 9.6.3's engine sends a write to a closed listener's sender through whatever has the closed descriptor's number (fixed in OXT-Beyond's, #628)
+lcs: core/network/network: TestHostAddressToNameWithNoHost # 9.6.3's engine stops the app at a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestNetworkDNSServers
 lcs: core/network/network: TestNetworkDNSServersAnswers # 9.6.3's engine has no DNS servers on Android and throws (error 198); OXT-Beyond's answers them
+lcs: core/network/network: TestOpenSocketWithNoHost # 9.6.3's engine stops the app: open socket to a name with no host (fixed in OXT-Beyond's, #583)
 lcs: core/network/network: TestPeerAddressIsEmptyOnMobile # 9.6.3's engine stops the app: its peerAddress on mobile reads an unset answer (fixed in OXT-Beyond's, #495)
+lcs: core/server/sessioncookie: TestSessionCookieDefaults
+lcs: core/server/sessioncookie: TestSessionCookieSameSite
+lcs: core/server/sessioncookie: TestSessionCookieSameSiteNotAValue
+lcs: core/server/sessioncookie: TestSessionCookieSecure
+lcs: core/server/sessioncookie: TestSessionCookieSecureNotABoolean
 lcs: core/strings/filter: TestBug15443
+lcs: core/strings/format: TestFormatWideIntegers # 9.6.3's engine cuts %d and its kin to 32 bits; OXT-Beyond's keeps the whole number (#583)
 lcs: core/strings/matches: TestMatchesCustomProperty
 lcs: core/strings/matches: TestMatchesErrorsAsBefore
 lcs: core/strings/matches: TestMatchesHandlers

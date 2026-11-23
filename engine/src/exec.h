@@ -1363,6 +1363,14 @@ public:
         return m_usesystemdate == True;
 	}
 
+    // OXT-Beyond: the handler-local sequencesAsLists: whether an array
+    // marked as a sequence ("as a sequence", a List from LCB) goes into
+    // LCB as a List, at any depth (MCExtensionTryToConvertFromScriptType)
+    bool GetSequencesAsLists(void) const
+    {
+        return m_sequencesaslists;
+    }
+
 	MCStringRef GetLineDelimiter(void) const
 	{
         return m_linedel;
@@ -1447,6 +1455,11 @@ public:
 	{
         m_usesystemdate = p_value;
 	}
+
+    void SetSequencesAsLists(bool p_value)
+    {
+        m_sequencesaslists = p_value;
+    }
 
 	void SetCutOff(uint2 p_value)
 	{
@@ -1796,6 +1809,9 @@ private:
     bool m_wholematches : 1;
     bool m_usesystemdate : 1;
     bool m_useunicode : 1;
+    // OXT-Beyond: false, as every handler starts (the constructors clear
+    // the context)
+    bool m_sequencesaslists : 1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1863,6 +1879,12 @@ void MCArraysEvalVectorDotProduct(MCExecContext& ctxt, MCArrayRef p_left, MCArra
 
 void MCArraysEvalIsAnArray(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
 void MCArraysEvalIsNotAnArray(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+// OXT-Beyond: LiveCode 11's sequences and dictionaries (MCArrayKindMark)
+void MCArraysEvalIsASequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+void MCArraysEvalIsADictionary(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+void MCArraysEvalIsANumericSequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+void MCArraysEvalIsStrictlyASequence(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+void MCArraysEvalIsStrictlyADictionary(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
 void MCArraysEvalIsAmongTheKeysOf(MCExecContext& ctxt, MCNameRef p_key, MCArrayRef p_array, bool& r_result);
 void MCArraysEvalIsNotAmongTheKeysOf(MCExecContext& ctxt, MCNameRef p_key, MCArrayRef p_array, bool& r_result);
 
@@ -3113,6 +3135,8 @@ void MCEngineSetRowDelimiter(MCExecContext& ctxt, MCStringRef p_value);
 void MCEngineGetRowDelimiter(MCExecContext& ctxt, MCStringRef& r_value);
 void MCEngineSetWholeMatches(MCExecContext& ctxt, bool p_value);
 void MCEngineGetWholeMatches(MCExecContext& ctxt, bool& r_value);
+void MCEngineSetSequencesAsLists(MCExecContext& ctxt, bool p_value);
+void MCEngineGetSequencesAsLists(MCExecContext& ctxt, bool& r_value);
 void MCEngineSetUseSystemDate(MCExecContext& ctxt, bool p_value);
 void MCEngineGetUseSystemDate(MCExecContext& ctxt, bool& r_value);
 void MCEngineSetUseUnicode(MCExecContext& ctxt, bool p_value);
@@ -3216,6 +3240,10 @@ void MCFilesEvalThereIsNotAProcess(MCExecContext& ctxt, MCStringRef p_path, bool
 void MCFilesEvalShell(MCExecContext& ctxt, MCStringRef command, MCStringRef& r_output);
 
 void MCFilesExecDeleteFile(MCExecContext& ctxt, MCStringRef p_target);
+// OXT-Beyond: "move file|folder <path> to trash" and "show <path> in
+// finder|explorer" (from HyperXTalk)
+void MCFilesExecMoveToTrash(MCExecContext& ctxt, MCStringRef p_target);
+void MCFilesExecRevealFile(MCExecContext& ctxt, MCStringRef p_target);
 
 void MCFilesExecCloseFile(MCExecContext& ctxt, MCNameRef p_filename);
 void MCFilesExecCloseDriver(MCExecContext& ctxt, MCNameRef p_device);
@@ -3755,6 +3783,7 @@ void MCPrintingSetPrintFontTable(MCExecContext& ctxt, MCStringRef p_table);
 extern MCExecEnumTypeInfo *kMCServerErrorModeTypeInfo;
 extern MCExecEnumTypeInfo *kMCServerOutputLineEndingsTypeInfo;
 extern MCExecEnumTypeInfo *kMCServerOutputTextEncodingTypeInfo;
+extern MCExecEnumTypeInfo *kMCServerSessionCookieSameSiteTypeInfo;
 
 void MCServerExecPutHeader(MCExecContext& ctxt, MCStringRef value, bool as_new);
 void MCServerExecPutBinaryOutput(MCExecContext& ctxt, MCDataRef value);
@@ -3785,6 +3814,10 @@ void MCServerGetSessionCookieName(MCExecContext& ctxt, MCStringRef &r_value);
 void MCServerSetSessionCookieName(MCExecContext& ctxt, MCStringRef p_value);
 void MCServerGetSessionId(MCExecContext& ctxt, MCStringRef &r_value);
 void MCServerSetSessionId(MCExecContext& ctxt, MCStringRef p_value);
+void MCServerGetSessionCookieSecure(MCExecContext& ctxt, bool& r_value);
+void MCServerSetSessionCookieSecure(MCExecContext& ctxt, bool p_value);
+void MCServerGetSessionCookieSameSite(MCExecContext& ctxt, intenum_t& r_value);
+void MCServerSetSessionCookieSameSite(MCExecContext& ctxt, intenum_t p_value);
 
 ///////////
 

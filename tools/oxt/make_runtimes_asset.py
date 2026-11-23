@@ -99,6 +99,23 @@ whose "exclude" leaves out what each package builds itself (OWN_PARTS).
 a Linux CI run, with the Java layer it builds and checks from the same
 commit, and can publish the result.
 
+Checking one platform's build (--check-bin)
+-------------------------------------------
+
+  python tools/oxt/make_runtimes_asset.py --check-bin BUILD=PATH [--check-bin BUILD=PATH]...
+
+checks what --builds would take from each build given (a build output
+folder or its CI archive, as for --bin), as --builds checks it, and writes
+nothing: every file the asset wants from that build must be there (a
+missing one is named, as "build output missing"), every binary must be of
+the build's format and architecture, and every Standalone must carry this
+tree's engine version. No other build, carried asset or --out is needed.
+Each platform's own CI build runs it on its output (build-windows.yml for
+win-x86 and win-x86_64, build-linux.yml for linux-x86 and linux-x86_64), so
+that a file the asset wants and a build no longer makes fails that build,
+the day it happens, rather than the runtimes workflow's run before a
+release. It exits 1 when anything is wrong.
+
 From an installed OpenXTalk Lite folder (how oxt-runtimes-1.15 was made)
 ------------------------------------------------------------------------
 
@@ -1268,6 +1285,40 @@ def replace_runtimes_entry(path, entry):
         f.write('\n')
 
 
+def check_bin_main(args, p):
+    """--check-bin: what --builds would take from each build given, checked
+    as --builds checks it (plan_build_parts, check_build), with nothing
+    written. 0 when every build passes, else 1, with each problem."""
+    if (args.builds or args.installed_root or args.out or args.name or args.label or args.bin or args.carry
+            or args.assets_cache or args.commit or args.run or args.android_classes or args.android_engine
+            or args.stock_setup or args.source_archive or args.update_manifest):
+        p.error('--check-bin takes no other option')
+    bins = parse_pairs(args.check_bin, '--check-bin')
+    repo = os.path.dirname(os.path.dirname(HERE))
+    version = engine_version(repo)
+    problems = []
+    work = tempfile.mkdtemp(prefix='oxt-runtimes-check-')
+    try:
+        for b in bins:
+            folder, _ = open_build(b, bins[b], work)
+            items, found = plan_build_parts(b, folder)
+            problems += ['%s: %s' % (b, x) for x in found]
+            these = build_infos(b, items)
+            problems += check_build(b, these, version)
+            print('%s: %d files that the runtimes asset takes from %s' % (b, len(these), folder))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    if problems:
+        for x in problems:
+            print('error: %s' % x)
+        print('error: %d problems: the runtimes asset (make_runtimes_asset.py --builds) could not be made from '
+              'this build' % len(problems))
+        return 1
+    print('%s: every file the runtimes asset takes is there, of its format and architecture, and every '
+          'Standalone carries the engine version %s' % (', '.join(bins), version))
+    return 0
+
+
 def builds_main(args, p):
     if args.installed_root or args.stock_setup or args.source_archive:
         p.error('--builds takes no installed folder, --stock-setup or --source-archive')
@@ -1369,7 +1420,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description='Build an oxt-runtimes release asset from this repository\'s builds '
                                             '(--builds) or from an installed OpenXTalk Lite folder.')
     p.add_argument('installed_root', nargs='?', help='installed OpenXTalk Lite folder (without --builds)')
-    p.add_argument('--out', required=True, help='folder for the zip')
+    p.add_argument('--out', help='folder for the zip (needed but with --check-bin)')
     p.add_argument('--name', help='asset name (default: oxt-runtimes-<label>, or oxt-runtimes-<.version> of the '
                                   'installed folder)')
     p.add_argument('--builds', action='store_true', help='make the asset from this repository\'s builds')
@@ -1397,7 +1448,14 @@ def main(argv=None):
     p.add_argument('--source-archive', metavar='NAME', help='file name of the release archive, for PROVENANCE.md')
     p.add_argument('--update-manifest', nargs='?', const=DEFAULT_MANIFEST, metavar='FILE',
                    help='write size and SHA-256 into this manifest (default: %s)' % DEFAULT_MANIFEST)
+    p.add_argument('--check-bin', action='append', metavar='BUILD=PATH',
+                   help='check what --builds would take from this build (one of %s; a build output folder or '
+                        'CI archive), and write nothing' % ', '.join(BUILDS))
     args = p.parse_args(argv)
+    if args.check_bin:
+        return check_bin_main(args, p)
+    if not args.out:
+        p.error('--out is needed (but with --check-bin)')
     if args.builds:
         return builds_main(args, p)
     if (args.label or args.bin or args.carry or args.assets_cache or args.commit or args.run or args.android_classes

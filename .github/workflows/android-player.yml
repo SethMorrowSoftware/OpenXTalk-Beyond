@@ -1,0 +1,203 @@
+# Copyright (C) 2026 OXT-Beyond contributors.
+#
+# This file is part of OXT-Beyond.
+#
+# OXT-Beyond is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License v3 as published by the Free
+# Software Foundation.
+#
+# OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License
+# along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.
+
+# The Android Stack Player (tools/android-player): an Android app that
+# opens any stack the user gives it. It is IDE script and one extension,
+# so this needs no build of the engine: it takes a published release (the
+# latest, or the tag given), puts this checkout's Android builder into its
+# IDE (tools/ci/android_check.py overlay) and compiles the Android
+# Documents library into it (build_android_player.py library), and then
+#
+#   - builds the player with that IDE's own Android builder, with
+#     OXT-Beyond's Android engine (build_android_player.py build);
+#   - checks the package: its name, the Internet permission and no other,
+#     and the filter that offers it for documents (verify);
+#   - on an Android 13 emulator (KVM), plays a sample stack in it by each
+#     way a stack comes in: a file address, a content address, and the
+#     player's Open button with Android's "Open document" screen; comes
+#     home with Back; and starts it again to find its library (device).
+#
+# It runs nothing from outside the repository but the release's own IDE,
+# holds no secret, and reads the repository only.
+
+name: Android Stack Player
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths: &player-paths
+      - .github/workflows/android-player.yml
+      - 'tools/android-player/**'
+      - 'extensions/libraries/androiddocuments/**'
+      - tools/ci/android_check.py
+      - ide-support/revsaveasandroidstandalone.livecodescript
+      - ide-support/revdeploylibraryandroid.livecodescript
+  push:
+    branches: [ main ]
+    paths: *player-paths
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release whose IDE to run (for example v0.2.8-dp.1); empty for the latest one
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-player-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  player:
+    name: Android Stack Player
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      PLATFORM: linux-x86_64
+      PY: python3
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release list --repo "$REPO" --limit 30 --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | head -n 1)
+          fi
+          echo "Release: $TAG"
+          echo "### Android Stack Player, built by the IDE of $TAG" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/dist"
+          gh release download "$TAG" --repo "$REPO" --pattern "*-linux-x86_64.tar.xz" --dir "$RUNNER_TEMP/dist"
+          ls -l "$RUNNER_TEMP/dist"
+          echo "PACKAGE=$RUNNER_TEMP/dist/$(ls "$RUNNER_TEMP/dist")" >> "$GITHUB_ENV"
+          echo "WORK=$RUNNER_TEMP/player" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/player"
+
+      # The IDE's runtime libraries and Xvfb, as android.yml installs them
+      - name: Install Xvfb and the runtime libraries
+        run: |
+          # (apt's lists, tried again if a package server is out for a while,
+          # and public name servers too if the runner's own give no answer
+          # for the package servers: tools/ci/apt-install.sh)
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" --update
+          pkgs=(xvfb xauth fonts-dejavu-core)
+          while read -r soname use deb rpm rest; do
+            case $soname in ''|'#'*) continue ;; esac
+            if apt-cache show --no-all-versions "${deb}t64" > /dev/null 2>&1; then
+              deb="${deb}t64"
+            fi
+            case " ${pkgs[*]} " in *" $deb "*) ;; *) pkgs+=("$deb") ;; esac
+          done < Installer/linux/libraries.txt
+          bash "$GITHUB_WORKSPACE/tools/ci/apt-install.sh" "${pkgs[@]}"
+
+      - name: Set up the JDK and the Android SDK
+        run: |
+          for v in JAVA_HOME_17_X64 JAVA_HOME_21_X64; do
+            if [ -n "${!v}" ] && [ -d "${!v}/bin" ]; then
+              jdk="${!v}"
+              break
+            fi
+          done
+          [ -n "$jdk" ] || { echo "::error::no JDK 17 or 21 on the runner"; exit 1; }
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          [ -d "$sdk" ] || { echo "::error::no Android SDK on the runner (ANDROID_HOME)"; exit 1; }
+          echo "JDK=$jdk" >> "$GITHUB_ENV"
+          echo "SDK=$sdk" >> "$GITHUB_ENV"
+          sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          (yes || true) | "$sm" --licenses > /dev/null
+          "$sm" --install "platforms;android-33" "platforms;android-36" "build-tools;35.0.0" "platform-tools" \
+            "emulator" "system-images;android-33;google_apis;x86_64" > "$RUNNER_TEMP/sdkmanager.log" 2>&1 ||
+            { tail -40 "$RUNNER_TEMP/sdkmanager.log"; exit 1; }
+          echo "JDK: $jdk"; "$jdk/bin/java" -version 2>&1 | head -n 1
+          echo "SDK: $sdk"; ls "$sdk/platforms" "$sdk/build-tools"
+
+      - name: Unpack the release, and put this builder and the documents library into it
+        run: |
+          "$PY" tools/ci/android_check.py extract --package "$PACKAGE" --dest "$WORK/ide" \
+            --platform "$PLATFORM" --env IDE
+          . <(grep '^IDE=' "$GITHUB_ENV" | tail -n 1)
+          "$PY" tools/ci/android_check.py overlay --root "$IDE"
+          "$PY" tools/android-player/build_android_player.py library --ide "$IDE"
+
+      # As android.yml starts it (see there for why each option is as it is)
+      - name: Start an Android 13 emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd -n api33 \
+            -k "system-images;android-33;google_apis;x86_64" -d pixel_5 --force
+          "$SDK/platform-tools/adb" start-server
+          nohup "$SDK/emulator/emulator" -avd api33 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect -camera-back none -camera-front none \
+            > "$WORK/emulator-api33.log" 2>&1 &
+          sleep 20
+          if ! pgrep -f 'qemu-system|emulator.*-avd api33' > /dev/null; then
+            echo "::warning::the Android 13 emulator stopped within 20 s of starting; the end of its log:"
+            tail -n 40 "$WORK/emulator-api33.log"
+          fi
+
+      - name: Build the player
+        run: |
+          "$PY" tools/android-player/build_android_player.py build --ide "$IDE" --work "$WORK" \
+            --platform "$PLATFORM" --sdk "$SDK" --jdk "$JDK"
+
+      - name: Check the package
+        run: |
+          "$PY" tools/android-player/build_android_player.py verify --work "$WORK" --sdk "$SDK"
+
+      - name: Wait for the emulator
+        timeout-minutes: 20
+        run: |
+          "$PY" tools/ci/android_check.py boot --serial emulator-5554 --sdk "$SDK" \
+            --log "$WORK/emulator-api33.log" --minutes 10 --awake --settle
+
+      - name: Play stacks in the player on Android 13
+        timeout-minutes: 15
+        run: |
+          "$PY" tools/android-player/build_android_player.py device --work "$WORK" --serial emulator-5554 --sdk "$SDK"
+
+      - name: Upload the package and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-stack-player
+          path: |
+            ${{ env.WORK }}/*.apk
+            ${{ env.WORK }}/player-build.txt
+            ${{ env.WORK }}/ide-output.txt
+            ${{ env.WORK }}/samples/*
+            ${{ env.WORK }}/*.png
+            ${{ env.WORK }}/*.log
+            ${{ env.WORK }}/player-logcat-*.txt
+          if-no-files-found: warn
+          retention-days: 14

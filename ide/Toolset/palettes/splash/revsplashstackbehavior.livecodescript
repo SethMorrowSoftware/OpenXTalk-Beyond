@@ -1,8 +1,9 @@
 ﻿script "revSplashStackBehavior"
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
--- Seth Morrow (2026) and Tom Perry (2023-2026); its Git history and
--- CHANGELOG.md say what changed.
+-- Seth Morrow (2026), Tom Perry (2023-2026) and
+-- Emily-Elizabeth Howard (2026); its Git history and CHANGELOG.md say what
+-- changed.
 
 -- The loading bar fills by one step for each status the IDE shows: the
 -- number of revInternal__setSplashStatus calls in ide/Toolset/home.livecodescript
@@ -95,8 +96,24 @@ on preOpenStack
    unlock messages
 end preOpenStack
 
+-- OXT-Beyond: on the first status, the splash moves to the middle of the
+-- screen the IDE's menu bar was last on, so that with more than one screen
+-- it shows where the IDE is about to open (from HyperXTalk, Emily-Elizabeth
+-- Howard, #442). It opens in the middle of the main screen, as before, and
+-- stays there when the menu bar has no saved place (the IDE's first start)
+-- or that place is on no screen now. The preferences, which hold the place,
+-- are loaded after the splash opens and before the first status
+local sPlaced
+
 setProp statusMessage pMessage
    put pMessage into field "status" of me
+   if sPlaced is not true then
+      put true into sPlaced
+      try
+         splashToMenubarScreen
+      catch tError
+      end try
+   end if
    -- The bar is only decoration: nothing it does may stop the IDE starting
    try
       if there is a graphic "progress" of me then
@@ -108,6 +125,33 @@ setProp statusMessage pMessage
    catch tError
    end try
 end statusMessage
+
+private command splashToMenubarScreen
+   local tRect, tH, tV
+   if there is not a stack "revPreferences" then
+      exit splashToMenubarScreen
+   end if
+   put the palette_rect_revMenubar of stack "revPreferences" into tRect
+   if the number of items of tRect is not 4 then
+      exit splashToMenubarScreen
+   end if
+   repeat for each item tItem in tRect
+      if tItem is not a number then
+         exit splashToMenubarScreen
+      end if
+   end repeat
+   -- (a rect saved while the menu bar was minimised is off every screen)
+   put (item 1 of tRect + item 3 of tRect) div 2 into tH
+   put (item 2 of tRect + item 4 of tRect) div 2 into tV
+   repeat for each line tScreen in the screenRects
+      if tH >= item 1 of tScreen and tH < item 3 of tScreen and \
+            tV >= item 2 of tScreen and tV < item 4 of tScreen then
+         set the location of me to (item 1 of tScreen + item 3 of tScreen) div 2, \
+               (item 2 of tScreen + item 4 of tScreen) div 2
+         exit repeat
+      end if
+   end repeat
+end splashToMenubarScreen
 
 -- OXT-Beyond: an ID for the splash image that is the ID of no image of
 -- the IDE's icon stacks (revIcons, revGeneralIcons) and of no other

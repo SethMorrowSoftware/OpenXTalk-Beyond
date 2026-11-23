@@ -105,7 +105,9 @@ Then:
    tree read with revXML and transformed with XSLT, a zip archive written
    and read back with revZip, and an SQLite database with revDB, whose
    error for a missing table must reach the script as revDB's error (SQLite
-   throws a C++ exception for it), and another in the probe's documents
+   throws a C++ exception for it) and whose queries have SQLite's math
+   functions and REGEXP (thirdparty/libsqlite/src/sqlitefunctions.c),
+   and another in the probe's documents
    folder, whose row the browser's storage (IndexedDB) must have soon after
    the probe is ready (in /openxtalk's database: the home folder's name
    since 0.2.7-rc.6.2; then the page opens in a new browser profile whose
@@ -278,7 +280,7 @@ PROBE_CHECKS = (
     'url-missing', 'url-load', 'go-stack-url', 'go-stack-url-script', 'go-stack-url-cors', 'go-stack-url-blocked',
     'answer', 'answer-confirm', 'ask', 'folders', 'home-alias', 'download-written',
     'address', 'random-bytes', 'modifiers', 'cursor', 'sound', 'player', 'browser', 'objects',
-    'xml', 'xslt', 'zip', 'database', 'database-error', 'database-home',
+    'xml', 'xslt', 'zip', 'database', 'database-error', 'database-functions', 'database-home',
     'encrypt', 'encrypt-legacy', 'cipher-names', 'speech', 'print',
 )
 

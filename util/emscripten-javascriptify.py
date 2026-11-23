@@ -110,10 +110,15 @@ asyncify_remove = [
     'inflate*', 'deflate*', 'crc32*', 'adler32*', '_tr_*',
     # SQLite, whose sync no longer waits for the browser's storage
     # (thirdparty/libsqlite/libsqlite.gyp), and whose callbacks (revDB's
-    # row counts, its lpad() function) run no script; its largest static
-    # functions by name
+    # row counts, its lpad() function, the math and REGEXP functions the
+    # driver adds, thirdparty/libsqlite/src/sqlitefunctions.c) run no
+    # script; its largest static functions by name, and the functions of
+    # the driver's that call through a pointer: the math functions call
+    # libm's, and REGEXP's compiler its next-character function (its
+    # matcher, which does too, is named sqlite3re_match)
     'sqlite3*', 'fts3*', 'fts5*', 'yy_reduce', 'balance', 'resolveExprStep', 'exprAnalyze',
-    'multiSelect',
+    'multiSelect', 'oxt_sql*', 'ceilingFunc', 'logFunc', 'math1Func', 'math2Func',
+    're_subcompile_re', 're_subcompile_string',
     # operator new calls a new handler through a pointer, and the engine
     # sets none; leaving it out leaves out much of the engine that only
     # allocates
@@ -135,6 +140,10 @@ asyncify_remove_xtalk = [
     'blake2b*', 'fe25519_*', 'ge25519_*', 'sc25519_*', 'ristretto255_*',
     # Box2Dxt: the shim and Box2D
     'b2*',
+    # box3dxt: the shim and Box3D. Their calls through a pointer reach
+    # only their own allocator, task and tree-query callbacks, none of
+    # which yields; without this the physics step is instrumented
+    'b3*',
     # CoinXT: the shim, trezor-crypto and libsecp256k1
     # (a pattern no function matches is a warning of the link: the families
     # the shims never reach are left out)
@@ -143,6 +152,53 @@ asyncify_remove_xtalk = [
     # JavaScript import only reads and queues (its events are drained by
     # dcx_poll, never delivered by a call into the engine)
     'dcx_*',
+    # audioxt: the shim's exports, and miniaudio, compiled into it, whose
+    # every function (its WAV, FLAC and MP3 decoders' too) is named ma_*;
+    # the shim's few file-local helpers keep their own names and are
+    # instrumented where they call through a pointer. Web Audio calls into
+    # it for each block of sound from the browser's own event loop, while
+    # the engine may be asleep, and nothing in it yields or calls back into
+    # the engine (a sound's end is polled by script). No other ma_* is in
+    # the web engine: MySQL's client (libmariadb) is not linked into it.
+    # On a test link with the engine's Asyncify settings the list took
+    # about 135 KB off the .wasm
+    'aux_*', 'ma_*',
+    # xlsxt: the shim, and libxlsxwriter, zlib and Expat under the names
+    # the member's web build gives their globals (src/xlsx_web_names.h).
+    # It reads and writes files in the page's own file system, which
+    # never yields. Their file-local functions keep their own names and
+    # are instrumented where they call through a pointer (Expat's
+    # handlers, zlib's allocator)
+    'xlx_*', 'xlxw_*',
+    # gamepadxt is not here, on purpose: in an engine built with Asyncify,
+    # SDL's delay sleeps through emscripten_sleep (SDL_SYS_DelayNS), and a
+    # spinlock that has to wait calls it, so SDL and the shim stay
+    # instrumented. A function left out that sleeps stops the engine.
+    # webpxt: the shim and libwebp (decoder, encoder, mux, demux and
+    # libsharpyuv), whose pixel code is reached through function pointers
+    # it sets on first use; buffers in, buffers out
+    'wpx_*', 'WebP*', 'VP8*', 'SharpYuv*',
+    # barcodext: the shim, zxing-cpp (C++, so by its namespace wherever it
+    # stands in a name: a template's name begins with its return type) and
+    # the Zint writer backend, its GS1 checks and libzueci under it; a
+    # picture in, symbols out. Their file-local functions keep their own
+    # names and are instrumented where they call through a pointer
+    'bcx_*', '*ZXing::*', '*librscpp::*', 'ZBarcode_*', 'zint_*', 'gs1_*', 'zueci_*',
+    # render3dxt: the shim, and the stb_image and fast_obj compiled into
+    # it, whose readers call their input functions through pointers (as
+    # the shim's text results reach snprintf's). Its drawing calls none,
+    # so Asyncify leaves a picture alone either way; its other functions
+    # have plain names that could be anyone's, and are not listed
+    'r3x_*', 'stbi*', 'fast_obj*',
+    # midixt: the shim (midi_*) and its Web MIDI layer, the part of
+    # RtMidi's C API the shim calls (rtmidi_*), written over the browser's
+    # Web MIDI; RtMidi itself is not in the web build. Like DataChannelXT's,
+    # its one JavaScript import only reads and queues: what arrives waits
+    # in a queue that midiPoll drains, and nothing calls into the engine
+    # from the browser's events. It calls nothing through a pointer; its
+    # file-local functions keep their own names and are instrumented where
+    # they reach snprintf
+    'midi_*', 'rtmidi_*',
     ]
 
 # Engine functions that JavaScript calls by name are exported. Those that

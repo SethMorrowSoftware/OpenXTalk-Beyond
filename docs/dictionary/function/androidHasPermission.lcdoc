@@ -65,6 +65,15 @@ Use the <androidRequestPermission> function to find out if permission <permissio
 
 >*Note:* Permission names are case sensitive.
 
+>*Note:* Android 10 and newer list most permissions in no permission group,
+> among them "android.permission.INTERNET" and
+> "android.permission.ACCESS_NETWORK_STATE". Older OpenXTalk versions looked
+> for a name only in the groups, so <androidHasPermission> returned empty,
+> neither true nor false, for such a permission there; it now returns whether
+> the app holds it. For a name Android does not know it returns empty, as
+> before (needs the Java layer built from OXT-Beyond's source, which the
+> runtimes asset carries from its next release).
+
 >*Note:* Android 13 and newer refuse "android.permission.WRITE_EXTERNAL_STORAGE"
 > without asking the user, and it gives an application that targets Android 11
 > or newer nothing that it does not have already. For an application that has

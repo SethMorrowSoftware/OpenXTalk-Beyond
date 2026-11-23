@@ -1,0 +1,10 @@
+# Message Box: the second half of message-box-one-window.txt. The line that
+# set the systemWindow to true on Windows, after it had been set from the
+# preference, made the window once more; the value is worked out before it
+# is set now, so the line goes.
+file: Toolset/palettes/message box/revmessagebox.8.rev
+object: stack
+replace:
+|   if the platform contains "win" then set the systemwindow of this stack to true|
+with:
+|   -- OXT-Beyond: Windows gets its true above, before the one set|
