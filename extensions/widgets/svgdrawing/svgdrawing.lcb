@@ -364,9 +364,13 @@ public handler OnPaint()
 	put tWidth * tScale into tDrawWidth
 	put tHeight * tScale into tDrawHeight
 
-	draw mImage into rectangle [(my width - tDrawWidth) / 2, \
-			(my height - tDrawHeight) / 2, \
-			tDrawWidth, tDrawHeight] of this canvas
+	-- A rectangle is [left, top, right, bottom], not a width and height
+	variable tLeft as Number
+	variable tTop as Number
+	put (my width - tDrawWidth) / 2 into tLeft
+	put (my height - tDrawHeight) / 2 into tTop
+	draw mImage into rectangle [tLeft, tTop, \
+			tLeft + tDrawWidth, tTop + tDrawHeight] of this canvas
 end handler
 
 ----------

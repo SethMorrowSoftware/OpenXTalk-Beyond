@@ -208,7 +208,16 @@ on TestMaintainAspectRatio
    -- kept: the 100 by 100 picture is centred, from x 50 to 150
    TestAssert "kept: nothing left of the picture", _Clear(10, 50)
    TestAssert "kept: the rect starts at x 50", _Colour(60, 50) is "255,0,0"
+   TestAssert "kept: the rect reaches x 100", _Colour(95, 50) is "255,0,0"
+   TestAssert "kept: the circle is drawn at its own size, centred at x 125", _Colour(125, 50) is "0,0,255"
    TestAssert "kept: nothing right of the picture", _Clear(190, 50)
+
+   -- kept in a tall widget: the picture is centred from y 50 to 150
+   set the rect of widget "Drawing" to 0,0,100,200
+   TestAssert "kept, tall: nothing above the picture", _Clear(25, 25)
+   TestAssert "kept, tall: the rect reaches y 145", _Colour(25, 145) is "255,0,0"
+   TestAssert "kept, tall: nothing below the picture", _Clear(25, 175)
+   set the rect of widget "Drawing" to 0,0,200,100
 
    -- stretched: the rect is the widget's left half
    set the maintainAspectRatio of widget "Drawing" to false
