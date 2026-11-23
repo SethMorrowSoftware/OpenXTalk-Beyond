@@ -43,6 +43,11 @@ By default it stays until a <close process> closes it, even after its
 output has been read to the end, as it has since LiveCode 7. Scripts
 may rely on that: an ID of 0 says that the <process> has exited.
 
+On Windows a <process> opened for read or update has always left the
+list by itself once it has exited and its output has been read, so the
+<closeEndedProcesses> changes nothing there: setting it makes Linux and
+macOS behave as Windows does.
+
 When the <closeEndedProcesses> is true, such a <process> leaves the
 <openProcesses> and the <openProcessIDs> once it has exited and a
 <read from process> has taken its output to the end (the <result> is

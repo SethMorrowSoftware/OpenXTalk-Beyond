@@ -92,7 +92,8 @@ void IO_cleanprocesses()
 		// and a pipe has neither (on Linux and macOS ftell gives -1), so a
 		// process with a stream to read from stayed here after it ended
 		// until "close process", as it has since LiveCode 7 (LiveCode 6
-		// asked feof). Scripts may rely on that (a process ID of 0 says it
+		// asked feof). On Windows the two come out equal, so such a process
+		// already went once it ended with its output read. Scripts may rely on that (a process ID of 0 says it
 		// ended), so it is kept by default; with the closeEndedProcesses
 		// set, a process goes once a read has taken its output to the end.
 		if (MCprocesses[i].pid == 0

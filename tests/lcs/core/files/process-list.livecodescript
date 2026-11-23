@@ -17,14 +17,17 @@ You should have received a copy of the GNU General Public License
 along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 /*
-When a process opened for read or update ends, it stays in the
-openProcesses and the openProcessIDs (its ID 0) until "close process",
+On Linux and macOS, when a process opened for read or update ends, it
+stays in the openProcesses and the openProcessIDs (its ID 0) until "close process",
 even once its output has been read to the end. It has since LiveCode 7:
 the engine asks whether the stream is at its end by comparing its
 position with its size, and a pipe has neither (IO_cleanprocesses in
 engine/src/mcio.cpp). Scripts may rely on that, so it stays the default,
 and these tests pin it. The closeEndedProcesses, false by default, lets
 such a process go once a read has taken its output to the end ("eof").
+On Windows such a process has always left by itself once it ended and
+its output was read (the engine answers a pipe's position and size as
+equal there), with the property or without it; the tests pin that too.
 
 The processes print "foo" and end. On Linux and macOS they sleep a moment
 first: the engine reaps its children right after the fork, so one that
@@ -136,6 +139,18 @@ on TestEndedProcessStaysByDefault
 
    TestAssert "its output is read", word 1 of tOutput is "foo"
    TestAssert "the read ends with eof", tResult is "eof"
+   if the platform is "Win32" then
+      -- On Windows a process read to its end has always left the list by
+      -- itself: MCS_eof asks a pipe's position and size there too, and
+      -- Windows answers them as equal, so the closeEndedProcesses changes
+      -- nothing there. Pinned as it is
+      TestAssert "on Windows it has left the openProcesses", not _Listed(tProcess)
+      close process tProcess
+      TestAssert "and close process says it is not open", \
+            the result is "process is not open"
+      exit TestEndedProcessStaysByDefault
+   end if
+
    TestAssert "it is still in the openProcesses", _Listed(tProcess)
    TestAssert "its ID in the openProcessIDs is 0", _ListedID(tProcess) is 0
 
@@ -230,9 +245,16 @@ on TestCloseEndedProcessesOffAgain
    wait 500 milliseconds with messages
    read from process tProcess until EOF in kWaitSeconds seconds
    TestAssert "the read ends with eof", the result is "eof"
-   TestAssert "the ended process is still listed", _Listed(tProcess)
-   close process tProcess
-   TestAssert "close process closes it", the result is empty
+   if the platform is "Win32" then
+      -- (see TestEndedProcessStaysByDefault)
+      TestAssert "on Windows it has left the list, as it always has", \
+            not _Listed(tProcess)
+      close process tProcess
+   else
+      TestAssert "the ended process is still listed", _Listed(tProcess)
+      close process tProcess
+      TestAssert "close process closes it", the result is empty
+   end if
 end TestCloseEndedProcessesOffAgain
 
 -- A process opened for write leaves when it ends, as it always has
