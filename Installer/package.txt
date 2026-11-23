@@ -492,6 +492,9 @@ component Extensions
 	// OXT-Beyond: HyperXTalk's iff, quotedPrintableEncode and Decode, microseconds()
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/org.openxtalk.library.hxtcompat
+	// OXT-Beyond: the SVG Drawing widget, a whole SVG in its own colours
+	into [[ToolsFolder]]/Extensions place
+		rfolder macosx:packaged_extensions/org.openxtalk.widget.svgdrawing
 	// OXT-Beyond: Android's "Open document" screen and content addresses
 	into [[ToolsFolder]]/Extensions place
 		rfolder macosx:packaged_extensions/org.openxtalk.library.androiddocuments

@@ -197,6 +197,7 @@ REPO_BUILT_EXTENSIONS = (
     'com.livecode.widget.treeview',
     'org.openxtalk.library.androiddocuments',
     'org.openxtalk.library.hxtcompat',
+    'org.openxtalk.widget.svgdrawing',
 )
 
 # The xTalk Suite extensions (class xtalk): their folders are the ones

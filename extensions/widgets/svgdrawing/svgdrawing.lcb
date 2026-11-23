@@ -1,0 +1,425 @@
+/*
+Copyright (C) 2026 OXT-Beyond contributors.
+
+This file is part of OXT-Beyond.
+
+OXT-Beyond is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+OXT-Beyond is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License
+along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
+
+/**
+This widget shows a whole SVG picture: every shape in it, each with its own
+fill, stroke and gradient, scaled to the widget's rectangle. Where the SVG
+Icon widget draws one path in one color, the SVG Drawing widget draws the
+SVG as it was made.
+
+Give it the SVG's text with the <svgText> property, or a drawing already
+compiled by <drawingSvgCompile> with the <drawing> property. The widget
+keeps the compiled drawing when the stack is saved, so a stack (or a
+standalone) shows it without the drawing library; only setting the
+<svgText> needs the library, which the IDE loads.
+
+Shapes the SVG fills or strokes with "currentColor" take the widget's
+foregroundColor.
+
+Example:
+	create widget "Logo" as "org.openxtalk.widget.svgdrawing"
+	set the svgText of widget "Logo" to url ("file:" & tSvgFile)
+
+Example:
+	-- compile once, then give the same drawing to several widgets
+	local tDrawing
+	put drawingSvgCompile(tSvgText, "all") into tDrawing
+	set the drawing of widget "Icon 1" to tDrawing
+	set the drawing of widget "Icon 2" to tDrawing
+
+Tags: Widgets
+*/
+
+widget org.openxtalk.widget.svgdrawing
+
+/*
+How it works: the engine already draws a compiled drawing wherever it draws
+an image. The canvas's `image from data` makes a vector image of a drawing
+(the data starts "LCD", MCImageRepCreateWithData in engine/src/image_rep.cpp)
+and `draw` plays it back into the rectangle it is given, with the canvas's
+paint standing for currentColor (MCCanvasDrawRectOfImage, through
+MCImageRepRender). So this widget compiles nothing itself: the
+drawing library compiles the SVG, in a script run through "execute script"
+(only a script can call a script library), and OnPaint draws the result.
+
+The compiled drawing is what is saved, beside the SVG's text, so that a
+stack opens and draws with no script and no library: OnLoad and OnPaint may
+not call scripts at all.
+*/
+
+use com.livecode.canvas
+use com.livecode.widget
+use com.livecode.engine
+
+metadata title is "SVG Drawing"
+metadata author is "OXT-Beyond contributors"
+metadata version is "1.0.0"
+metadata preferredSize is "120,120"
+metadata svgicon is "M0,0H20V20H0ZM24,4L40,4L32,18ZM10,24A8,8 0 1 1 9.99,24ZM24,24H40V40H24Z"
+metadata _ide is "true"
+
+-- The drawing compiler's options the widget compiles with: all of them, as
+-- the IDE's import of an SVG does (drawing library, drawingSvgCompile).
+constant kCompileOptions is "all"
+
+private variable mSvgText as String
+private variable mDrawing as Data
+private variable mImage as optional Image
+private variable mMaintainAspectRatio as Boolean
+
+/**
+Summary: The SVG the widget shows, as text.
+
+Syntax:
+set the svgText of <widget> to <svgText>
+get the svgText of <widget>
+
+Value (string): The text of an SVG file, or empty.
+
+Description:
+Setting the svgText compiles the SVG with the drawing library's
+<drawingSvgCompile> function, using all of its compile options, as the IDE's
+import of an SVG does, and the widget shows the result. Setting it to empty
+clears the widget.
+
+If the SVG does not compile, or the drawing library is not loaded, an error
+is thrown and the widget keeps the picture it had.
+
+The widget saves the compiled drawing with the stack, so a stack that has
+been saved shows its picture in a standalone that does not include the
+drawing library. Only setting the svgText needs the library: a standalone
+that sets it must include the drawing library and the XML external (choose
+them in the Standalone Application Settings).
+
+Setting the <drawing> of the widget sets its svgText to empty.
+
+Related: drawing (property), drawingSvgCompile (function)
+*/
+property svgText get mSvgText set setSvgText
+metadata svgText.editor is "com.livecode.pi.text"
+metadata svgText.label is "SVG text"
+metadata svgText.section is "Basic"
+
+/**
+Summary: The compiled drawing the widget shows.
+
+Syntax:
+set the drawing of <widget> to <drawingData>
+get the drawing of <widget>
+
+Value (data): A drawing compiled by <drawingSvgCompile>, or empty.
+
+Description:
+Use the drawing property to show an SVG that was compiled already, for
+example once for several widgets, or in a standalone that does not include
+the drawing library. Setting it to empty clears the widget.
+
+Setting the drawing sets the <svgText> of the widget to empty, as the text
+no longer says what is shown. Getting it after setting the <svgText> gives
+the drawing compiled from that text.
+
+An error is thrown if the value is not a compiled drawing.
+
+Related: svgText (property), drawingSvgCompile (function)
+*/
+property drawing get mDrawing set setDrawing
+metadata drawing.user_visible is "false"
+
+/**
+Summary: Whether the picture keeps its proportions.
+
+Syntax:
+set the maintainAspectRatio of <widget> to { true | false }
+get the maintainAspectRatio of <widget>
+
+Value (boolean): True to keep the picture's proportions; false to stretch
+it to the widget's rectangle.
+
+Description:
+When true, the default, the picture is as large as fits in the widget,
+centered, with its own proportions. When false it fills the widget's
+rectangle, stretched as needed.
+*/
+property maintainAspectRatio get mMaintainAspectRatio set setMaintainAspectRatio
+metadata maintainAspectRatio.default is "true"
+metadata maintainAspectRatio.label is "Maintain aspect ratio"
+metadata maintainAspectRatio.editor is "com.livecode.pi.boolean"
+
+/**
+Summary: The width of the picture at its own size.
+
+Syntax:
+get the formattedWidth of <widget>
+
+Value (integer): The width the SVG gives its picture, or 0 when the widget
+shows nothing.
+
+Description:
+Use the formattedWidth and <formattedHeight> to size the widget to the
+picture, as with an image: set the width of the widget to its
+formattedWidth.
+
+Related: formattedHeight (property)
+*/
+property formattedWidth get getFormattedWidth
+metadata formattedWidth.user_visible is "false"
+
+/**
+Summary: The height of the picture at its own size.
+
+Syntax:
+get the formattedHeight of <widget>
+
+Value (integer): The height the SVG gives its picture, or 0 when the widget
+shows nothing.
+
+Description:
+Use the <formattedWidth> and formattedHeight to size the widget to the
+picture, as with an image.
+
+Related: formattedWidth (property)
+*/
+property formattedHeight get getFormattedHeight
+metadata formattedHeight.user_visible is "false"
+
+-- Shapes the SVG fills or strokes with "currentColor" take the widget's
+-- foregroundColor (see the widget's description above). No doc block here:
+-- the docs parser would hand it to the next entry it recognises.
+metadata foregroundColor.editor is "com.livecode.pi.colorwithalpha"
+metadata foregroundColor.label is "Current color"
+metadata foregroundColor.section is "Colors"
+
+----------
+
+public handler OnCreate()
+	put "" into mSvgText
+	put the empty data into mDrawing
+	put nothing into mImage
+	put true into mMaintainAspectRatio
+end handler
+
+public handler OnSave(out rProperties as Array)
+	put the empty array into rProperties
+	put mSvgText into rProperties["svgText"]
+	put mDrawing into rProperties["drawing"]
+	put mMaintainAspectRatio into rProperties["maintainAspectRatio"]
+end handler
+
+public handler OnLoad(in pProperties as Array)
+	put "" into mSvgText
+	put the empty data into mDrawing
+	put nothing into mImage
+	put true into mMaintainAspectRatio
+
+	if "svgText" is among the keys of pProperties then
+		put pProperties["svgText"] into mSvgText
+	end if
+	if "maintainAspectRatio" is among the keys of pProperties then
+		put pProperties["maintainAspectRatio"] into mMaintainAspectRatio
+	end if
+	-- A saved drawing that is not one (a damaged stack) leaves the widget
+	-- empty rather than stopping the stack from opening.
+	if "drawing" is among the keys of pProperties then
+		if IsDrawing(pProperties["drawing"]) then
+			put pProperties["drawing"] into mDrawing
+			put image from data mDrawing into mImage
+		end if
+	end if
+end handler
+
+----------
+
+private handler setSvgText(in pText as String) returns nothing
+	if pText is "" then
+		put "" into mSvgText
+		ClearDrawing()
+		redraw all
+		return
+	end if
+
+	-- Only a script can call the drawing library, so the compile runs as
+	-- one. The SVG goes in as an argument, never inside the script's text.
+	-- The fragment hands back an array, as the drawing (binary) and the
+	-- compiler's error must not be mixed in one string.
+	variable tResult as optional any
+	execute script "local tDrawing, tResult" & "\n" & \
+			"put drawingSvgCompile(param(1), param(2)) into tDrawing" & "\n" & \
+			"put the result into tResult[\qerror\q]" & "\n" & \
+			"put tDrawing into tResult[\qdrawing\q]" & "\n" & \
+			"return tResult" \
+		with [pText, kCompileOptions]
+	put the result into tResult
+
+	if not (tResult is an array) then
+		throw "svgText: the SVG could not be compiled"
+	end if
+	-- The compiler's error, when there is one, is a non-empty string; an
+	-- empty result can arrive as nothing.
+	variable tError as optional any
+	put nothing into tError
+	if "error" is among the keys of tResult then
+		put tResult["error"] into tError
+	end if
+	if tError is a string then
+		if tError is not "" then
+			throw "svgText: the SVG did not compile: " & tError
+		end if
+	end if
+	variable tDrawing as optional any
+	put nothing into tDrawing
+	if "drawing" is among the keys of tResult then
+		put tResult["drawing"] into tDrawing
+	end if
+	if not IsDrawing(tDrawing) then
+		throw "svgText: the SVG did not compile to a drawing"
+	end if
+
+	put tDrawing into mDrawing
+	put image from data mDrawing into mImage
+	put pText into mSvgText
+	redraw all
+end handler
+
+private handler setDrawing(in pDrawing as any) returns nothing
+	if IsEmptyValue(pDrawing) then
+		put "" into mSvgText
+		ClearDrawing()
+		redraw all
+		return
+	end if
+
+	if not IsDrawing(pDrawing) then
+		throw "drawing: the value is not a compiled drawing (use drawingSvgCompile)"
+	end if
+
+	put pDrawing into mDrawing
+	put image from data mDrawing into mImage
+	put "" into mSvgText
+	redraw all
+end handler
+
+private handler setMaintainAspectRatio(in pValue as Boolean) returns nothing
+	put pValue into mMaintainAspectRatio
+	redraw all
+end handler
+
+private handler getFormattedWidth() returns Integer
+	if mImage is nothing then
+		return 0
+	end if
+	return the width of mImage
+end handler
+
+private handler getFormattedHeight() returns Integer
+	if mImage is nothing then
+		return 0
+	end if
+	return the height of mImage
+end handler
+
+----------
+
+public handler OnPaint()
+	if mImage is nothing then
+		return
+	end if
+
+	variable tWidth as Number
+	variable tHeight as Number
+	put the width of mImage into tWidth
+	put the height of mImage into tHeight
+	if tWidth <= 0 or tHeight <= 0 then
+		return
+	end if
+
+	-- The canvas's paint is what the drawing's currentColor shapes take.
+	set the paint of this canvas to my foreground paint
+
+	if not mMaintainAspectRatio then
+		draw mImage into my bounds of this canvas
+		return
+	end if
+
+	variable tScale as Number
+	put my width / tWidth into tScale
+	if my height / tHeight < tScale then
+		put my height / tHeight into tScale
+	end if
+	variable tDrawWidth as Number
+	variable tDrawHeight as Number
+	put tWidth * tScale into tDrawWidth
+	put tHeight * tScale into tDrawHeight
+
+	-- A rectangle is [left, top, right, bottom], not a width and height
+	variable tLeft as Number
+	variable tTop as Number
+	put (my width - tDrawWidth) / 2 into tLeft
+	put (my height - tDrawHeight) / 2 into tTop
+	draw mImage into rectangle [tLeft, tTop, \
+			tLeft + tDrawWidth, tTop + tDrawHeight] of this canvas
+end handler
+
+----------
+
+private handler ClearDrawing() returns nothing
+	put the empty data into mDrawing
+	put nothing into mImage
+end handler
+
+-- True if pValue is nothing, empty text or empty data: what a script's
+-- "empty" can arrive as
+private handler IsEmptyValue(in pValue as optional any) returns Boolean
+	if pValue is nothing then
+		return true
+	end if
+	if pValue is a string then
+		return pValue is ""
+	end if
+	if pValue is a data then
+		return pValue is the empty data
+	end if
+	return false
+end handler
+
+-- True if pValue is data that starts as a compiled drawing does and is long
+-- enough to hold its size: a compiled drawing begins with "LCD" and a zero
+-- byte, then its width and height as two 4-byte floats
+-- (engine/src/iimport.cpp, MCImageGetMetafileGeometry).
+private handler IsDrawing(in pValue as optional any) returns Boolean
+	if not (pValue is a data) then
+		return false
+	end if
+	variable tData as Data
+	put pValue into tData
+	if the number of bytes in tData < 12 then
+		return false
+	end if
+	return byte 1 to 4 of tData is EncodeMagic()
+end handler
+
+private handler EncodeMagic() returns Data
+	-- "L", "C", "D" and a zero byte
+	variable tMagic as Data
+	put the empty data into tMagic
+	variable tCode as Number
+	repeat for each element tCode in [76, 67, 68, 0]
+		put the byte with code tCode after tMagic
+	end repeat
+	return tMagic
+end handler
+
+end widget
