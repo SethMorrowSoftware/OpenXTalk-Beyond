@@ -3305,6 +3305,8 @@ void MCFilesGetSerialControlString(MCExecContext& ctxt, MCStringRef& r_value);
 void MCFilesSetSerialControlString(MCExecContext& ctxt, MCStringRef p_value);
 void MCFilesGetHideConsoleWindows(MCExecContext& ctxt, bool& r_value);
 void MCFilesSetHideConsoleWindows(MCExecContext& ctxt, bool p_value);
+void MCFilesGetCloseEndedProcesses(MCExecContext& ctxt, bool& r_value);
+void MCFilesSetCloseEndedProcesses(MCExecContext& ctxt, bool p_value);
 
 void MCFilesGetShellCommand(MCExecContext& ctxt, MCStringRef& r_value);
 void MCFilesSetShellCommand(MCExecContext& ctxt, MCStringRef p_value);

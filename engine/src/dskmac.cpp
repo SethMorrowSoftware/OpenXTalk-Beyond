@@ -4488,6 +4488,7 @@ struct MCMacDesktop: public MCSystemInterface, public MCMacSystemService
                 MCU_realloc((char **)&MCprocesses, MCnprocesses,
                             MCnprocesses + 1, sizeof(Streamnode));
                 MCprocesses[MCnprocesses].name = (MCNameRef)MCValueRetain(MCM_shell);
+                MCprocesses[MCnprocesses].read_to_end = false;
                 MCprocesses[MCnprocesses].mode = OM_NEITHER;
                 MCprocesses[MCnprocesses].ohandle = NULL;
                 MCprocesses[MCnprocesses].ihandle = NULL;
@@ -5876,6 +5877,7 @@ static void MCS_startprocess_launch(MCNameRef name, MCStringRef docname, Open_mo
 				MCU_realloc((char **)&MCprocesses, MCnprocesses, MCnprocesses + 1,
 				            sizeof(Streamnode));
 				MCprocesses[MCnprocesses].name = MCValueRetain(name);
+				MCprocesses[MCnprocesses].read_to_end = false;
 				MCprocesses[MCnprocesses].mode = OM_NEITHER;
 				MCprocesses[MCnprocesses].ihandle = NULL;
 				MCprocesses[MCnprocesses].ohandle = NULL;
@@ -5907,6 +5909,7 @@ static void MCS_startprocess_unix(MCNameRef name, MCStringRef doc, Open_mode mod
 	// Store process information.
 	uint2 index = MCnprocesses;
 	MCprocesses[MCnprocesses].name = (MCNameRef)MCValueRetain(name);
+	MCprocesses[MCnprocesses].read_to_end = false;
 	MCprocesses[MCnprocesses].mode = mode;
 	MCprocesses[MCnprocesses].ihandle = NULL;
 	MCprocesses[MCnprocesses].ohandle = NULL;

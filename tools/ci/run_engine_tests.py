@@ -134,6 +134,7 @@ SERIAL_FILES = (
     'core/engine/clipboard',
     'core/chunks/cut',      # the clipboard
     'core/files/files',     # Notepad or TextEdit, Test.txt on the Desktop, the registry
+    'core/files/process-list',  # programs it starts and the list of them
 )
 
 # Tests that act on the desktop of the computer they run on (see the

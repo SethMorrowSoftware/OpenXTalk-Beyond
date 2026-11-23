@@ -84,9 +84,17 @@ void IO_cleanprocesses()
 	MCS_checkprocesses();
 	uint2 i = 0;
 	while (i < MCnprocesses)
+		// OXT-Beyond: MCS_eof compares a stream's position with its size,
+		// and a pipe has neither (on Linux and macOS ftell gives -1), so a
+		// process with a stream to read from stayed here after it ended
+		// until "close process", as it has since LiveCode 7 (LiveCode 6
+		// asked feof). Scripts may rely on that (a process ID of 0 says it
+		// ended), so it is kept by default; with the closeEndedProcesses
+		// set, a process goes once a read has taken its output to the end.
 		if (MCprocesses[i].pid == 0
 		        && (MCprocesses[i].ihandle == NULL
-		            || MCS_eof(MCprocesses[i].ihandle)))
+		            || MCS_eof(MCprocesses[i].ihandle)
+		            || (MCcloseendedprocesses && MCprocesses[i].read_to_end)))
 		{
 #ifdef X11
 			if (MCprocesses[i].mode == OM_VCLIP)

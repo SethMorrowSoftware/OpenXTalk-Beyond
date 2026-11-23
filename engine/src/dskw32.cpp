@@ -2934,6 +2934,7 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
                     MCnprocesses + 1, sizeof(Streamnode));
         uint4 index = MCnprocesses;
         MCprocesses[index].name = (MCNameRef)MCValueRetain(MCM_shell);
+        MCprocesses[index].read_to_end = false;
         MCprocesses[index].mode = OM_NEITHER;
         MCprocesses[index].ohandle = new (nothrow) MCMemoryFileHandle;
 		MCprocesses[index].ihandle = new (nothrow) MCStdioFileHandle((MCWinSysHandle)hChildStdoutRd, true);
@@ -3142,6 +3143,7 @@ struct MCWindowsDesktop: public MCSystemInterface, public MCWindowsSystemService
         MCU_realloc((char **)&MCprocesses, MCnprocesses, MCnprocesses + 1,
                     sizeof(Streamnode));
         MCprocesses[MCnprocesses].name = (MCNameRef)MCValueRetain(p_name);
+        MCprocesses[MCnprocesses].read_to_end = false;
         MCprocesses[MCnprocesses].mode = (Open_mode)p_mode;
         MCprocesses[MCnprocesses].ihandle = NULL;
         MCprocesses[MCnprocesses].ohandle = NULL;

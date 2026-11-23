@@ -117,6 +117,11 @@ typedef struct _Streamnode
 	MCMacProcessSerialNumber sn;
 #endif
     int4 retcode;
+	// OXT-Beyond: true once a read from this process, after it ended, has
+	// come to the end of its output (the result "eof"). With the
+	// closeEndedProcesses set, IO_cleanprocesses then drops it. Every place
+	// that adds a process to MCprocesses sets it to false.
+	bool read_to_end;
 }
 Streamnode;
 

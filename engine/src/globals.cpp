@@ -363,6 +363,7 @@ Boolean MCusesystemwindowcolor;
 // OXT-Beyond: the useDesktopAppearance (Linux: the systemAppearance follows
 // the desktop's light or dark setting; lnxdc.cpp)
 Boolean MCusedesktopappearance;
+bool MCcloseendedprocesses;
 Boolean MCbufferimages;
 MCStringRef MCserialcontrolsettings;
 MCStringRef MCshellcmd;
@@ -752,6 +753,7 @@ void X_clear_globals(void)
 	MChidewindows = False;
 	MCusesystemwindowcolor = False;
 	MCusedesktopappearance = False;
+	MCcloseendedprocesses = false;
 	MCbufferimages = False;
 	MCserialcontrolsettings = MCValueRetain(kMCEmptyString);
 	MCshellcmd = MCValueRetain(kMCEmptyString);

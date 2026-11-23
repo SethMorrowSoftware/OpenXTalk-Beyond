@@ -1815,6 +1815,11 @@ enum Properties {
     // stays free as a name, and "the sequencesAsLists of" an object is the
     // custom property it was
     P_SEQUENCES_AS_LISTS,
+
+    // OXT-Beyond: the global closeEndedProcesses, read as the
+    // sequencesAsLists is (MCProperty::parse): no token, so the name stays
+    // free; at the end, so that no other value moves
+    P_CLOSE_ENDED_PROCESSES,
     
     __P_LAST,
 };

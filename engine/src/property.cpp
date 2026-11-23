@@ -251,6 +251,8 @@ static MCPropertyInfo kMCPropertyInfoTable[] =
 
 	DEFINE_RW_PROPERTY(P_SERIAL_CONTROL_STRING, String, Files, SerialControlString)
 	DEFINE_RW_PROPERTY(P_HIDE_CONSOLE_WINDOWS, Bool, Files, HideConsoleWindows)
+	// OXT-Beyond: an ended process read to its end leaves the openProcesses
+	DEFINE_RW_PROPERTY(P_CLOSE_ENDED_PROCESSES, Bool, Files, CloseEndedProcesses)
 
     // AL-2014-05-23: [[ Bug 12494 ]] Random seed is a 32-bit integer
 	DEFINE_RW_PROPERTY(P_RANDOM_SEED, Int32, Math, RandomSeed)
@@ -562,6 +564,26 @@ Parse_stat MCProperty::parse(MCScriptPoint &sp, Boolean the)
 		if (!t_custom && MCNewSyntax::Read())
 		{
 			which = P_SEQUENCES_AS_LISTS;
+			return PS_NORMAL;
+		}
+	}
+	// OXT-Beyond: the global closeEndedProcesses (MCFilesSetCloseEndedProcesses),
+	// read in the same way and for the same reason: no script that compiled
+	// before reads differently. A variable or handler of that name, and "the
+	// closeEndedProcesses of" an object (a custom property), are as they were
+	if (the && !effective && type == ST_ID &&
+		MCStringIsEqualToCString(sp.gettoken_stringref(), "closeendedprocesses", kMCCompareCaseless))
+	{
+		MCScriptPoint t_after(sp);
+		Symbol_type t_after_type;
+		const LT *t_after_te;
+		bool t_custom = false;
+		if (t_after.next(t_after_type) == PS_NORMAL)
+			t_custom = t_after_type == ST_LB ||
+				(t_after.lookup(SP_FACTOR, t_after_te) == PS_NORMAL && t_after_te->type == TT_OF);
+		if (!t_custom && MCNewSyntax::Read())
+		{
+			which = P_CLOSE_ENDED_PROCESSES;
 			return PS_NORMAL;
 		}
 	}
