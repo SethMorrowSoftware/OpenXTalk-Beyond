@@ -213,6 +213,45 @@ if ($isccVersion -and -not "$isccVersion".StartsWith('6.')) {
     Write-Warning "The installer script targets Inno Setup 6; compiling with Inno Setup $isccVersion."
 }
 
+# --- Folders stored once ---
+
+# The relative paths (lower case, "\" separators) and sizes of the files
+# under a folder, sorted
+function Get-FolderListing([string]$Folder) {
+    $root = (Resolve-Path -LiteralPath $Folder).ProviderPath.TrimEnd('\') + '\'
+    @(Get-ChildItem -LiteralPath $Folder -Recurse -File -Force | ForEach-Object {
+        [pscustomobject]@{ Path = $_.FullName.Substring($root.Length); Length = $_.Length; FullName = $_.FullName }
+    } | Sort-Object { $_.Path.ToLowerInvariant() })
+}
+
+# Whether two folders hold the same files: the same relative paths (Windows
+# compares names without case), sizes and SHA-256 hashes
+function Test-SameFolder([string]$A, [string]$B) {
+    if (-not (Test-Path -LiteralPath $A -PathType Container)) { return $false }
+    if (-not (Test-Path -LiteralPath $B -PathType Container)) { return $false }
+    $la = @(Get-FolderListing $A)
+    $lb = @(Get-FolderListing $B)
+    if ($la.Count -eq 0 -or $la.Count -ne $lb.Count) { return $false }
+    for ($i = 0; $i -lt $la.Count; $i++) {
+        if ($la[$i].Path.ToLowerInvariant() -ne $lb[$i].Path.ToLowerInvariant()) { return $false }
+        if ($la[$i].Length -ne $lb[$i].Length) { return $false }
+    }
+    for ($i = 0; $i -lt $la.Count; $i++) {
+        $ha = (Get-FileHash -LiteralPath $la[$i].FullName -Algorithm SHA256).Hash
+        $hb = (Get-FileHash -LiteralPath $lb[$i].FullName -Algorithm SHA256).Hash
+        if ($ha -ne $hb) { return $false }
+    }
+    return $true
+}
+
+# The runtime's CEF folder, relative to the stage, when the IDE's own CEF
+# folder holds the same files; otherwise $null
+function Get-SharedCefSource([string]$StageDir) {
+    $runtimeCef = 'Runtime\Windows\x86-64\Externals\CEF'
+    if (Test-SameFolder (Join-Path $StageDir 'Externals\CEF') (Join-Path $StageDir $runtimeCef)) { return $runtimeCef }
+    return $null
+}
+
 # --- Build ---
 $started = Get-Date
 try {
@@ -225,6 +264,20 @@ try {
         StageDir    = $Stage
         OutputDir   = $OutDir
         RepoRoot    = $RepoRoot
+    }
+    # The IDE's CEF (Externals\CEF) and the Windows x86-64 runtime's
+    # (Runtime\Windows\x86-64\Externals\CEF, which standalones get) are
+    # the same 420 MB of files. When they are identical, file for file and
+    # byte for byte, the installer script installs Externals\CEF from the
+    # runtime's copy, and Inno Setup stores a source file named twice only
+    # once: the setup program is about 135 MB smaller and installs exactly
+    # the same files. When they differ at all, nothing changes.
+    $sharedCef = Get-SharedCefSource $Stage
+    if ($sharedCef) {
+        $defines['SharedCefSource'] = $sharedCef
+        Write-Host "Externals\CEF is identical to $sharedCef; the installer stores it once."
+    } else {
+        Write-Host "Externals\CEF is not identical to the runtime's CEF; the installer stores both."
     }
     if (-not $NoWizardImages) {
         $images = & (Join-Path $RepoRoot 'Installer\oxt-beyond\make-wizard-images.ps1') -OutDir (Join-Path $workDir 'wizard') -RepoRoot $RepoRoot

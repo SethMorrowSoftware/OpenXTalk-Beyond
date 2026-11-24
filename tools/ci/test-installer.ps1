@@ -348,6 +348,23 @@ try {
         $extra = @($installedFiles.Keys | Where-Object { -not $staged.ContainsKey($_) -and $_ -notlike 'unins000.*' })
         Add-Check "All $($staged.Count) staged files installed" ($absent.Count -eq 0) ((@($absent) | Select-Object -First 10) -join ', ')
         Add-Check 'Installed sizes match the staged files' ($differ.Count -eq 0) ((@($differ) | Select-Object -First 10) -join ', ')
+        # The installer stores the IDE's CEF once, from the runtime's copy,
+        # when the two are identical (build-installer.ps1, SharedCefSource):
+        # both installed folders must hold the staged bytes exactly.
+        $cefDiffer = New-Object System.Collections.Generic.List[string]
+        $cefCount = 0
+        foreach ($cef in @('Externals\CEF', 'Runtime\Windows\x86-64\Externals\CEF')) {
+            $stagedCef = Join-Path $Stage $cef
+            if (-not (Test-Path -LiteralPath $stagedCef -PathType Container)) { continue }
+            foreach ($f in @(Get-RelativeFiles $stagedCef)) {
+                $cefCount++
+                $installed = Join-Path (Join-Path $InstallDir $cef) $f.Path
+                $want = (Get-FileHash -LiteralPath (Join-Path $stagedCef $f.Path) -Algorithm SHA256).Hash
+                $got = if (Test-Path -LiteralPath $installed -PathType Leaf) { (Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash } else { '' }
+                if ($got -ne $want) { $cefDiffer.Add("$cef\$($f.Path)") }
+            }
+        }
+        Add-Check "CEF files installed byte for byte ($cefCount)" ($cefDiffer.Count -eq 0) ((@($cefDiffer) | Select-Object -First 10) -join ', ')
         if ($extra.Count -gt 0) {
             Write-Warning ("Installed files that are not in the staged layout: " + ((@($extra) | Select-Object -First 10) -join ', '))
         }

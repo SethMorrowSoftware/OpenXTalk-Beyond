@@ -11,6 +11,9 @@
 ;   /DRepoRoot=<folder>         repository root (for ide/OXT-Beyond.ico)
 ;   /DWizardImageFile=<list>    optional: comma-separated wizard images
 ;   /DWizardSmallImageFile=<list>  optional: comma-separated small wizard images
+;   /DSharedCefSource=<folder>  optional: the runtime's CEF folder, relative to
+;                               the stage, when Externals\CEF holds the same files
+;                               (the IDE's CEF is then stored once; see [Files])
 ;
 ; Without the defines, the version is read from ide/.version, the stage is
 ; expected in dist/stage/OXT-Beyond-<version>, the build number is read
@@ -206,11 +209,25 @@ Type: filesandordirs; Name: "{app}\Documentation\html_viewer\resources\data\api\
 Name: "{app}\Documentation\html_viewer\resources\data\api\exports"; Permissions: users-modify
 
 [Files]
+#ifdef SharedCefSource
+  #define SharedCefExclude ",\Externals\CEF"
+#else
+  #define SharedCefExclude ""
+#endif
 ; The whole staged layout, including the two empty dictionary plugin
 ; folders. The files listed in Excludes are installed by the entries below,
 ; with extra permissions. (.buildnumber needs none: revmenubar reads it with
 ; url "binfile:", which does not open it for writing.)
-Source: "{#StageDir}\*"; DestDir: "{app}"; Excludes: "\Toolset\palettes\updates\whatsnew.txt,\Toolset\palettes\updates\updatehistory\*.txt"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#StageDir}\*"; DestDir: "{app}"; Excludes: "\Toolset\palettes\updates\whatsnew.txt,\Toolset\palettes\updates\updatehistory\*.txt{#SharedCefExclude}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#ifdef SharedCefSource
+; The IDE's CEF from the runtime's copy (SharedCefSource, defined by
+; tools/ci/build-installer.ps1 only when the two folders hold the same
+; files byte for byte). The entry above already adds every file of that
+; folder, and Inno Setup stores a source file named by two entries once
+; (MergeDuplicateFiles, on by default), so the 420 MB of CEF are
+; compressed once and installed in both places, as before.
+Source: "{#StageDir}\{#SharedCefSource}\*"; DestDir: "{app}\Externals\CEF"; Flags: ignoreversion recursesubdirs createallsubdirs
+#endif
 ; Opened in update mode by the Preferences window (readLastUpd in
 ; revpreferencesgui.rev) and by Help > Release Notes
 ; (Toolset/palettes/updates/ReleaseNotes.oxtstack). whatsnew.txt, OpenXTalk
