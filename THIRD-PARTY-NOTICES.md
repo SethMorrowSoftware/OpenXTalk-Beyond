@@ -222,6 +222,8 @@ with an AI assistant; they say so in their own messages.
 | Externals in folders of their own (`revInternal__FolderExternals` and the two handlers it calls in `ide/Toolset/home.livecodescript`) | Stam Kapetanakis, commit 2db7c5f6 ("Load an external from a folder of its own, like an extension", HyperXTalk #575) |
 | The splash on the screen the menu bar was last on (`splashToMenubarScreen` in `ide/Toolset/palettes/splash/revsplashstackbehavior.livecodescript`) | Emily-Elizabeth Howard, commit 4a06f9ed ("fix(splash): centre splash screen on IDE's monitor at launch (#442)") |
 | The custom property editor's `openField` in the Inspector (`com.livecode.pi.customprops.behavior.livecodescript`) | BerndN, commit 973afeb0 ("Update com.livecode.pi.customprops.behavior.livecodescript (#601)") |
+| `shell()` on Linux: the server's wait for more output tries poll again only when poll itself was interrupted, and the SIGCHLD handler leaves `errno` as it found it (`MCS_lnx_shellread` and `handle_signal` in `engine/src/dsklnx.cpp`) | Stam Kapetanakis, commit f23d49b4 ("Linux server: stop shell() spinning at 100% CPU after a child exits", HyperXTalk #581) |
+| The IDE's start-up goes on when the dictionary build throws (`revInternal__openStack` in `ide/Toolset/home.livecodescript`) | Stam Kapetanakis, commit 9ec83c1d ("IDE start-up carries on when the dictionary build fails", HyperXTalk #615) |
 
 ### Code from Tom Perry's OpenXTalk Lite 7
 
