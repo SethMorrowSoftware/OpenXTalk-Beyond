@@ -762,6 +762,40 @@ def run_shebang(engine, www, results):
                 r.describe())
 
 
+# A command whose background children end while it is still writing, so
+# SIGCHLD comes in the middle of shell()'s wait for more output.
+SHELL_COMMAND = ('for i in 1 2 3 4 5; do (sleep 0.0$i; exit 0) & done; '
+                 'printf a; sleep 0.03; printf b; sleep 0.03; printf c; wait')
+
+
+def shell_script(runs):
+    return ('<?lc\nput 0 into tWhole\nrepeat %d times\n'
+            '  if shell("%s") is "abc" then add 1 to tWhole\n'
+            'end repeat\nput "whole=" & tWhole & ";" & return\n?>' % (runs, SHELL_COMMAND))
+
+
+def run_shell(engine, work, results, runs=20):
+    """shell() on the server: the whole output each time, and no spin.
+    The server's wait for more output looked at errno after a poll that
+    had succeeded, where errno is whatever came before it, and could loop
+    there at 100% CPU (HyperXTalk's fix, by Stam Kapetanakis); a hang is
+    a timeout here."""
+    where = 'command line'
+    script = os.path.join(work, 'shell.lc')
+    with open(script, 'w', newline='\n') as f:
+        f.write(shell_script(runs))
+    try:
+        p = subprocess.run([engine, script], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           env=base_env(), cwd=work, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        results.add(where, 'shell() ends', False, 'no answer in %s s' % TIMEOUT)
+        return
+    r = Response(None, [], p.stdout)
+    results.add(where, 'shell() gives the whole output %d times out of %d' % (runs, runs),
+                p.returncode == 0 and r.field('whole') == str(runs),
+                'status %s, %s, stderr %r' % (p.returncode, r.describe(), p.stderr[:300]))
+
+
 def engine_version(repo):
     """"9.7.1" from the version file: the engine's version starts with it."""
     with open(os.path.join(repo, 'version'), encoding='utf-8') as f:
@@ -887,6 +921,7 @@ def main(argv=None):
         transports.append('as a CGI program')
         if p.family != 'windows':
             run_shebang(engine, www, results)
+            run_shell(engine, work, results)
         if args.memcheck != 'no':
             valgrind = shutil.which('valgrind') if p.family == 'linux' else None
             if valgrind:

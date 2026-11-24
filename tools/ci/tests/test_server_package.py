@@ -401,6 +401,44 @@ class ServerCheckTest(unittest.TestCase):
         self.assertIn('one=abc; ', server_check.MEMCHECK_COOKIES)
         self.assertIn('cookies.lc', server_check.PAGES)
 
+    def _fake_engine(self, body):
+        path = os.path.join(self.tmp, 'fake-server')
+        with open(path, 'w') as f:
+            f.write('#!/bin/sh\n' + body + '\n')
+        os.chmod(path, 0o755)
+        return path
+
+    @unittest.skipIf(os.name == 'nt', 'a shell script as the engine')
+    def test_shell_check_passes_on_the_whole_output(self):
+        results = server_check.Results(quiet)
+        server_check.run_shell(self._fake_engine('printf "whole=20;\\n"'), self.tmp, results)
+        self.assertEqual((len(results.rows), results.failed), (1, 0))
+        with open(os.path.join(self.tmp, 'shell.lc')) as f:
+            script = f.read()
+        self.assertIn('repeat 20 times', script)
+        self.assertIn(server_check.SHELL_COMMAND, script)
+
+    @unittest.skipIf(os.name == 'nt', 'a shell script as the engine')
+    def test_shell_check_fails_on_short_output_and_on_a_hang(self):
+        results = server_check.Results(quiet)
+        server_check.run_shell(self._fake_engine('printf "whole=19;\\n"'), self.tmp, results)
+        self.assertEqual(results.failed, 1)
+        orig = server_check.TIMEOUT
+        server_check.TIMEOUT = 1
+        try:
+            results = server_check.Results(quiet)
+            server_check.run_shell(self._fake_engine('exec sleep 5'), self.tmp, results)
+        finally:
+            server_check.TIMEOUT = orig
+        self.assertEqual(results.failed, 1)
+        self.assertIn('no answer', results.rows[0][3])
+
+    @unittest.skipUnless(os.environ.get('OXT_SERVER_ENGINE'), 'OXT_SERVER_ENGINE names a server engine')
+    def test_shell_check_on_a_real_server_engine(self):
+        results = server_check.Results(quiet)
+        server_check.run_shell(os.environ['OXT_SERVER_ENGINE'], self.tmp, results)
+        self.assertEqual(results.failed, 0, results.rows)
+
     def test_the_last_cookie_is_checked_whole(self):
         cases = {name: (req, checks) for name, req, checks in server_check.CASES}
         req, checks = cases['last cookie whole']

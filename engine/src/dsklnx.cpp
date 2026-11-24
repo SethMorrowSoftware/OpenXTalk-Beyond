@@ -301,16 +301,28 @@ static IO_stat MCS_lnx_shellread(int fd, char *&buffer, uint4 &buffersize, uint4
 
             // SN-2015-02-12: [[ Bug 14441 ]] poll might as well get signal interrupted
             //  and we don't want to miss the reading for that only reason.
+            // OXT-Beyond, from HyperXTalk (Stam Kapetanakis, 2026-11-06):
+            //  the old test went on looping after a poll that SUCCEEDED
+            //  whenever errno held something other than EAGAIN, EINTR or
+            //  EWOULDBLOCK, and errno there is only whatever came before
+            //  (the read() above, MCU_play, a signal handler). poll then
+            //  answered 1 (POLLIN or POLLHUP) at once, every time, and the
+            //  engine spun at 100% CPU. Now only a poll that was itself
+            //  interrupted is tried again; one that failed outright ends
+            //  the read as an error rather than looping on it. A poll that
+            //  succeeds goes back to read() exactly as before.
             int t_result;
             do
             {
                 t_result = poll(&t_poll_fd, 1, -1);
             }
-            while (t_result != 1 ||
-                   (errno != EAGAIN && errno != EINTR && errno != EWOULDBLOCK));
+            while (t_result == -1 && (errno == EINTR || errno == EAGAIN));
 
-            // SN-2015-02-26: [[ CID 37859 ]] Dead code removed (t_result is
-            //  always different from -1 here
+            if (t_result == -1)
+            {
+                MCshellfd = -1;
+                return IO_ERROR;
+            }
 #else
             if (MCscreen->wait(READ_INTERVAL, False, True))
             {
@@ -513,6 +525,14 @@ static void handle_signal(int sig)
         break;
     case SIGCHLD:
         {
+            // OXT-Beyond, from HyperXTalk (Stam Kapetanakis, 2026-11-06):
+            // MCS_checkprocesses calls waitpid(), which can change errno,
+            // and a signal handler must leave errno as it found it. Code
+            // the signal interrupted between a system call and its errno
+            // check (shell()'s read loop, whose "try again" must not turn
+            // into a failure that ends the output early) would otherwise
+            // see the handler's value instead of its own.
+            int t_saved_errno = errno;
 #if defined(_LINUX_DESKTOP)
             // OXT-Beyond: a player whose mplayer has ended is told so in the
             // event loop (MCS_handlechildexits), not here: telling it posts a
@@ -528,6 +548,7 @@ static void handle_signal(int sig)
             if (!MCplayers.IsValid() && MClastvideowindow == DNULL)
                 MCS_checkprocesses();
 #endif /* LINUX_DESKTOP */
+            errno = t_saved_errno;
         }
         break;
     case SIGALRM:

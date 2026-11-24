@@ -237,8 +237,22 @@ on revInternal__openStack
       
       if tSuccess and not revEnvironmentIsInstalled() then
          revInternal__setSplashStatus "Building Dictionary"
-         revInternal__BuildDictionary
-         put the result into tSuccess
+         -- OXT-Beyond, from HyperXTalk (Stam Kapetanakis, 2026-11-22): a
+         -- dictionary build that throws (a development build without the
+         -- database library, say) is logged, and the start-up goes on.
+         -- Before, the throw skipped the final steps, which install the
+         -- front script and shortcuts libraries, and the IDE came up
+         -- without them: double-clicking an object did not open the
+         -- Property Inspector and right-clicking gave no menu. A build
+         -- that does not throw gives its result as before.
+         local tDictionaryError
+         try
+            revInternal__BuildDictionary
+            put the result into tSuccess
+         catch tDictionaryError
+            revInternal__Log "Error", "Building Dictionary failed:" && tDictionaryError
+            put true into tSuccess
+         end try
       end if
       
       if tSuccess then
