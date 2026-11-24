@@ -109,5 +109,52 @@ class CheckNotAStackTest(unittest.TestCase):
         self.assertEqual(left, [])
 
 
+class LinuxBrowserOffTest(unittest.TestCase):
+    """linux_browser_off: whether a check turns the browser widget off
+    (LIVECODE_USE_CEF=0) as the Linux launcher does: only with no CEF and no
+    WebKitGTK helper whose --probe succeeds."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.engine = os.path.join(self.dir, 'OXT-Beyond')
+        open(self.engine, 'w').close()
+        self.externals = os.path.join(self.dir, 'Externals')
+        os.makedirs(self.externals)
+
+    def helper(self, status):
+        path = os.path.join(self.dir, run_livecode_check.WEBKIT_HELPER)
+        with open(path, 'w') as f:
+            f.write('#!/bin/sh\n[ "$1" = --probe ] || exit 9\nexit %d\n' % status)
+        os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR)
+
+    def off(self):
+        return run_livecode_check.linux_browser_off(self.engine, self.externals)
+
+    def test_cef_keeps_it_on(self):
+        os.makedirs(os.path.join(self.externals, 'CEF'))
+        open(os.path.join(self.externals, 'CEF', 'libcef.so'), 'w').close()
+        self.assertFalse(self.off())
+
+    def test_no_cef_and_no_helper_turns_it_off(self):
+        self.assertTrue(self.off())
+
+    @unittest.skipIf(os.name == 'nt', 'a shell script helper')
+    def test_no_cef_and_webkitgtk_keeps_it_on(self):
+        self.helper(0)
+        self.assertFalse(self.off())
+
+    @unittest.skipIf(os.name == 'nt', 'a shell script helper')
+    def test_no_cef_and_a_failing_probe_turns_it_off(self):
+        self.helper(1)
+        self.assertTrue(self.off())
+
+    def test_a_helper_that_cannot_run_turns_it_off(self):
+        path = os.path.join(self.dir, run_livecode_check.WEBKIT_HELPER)
+        open(path, 'w').close()
+        os.chmod(path, 0o644)
+        self.assertTrue(self.off())
+
+
 if __name__ == '__main__':
     unittest.main()

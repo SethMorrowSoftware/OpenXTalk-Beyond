@@ -358,7 +358,7 @@ version, for example `0.1.0`:
 | | `OXT-Beyond-<version>-linux-x86_64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-x86_64-bin`), without debug symbols and the build's own tools, and the licence files. |
 | | `OXT-Beyond-<version>-linux-x86_64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
 | | `OXT-Beyond-<version>-linux-x86_64-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
-| 64-bit ARM Linux with glibc 2.31 or later (from 0.2.4-rc.2) | `OXT-Beyond-<version>-linux-arm64.tar.xz` | The same program folder for 64-bit ARM, such as a Raspberry Pi 3, 4 or 5 on a 64-bit system, without the browser widget (see [Linux (64-bit ARM)](#linux-64-bit-arm)). |
+| 64-bit ARM Linux with glibc 2.31 or later (from 0.2.4-rc.2) | `OXT-Beyond-<version>-linux-arm64.tar.xz` | The same program folder for 64-bit ARM, such as a Raspberry Pi 3, 4 or 5 on a 64-bit system, whose browser widget uses WebKitGTK and which has no revBrowser (see [Linux (64-bit ARM)](#linux-64-bit-arm)). |
 | | `OXT-Beyond-<version>-linux-arm64-binaries.tar.xz` | Only the built engine, externals and tools (`linux-arm64-bin`), as for x86-64. |
 | | `OXT-Beyond-<version>-linux-arm64-symbols.tar.xz` | Debug symbols (`.dbg`), for developers. |
 | | `OXT-Beyond-<version>-linux-arm64-server.zip` | OXT-Beyond Server: the server engine with its externals and database drivers, to run `.lc` pages on a web server (see [OXT-Beyond Server](#oxt-beyond-server)). From 0.2.7-rc.6.15; experimental. |
@@ -684,9 +684,15 @@ it.
 
 What it does not have:
 
-- **No browser widget and no revBrowser.** They use CEF, whose Linux ARM build
-  OXT-Beyond does not take yet, so the package leaves them out, the IDE opens web
-  pages in your web browser, and the Tools palette has no browser widget.
+- **No CEF, so no revBrowser.** OXT-Beyond does not take CEF's Linux ARM
+  build yet, so the package has no CEF, and revBrowser, which only uses
+  CEF, is left out. The browser widget uses WebKitGTK instead (#497), as
+  it does on x86-64 wherever CEF cannot load: install it with
+  `sudo apt install libwebkit2gtk-4.1-0` (Raspberry Pi OS, Debian,
+  Ubuntu). With WebKitGTK the IDE shows the dictionary and other web
+  pages in its own windows and the Tools palette has the browser widget;
+  without it the IDE opens them in your web browser and the Tools
+  palette has no browser widget.
 - **Standalones for 64-bit ARM Linux are built only by this package**,
   from its own runtime ("Linux arm64" in the standalone settings). The
   other packages carry no arm64 runtime, so they do not offer it.

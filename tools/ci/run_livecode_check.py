@@ -308,6 +308,33 @@ def find_layout(args, p, temp_dirs):
                   os.path.join(tools, 'Externals', 'Database Drivers'), tools=tools, root=root, source=source)
 
 
+# The WebKitGTK browser's helper, next to the engine (libbrowser_webkitgtk.cpp)
+WEBKIT_HELPER = 'libbrowser-webkitprocess'
+
+
+def linux_browser_off(engine, cef_parent, timeout=30):
+    """Whether the Linux launcher (Installer/linux/oxt-beyond) would turn the
+    browser widget off with LIVECODE_USE_CEF=0 for this layout, which the
+    checks that start the engine without it do as it does: when there is no
+    CEF (cef_parent/CEF/libcef.so: the arm64 and x86 packages have none) and
+    WebKitGTK cannot stand in for it either, that is when the helper next to
+    the engine is missing or its --probe (which only loads WebKitGTK and
+    GTK 3 with dlopen, with no display) fails. Before #634 these checks
+    turned the browser off wherever CEF was missing, so the IDE tour never
+    showed the arm64 package's browser widget, which is WebKitGTK's."""
+    if os.path.isfile(os.path.join(cef_parent, 'CEF', 'libcef.so')):
+        return False
+    helper = os.path.join(os.path.dirname(os.path.abspath(engine)), WEBKIT_HELPER)
+    if not (os.path.isfile(helper) and os.access(helper, os.X_OK)):
+        return True
+    try:
+        proc = subprocess.run([helper, '--probe'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                              timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    return proc.returncode != 0
+
+
 def run_engine(engine, script, env, cwd, timeout):
     """(exit code or None when it timed out, stdout lines, stderr lines)."""
     full = dict(os.environ)
