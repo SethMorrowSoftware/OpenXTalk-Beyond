@@ -522,7 +522,9 @@ LINUX_RUNTIME_FOLDERS = {'x86_64': 'x86-64', 'x86': 'x86-32', 'arm64': 'arm64'}
 
 def _linux(arch):
     """package.txt TargetPlatform Linux. The arm64 build has no CEF (the CEF
-    build this repository vendors is x86_64 only), so linux-arm64 has no browser; its runtime is
+    build this repository vendors is x86_64 only), so linux-arm64 has no
+    revBrowser, and its browser widget uses WebKitGTK through the helper
+    libbrowser-webkitprocess (libbrowser_webkitgtk.cpp, #497); its runtime is
     Runtime/Linux/arm64, the IDE's "Linux arm64" target (revsblibrary),
     which LiveCode never had (its ARM target was 32-bit armv6-hf, which
     this repository does not build). The x86 (32-bit) build has
