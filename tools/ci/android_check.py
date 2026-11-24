@@ -1680,7 +1680,9 @@ def ide(args):
         cmd = [lay.engine, document]
         if p.family == 'linux':
             cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
-            if 'LIVECODE_USE_CEF' not in env and not os.path.isfile(os.path.join(cef, 'CEF', 'libcef.so')):
+            # as the launcher does: without CEF the browser widget is
+            # WebKitGTK's where the helper's probe finds it
+            if 'LIVECODE_USE_CEF' not in env and rlc.linux_browser_off(lay.engine, cef):
                 env['LIVECODE_USE_CEF'] = '0'
             if not env.get('DISPLAY'):
                 xvfb = shutil.which('xvfb-run')

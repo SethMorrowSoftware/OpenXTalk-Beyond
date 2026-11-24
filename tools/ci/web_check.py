@@ -1505,11 +1505,12 @@ def build_with_ide(args, work, timeout):
                    OXT_WEB_OUTPUT=path(site), OXT_WEB_LOG=path(results))
         cmd = [lay.engine, document]
         if p.family == 'linux':
-            # as ui_tour.py: without CEF (arm64) there is no browser widget
-            # (a build folder, whose externals are at its top, has CEF in
-            # its Externals folder)
+            # as ui_tour.py: without CEF (arm64) the browser widget is
+            # WebKitGTK's where the helper's probe finds it, and there is none
+            # where neither loads (a build folder, whose externals are at its
+            # top, has CEF in its Externals folder)
             cef = os.path.join(lay.root, 'Externals') if lay.kind == 'development' else lay.externals
-            if 'LIVECODE_USE_CEF' not in env and not os.path.isfile(os.path.join(cef, 'CEF', 'libcef.so')):
+            if 'LIVECODE_USE_CEF' not in env and rlc.linux_browser_off(lay.engine, cef):
                 env['LIVECODE_USE_CEF'] = '0'
             if not env.get('DISPLAY'):
                 xvfb = shutil.which('xvfb-run')
