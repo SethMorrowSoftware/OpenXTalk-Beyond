@@ -1190,10 +1190,40 @@ enum MCShadowedItemTags
     //   (not a popup menu).
     if ([menu supermenu] != nil)
     {
-        [self hideShadowedMenuItem: kMCShadowedItemAbout menu: menu];
-        [self hideShadowedMenuItem: kMCShadowedItemPreferences menu: menu];
-        [self hideShadowedMenuItem: kMCShadowedItemQuit menu: menu];
+        [self hideShadowedMenuItems: menu];
+        
+        // OXT-Beyond: the menu update above rebuilds EVERY menu of the
+        //   menubar (MCPlatformHandleMenuUpdate removes and repopulates them
+        //   all), but the items were hidden only in the menu about to open.
+        //   The others came back with their About, Preferences or Quit item
+        //   shown, and a menu that a slide along the menubar went back to
+        //   showed it: File > Exit at the bottom of the IDE's File menu after
+        //   the pointer went from File to Edit and back (0.2.8-dp.2.1, macOS
+        //   26 on Apple silicon and Intel; this code is LiveCode Community
+        //   9.6.3's). The same items are now hidden in every menu of the
+        //   menubar (not the application menu, which is not one of the
+        //   engine's), as each would have them hidden on its first opening.
+        if (s_menubar != nil && [menu supermenu] == s_menubar -> menu)
+        {
+            for (NSMenuItem *t_item in [s_menubar -> menu itemArray])
+            {
+                NSMenu *t_submenu = [t_item submenu];
+                if (t_submenu == nil || t_submenu == menu ||
+                    MCPlatformMenuRefOfNSMenu(t_submenu) == nil)
+                    continue;
+                [self hideShadowedMenuItems: t_submenu];
+            }
+        }
     }
+}
+
+// OXT-Beyond: the About, Preferences and Quit items of a menu of the
+//   menubar, which the application menu shows instead, hidden
+- (void)hideShadowedMenuItems:(NSMenu *)menu
+{
+    [self hideShadowedMenuItem: kMCShadowedItemAbout menu: menu];
+    [self hideShadowedMenuItem: kMCShadowedItemPreferences menu: menu];
+    [self hideShadowedMenuItem: kMCShadowedItemQuit menu: menu];
 }
 
 - (void)menuItemSelected: (id)sender
