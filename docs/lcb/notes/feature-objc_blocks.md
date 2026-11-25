@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 
 ## Objective-C block support
 

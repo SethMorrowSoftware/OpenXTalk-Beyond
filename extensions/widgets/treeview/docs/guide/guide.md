@@ -1,5 +1,5 @@
 # Tree View
-The tree view widget provides a way to represent a LiveCode array 
+The tree view widget provides a way to represent an xTalk array 
 visually in various ways. In its simplest form, it allows selection of
 key/value pairs, and folding and unfolding of nested arrays.
 

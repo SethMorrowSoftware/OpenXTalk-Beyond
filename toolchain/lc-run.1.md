@@ -1,4 +1,4 @@
-lc-run(1) -- run LiveCode Builder bytecode programs
+lc-run(1) -- run xTalk Builder bytecode programs
 ===================================================
 
 ## SYNOPSIS
@@ -9,7 +9,7 @@ lc-run(1) -- run LiveCode Builder bytecode programs
 
 ## DESCRIPTION
 
-**lc-run** runs a LiveCode Builder program from the bytecode file _LCMFILE_.
+**lc-run** runs an xTalk Builder program from the bytecode file _LCMFILE_.
 When running an LCB program with **lc-run**, some standard libraries are
 unavailable (e.g. the `canvas` and `engine` libraries).
 

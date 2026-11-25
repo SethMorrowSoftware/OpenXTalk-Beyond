@@ -1,6 +1,6 @@
 # Re-written LCB VM
 
-The "virtual machine" used to run LiveCode Builder code has been re-written
+The "virtual machine" used to run xTalk Builder code has been re-written
 from scratch. This new VM provides a framework enabling better extensibility,
 better error reporting and, in future, more comprehensive optimizations.
 

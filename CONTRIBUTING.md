@@ -168,9 +168,9 @@ and line endings). For new code, the upstream guides still apply:
   [use of C++ language features](docs/development/C++-features.md). The
   engine is built with the Visual Studio 2017 (v141) compiler, so do not
   use language features it does not support.
-- LiveCode Builder:
+- xTalk Builder:
   [Builder Style Guide](docs/guides/Builder%20Style%20Guide.md).
-- LiveCode script in the IDE: keep the style of the surrounding script.
+- xTalk script in the IDE: keep the style of the surrounding script.
   Mark changes to inherited scripts with a comment that starts with
   `-- OXT-Beyond:` and says why. Keep the existing dated comments, such
   as Tom Perry's `(tperry 28-6-24)` and Terry Little's; they are the

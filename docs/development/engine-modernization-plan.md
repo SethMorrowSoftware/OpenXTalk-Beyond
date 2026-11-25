@@ -11,7 +11,7 @@ Primary constraint: preserve language, stack-file, extension, and external behav
   Windows. Where this plan says Windows, read it as the first platform, not the
   only one.
 * Every CI build on all three platforms runs the test suites of `tests/` (the
-  LiveCode test framework: LiveCode Script, LiveCode Builder, the LCB compiler and
+  OXT-Beyond test framework: xTalk Script, xTalk Builder, the LCB compiler and
   the script parser, about 1,150 tests) with `tools/ci/run_engine_tests.py`,
   against lists of known failures (`tools/ci/engine-tests-baseline*.txt`); see
   [Engine tests](../../BUILDING.md#engine-tests). The legacy engine bugs these
@@ -55,7 +55,7 @@ judgements:
 * `engine-sources.gypi` manually inventories source groups and contains repeated
   paths in conditionally assembled lists. GYP targets mix generation, host tools,
   kernel modes, platform selection, resources, and final products.
-* There are useful safety-net assets: 322 execution test files, the LiveCode test
+* There are useful safety-net assets: 322 execution test files, the OXT-Beyond test
   framework, and GoogleTest wiring. However, only a handful of engine C++ tests are
   listed in `engine_test_source_files`, and the Windows CI currently verifies build
   products rather than running behavioral engine tests. (Since October 2026 CI runs

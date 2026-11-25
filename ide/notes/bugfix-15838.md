@@ -1,1 +1,1 @@
-# Changing size of dictionary headers crashes LiveCode
+# Changing size of dictionary headers crashes OXT-Beyond

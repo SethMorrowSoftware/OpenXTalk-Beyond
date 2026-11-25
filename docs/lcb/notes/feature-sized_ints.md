@@ -1,7 +1,7 @@
 ---
 version: 9.0.0-dp-7
 ---
-# LiveCode Builder Standard Library
+# xTalk Builder Standard Library
 ## Foreign function interface
 
 * The machine types Bool, SIntSize, UIntSize, SIntPtr, UIntPtr, SInt8, UInt8,

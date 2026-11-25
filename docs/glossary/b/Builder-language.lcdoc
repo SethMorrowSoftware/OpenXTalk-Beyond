@@ -7,7 +7,7 @@ livecode builder
 Type: glossary
 
 Description:
-**Builder** (LiveCode Builder, or LCB) is a variant of the current
+**Builder** (xTalk Builder, or LCB) is a variant of the current
 <OpenXTalk|OpenXTalk scripting language> which has been designed for
 'systems' building. It is
 statically compiled with optional static typing and direct foreign code

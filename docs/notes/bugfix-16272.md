@@ -7,7 +7,7 @@ Previously, clicks to menu items that open submenus would dismiss
 the menu and send a **mouseRelease** message. Unfortunately, this
 did not match the conventions of modern user interfaces where
 these clicks are ignored. This can be seen on OSX where the
-system's menus are used instead of being emulated by LiveCode.
+system's menus are used instead of being emulated by OXT-Beyond.
 
 Now, clicking on the item that anchors a submenu will send the
 **mouseRelease** message as before but, if that message is not handled

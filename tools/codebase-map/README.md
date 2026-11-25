@@ -17,7 +17,7 @@ site then goes up without it and the run's summary says so.
 | File | What it does |
 | --- | --- |
 | [build_map.py](build_map.py) | reads the repository and its git history, xtalk-suite and the stack dumps, and writes `map-data.json`, `index.html` (the page for any web host) and `codebase-map.html` (the same page for a claude.ai Artifact) |
-| [lcs.py](lcs.py) | the LiveCode Script scanner: handlers, the names a script calls, `send` and `dispatch` targets, stack references, globals, front and back inserts, `start using`, the IDE message bus |
+| [lcs.py](lcs.py) | the xTalk Script scanner: handlers, the names a script calls, `send` and `dispatch` targets, stack references, globals, front and back inserts, `start using`, the IDE message bus |
 | [template.html](template.html) | the page; `build_map.py` puts the data in it |
 | [make_dumps.sh](make_dumps.sh) | writes out the scripts of every binary IDE stack with a released engine and [ide-stack-dump.livecodescript](../oxt/ide-stack-dump.livecodescript) (headless, messages locked, nothing saved) |
 

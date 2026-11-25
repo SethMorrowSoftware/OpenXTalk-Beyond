@@ -1,13 +1,13 @@
 # Setup
 ## Installation
 
-Each version of LiveCode installs can be installed to its own,
-separate folder.  This allow multiple versions of LiveCode to be
+Each version of OXT-Beyond installs can be installed to its own,
+separate folder.  This allow multiple versions of OXT-Beyond to be
 installed side-by-side.  On Windows (and Linux), each version of
-LiveCode has its own Start Menu (or application menu) entry. On Mac OS
+OXT-Beyond has its own Start Menu (or application menu) entry. On Mac OS
 X, each version has its own app bundle.
 
-On Mac OS X, install LiveCode by mounting the `.dmg` file and dragging
+On Mac OS X, install OXT-Beyond by mounting the `.dmg` file and dragging
 the app bundle to the `Applications` folder (or any other suitable
 location).
 
@@ -26,7 +26,7 @@ The installations when installing for "This User" are:
 | Windows  | `<user roaming app data folder>/RunRev/Components/LiveCode <version>` |
 | Linux    | `~/.runrev/components/livecode-<version>` |
 
-**Note:** If installing for "All Users" on Linux, either the **gksu** tool must be available, or you must manually run the LiveCode installer executable as root (e.g. using **sudo** or **su**).
+**Note:** If installing for "All Users" on Linux, either the **gksu** tool must be available, or you must manually run the OXT-Beyond installer executable as root (e.g. using **sudo** or **su**).
 
 ## Uninstallation
 
@@ -34,7 +34,7 @@ On Windows, the installer hooks into the standard Windows uninstall mechanism. T
 
 On Mac OS X, drag the app bundle to the Trash.
 
-On Linux, LiveCode can be removed using the `setup.x86` or `setup.x86_64` program located in LiveCode's installation directory.
+On Linux, OXT-Beyond can be removed using the `setup.x86` or `setup.x86_64` program located in OXT-Beyond's installation directory.
 
 ## Reporting installer issues
 

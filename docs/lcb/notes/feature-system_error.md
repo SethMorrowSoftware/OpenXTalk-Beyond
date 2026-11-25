@@ -1,4 +1,4 @@
-# LiveCode Builder Standard Library
+# xTalk Builder Standard Library
 ## System error information
 
 * Two new expressions have been added for accessing platform-specific

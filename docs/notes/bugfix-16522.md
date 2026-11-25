@@ -1,2 +1,2 @@
-# Fix a hang when pasting from LiveCode into WordPad on Windows
+# Fix a hang when pasting from OXT-Beyond into WordPad on Windows
 

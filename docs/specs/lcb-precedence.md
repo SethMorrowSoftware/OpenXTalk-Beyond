@@ -1,4 +1,4 @@
-# Operator Precedence in LiveCode builder
+# Operator Precedence in xTalk Builder
 Copyright © LiveCode Ltd.
 
 ## Introduction
@@ -9,7 +9,7 @@ that the interaction is sensible and consistent.
 
 Choosing appropriate precedence levels fulfils some important objectives:
 
-- The ordering of precedence is consistent with LiveCode Script
+- The ordering of precedence is consistent with xTalk Script
 - Complicated expressions can easily be written without needing many
   parentheses `(…)`
 - The ordering of precedence is reasonably consistent with other programming

@@ -15,7 +15,7 @@ its location, its tilt, its share sheet.
 
 The library is made to feel like xTalk. One line readies a stack, and
 what happens on the phone comes to the stack as messages, by the names
-LiveCode's iOS and Android engines use, sent to the control under the
+OXT-Beyond's iOS and Android engines use, sent to the control under the
 finger the way mouse messages are. On a desktop the library answers as a
 desktop would and sends nothing, so a stack can be made and tried in the
 IDE and then built for phones without changes.

@@ -6,7 +6,7 @@ version: 8.1.0-dp-1
 Due to the recent decision by Apple to end support for QuickTime on
 Windows, the player implementation on that platform has been replaced
 with one based on DirectShow.  This is a multimedia API that is
-available by default on all versions of Windows supported by LiveCode.
+available by default on all versions of Windows supported by OXT-Beyond.
 
 The new implementation should function as a drop-in replacement for
 the old one, though some properties are not yet implemented.

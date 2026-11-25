@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Canvas library
 
 A new statement `clip to <path> on <canvas>` has been implemented to allow drawing on a

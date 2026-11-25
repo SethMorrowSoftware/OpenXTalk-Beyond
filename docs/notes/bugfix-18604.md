@@ -1,1 +1,1 @@
-# Fix crash when converting objective-c objects to LiveCode values
+# Fix crash when converting objective-c objects to xTalk values

@@ -57,7 +57,7 @@ coercion. The true type of a value can be one of the following:
 An array can carry LiveCode 11's mark of a sequence or a dictionary. A
 literal `[...]` is marked as a sequence and a literal `{...}` as a
 dictionary; <as> marks an array (`as a sequence`, `as a dictionary`)
-or takes the mark off (`as an array`); a List that a LiveCode Builder
+or takes the mark off (`as an array`); a List that an xTalk Builder
 handler returns is marked as a sequence. Changing an array's elements
 keeps its mark. Only `is strictly a sequence`, `is strictly a
 dictionary`, `is a sequence`, `is a dictionary`, the JSON Codec

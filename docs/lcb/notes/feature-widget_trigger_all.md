@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Widget library
 New syntax has been added to enable property triggers to be 
 fired directly from within a widget: trigger all.

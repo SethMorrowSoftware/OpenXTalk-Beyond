@@ -1,1 +1,1 @@
-# Drag and drop on macOS from LiveCode to another application no longer fails after three drags
+# Drag and drop on macOS from OXT-Beyond to another application no longer fails after three drags

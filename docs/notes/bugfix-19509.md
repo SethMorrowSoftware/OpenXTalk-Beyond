@@ -1,1 +1,1 @@
-# Make sure Android Studio works with LiveCode
+# Make sure Android Studio works with OXT-Beyond

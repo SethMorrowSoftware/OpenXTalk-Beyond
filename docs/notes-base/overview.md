@@ -4,9 +4,9 @@ LiveCode 9.0 enables access to libraries and platform APIs written in
 many other languages thanks to the community-funded 'Infinite
 LiveCode' project.
 
-This includes a greatly improved LiveCode Builder virtual machine.
+This includes a greatly improved xTalk Builder virtual machine.
 
-LiveCode 9.0 contains many additional improvements to support LiveCode
+LiveCode 9.0 contains many additional improvements to support xTalk
 app developers, including:
 
 * A new "spinner" widget

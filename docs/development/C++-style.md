@@ -1,13 +1,13 @@
-# C++ Coding Guidelines for LiveCode
+# C++ Coding Guidelines for OXT-Beyond
 
 This file describes some key C++ coding style guidelines for
-contribution to the LiveCode source code.  In the past, C++ was used
+contribution to the OXT-Beyond source code.  In the past, C++ was used
 as an improved version of C, and didn't use the whole of the
 language's feature set.  Since the introduction of C++11 support to
-the LiveCode build toolchain, some more advanced features of C++ are
-recommended to be used when developing LiveCode.
+the OXT-Beyond build toolchain, some more advanced features of C++ are
+recommended to be used when developing OXT-Beyond.
 
-See also [C++ Feature Usage Guidelines for LiveCode](C++-features.md).
+See also [C++ Feature Usage Guidelines for OXT-Beyond](C++-features.md).
 
 ## Naming things
 

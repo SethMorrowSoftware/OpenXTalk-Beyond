@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Widget Library
 New syntax has been added to obtain a reference to the widget, and to use that
 reference when notifying the engine of property changes via the `trigger all`

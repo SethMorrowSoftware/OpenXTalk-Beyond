@@ -1,4 +1,4 @@
-# Compiling LiveCode for Android
+# Compiling OXT-Beyond for Android
 
 > **Note:** This page comes from upstream LiveCode and is not maintained
 > for OXT-Beyond, which builds for Windows, macOS and Linux but not for
@@ -17,11 +17,11 @@ Copyright © 2015-2017 LiveCode Ltd., Edinburgh, UK
 
 We recommend performing Android builds on a Linux system.  It is also possible to build for Android on Mac OS X.
 
-The main non-standard dependency needed for building LiveCode is a Java Development Kit (JDK).  At least JDK 7 is required.
+The main non-standard dependency needed for building OXT-Beyond is a Java Development Kit (JDK).  At least JDK 7 is required.
 
 ### Installing the Android SDK and NDK
 
-LiveCode requires both the Android Software Development Kit (SDK) and Native Development Kit (NDK).  You can download both from the [Android Developers site](https://developer.android.com/sdk/index.html).
+OXT-Beyond requires both the Android Software Development Kit (SDK) and Native Development Kit (NDK).  You can download both from the [Android Developers site](https://developer.android.com/sdk/index.html).
 
 Extract both the NDK and SDK to a suitable directory, e.g. `~/android/toolchain`.  For example, for the following values of `<host>`
 

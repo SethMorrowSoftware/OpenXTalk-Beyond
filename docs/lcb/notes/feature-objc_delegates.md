@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Objective-C delegate support
 Handlers `CreateObjcDelegate` and `CreateObjcDelegateWithContext` have 
 been added to the objc module which allow the creation of custom 
