@@ -2,8 +2,8 @@
 -- Modified from LiveCode Community. This copy, OpenXTalk-Beyond's
 -- (https://github.com/SethMorrowSoftware/OpenXTalk-Beyond), has changes by
 -- Seth Morrow (2026), Terry Little (2023), Tom Perry (2023-2026),
--- docmeth02 (2026) and Emily-Elizabeth Howard (2026); its Git history and
--- CHANGELOG.md say what changed.
+-- docmeth02 (2026), Emily-Elizabeth Howard (2026) and Stam Kapetanakis
+-- (2026); its Git history and CHANGELOG.md say what changed.
 
 /**
 Main IDE library providing functionality for palettes and other IDE add-ons.
@@ -14465,13 +14465,21 @@ end revIDEGenerateDictionaryHTML
 local sNamesToColorsA, sColorsToNamesA
 
 private on __fetchNamesToColors
-   local tColorRGB
+   local tColorRGB, tSavedOverlay
    
+   -- OXT-Beyond: the engine turns colour names into RGB through the
+   -- templateGraphic's colorOverlay, which setting its color switches on.
+   -- It was left on, set to the last name in the list, so every graphic
+   -- made after the first call came out under a yellow-green overlay.
+   -- The template's own overlay (none, unless a script set one) is put
+   -- back. Found by Stam Kapetanakis (HyperXTalk pull request #620).
+   put the colorOverlay of the templateGraphic into tSavedOverlay
    repeat for each line tColorName in the colorNames
    	  set the colorOverlay["color"] of the templateGraphic to tColorName
    	  put the colorOverlay["color"] of the templateGraphic into tColorRGB
   		put tColorRGB into sNamesToColorsA[tColorName]
    end repeat
+   set the colorOverlay of the templateGraphic to tSavedOverlay
 end __fetchNamesToColors
 
 private on __fetchColorsToNames
