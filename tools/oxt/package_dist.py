@@ -44,7 +44,7 @@ Written to --out, where <root> is OXT-Beyond-<version>:
                                          (not the build tools')
   mac-<arch>
     <root>-mac-<arch>.dmg                with --dmg (macOS only): a disk
-                                         image (hdiutil, UDZO, HFS+, volume
+                                         image (hdiutil, ULMO, HFS+, volume
                                          "OXT-Beyond <version>") holding
                                          OXT-Beyond.app and a link to
                                          /Applications to drag it onto
@@ -100,10 +100,15 @@ package.unix_tree_problem, refuses one).
 
 --dmg (a macOS layout, on macOS) also writes the disk image: the app is
 copied with ditto into a temporary folder next to a symbolic link to
-/Applications, and "hdiutil create -format UDZO -fs HFS+" makes the
+/Applications, and "hdiutil create -format ULMO -fs HFS+" makes the
 image of that folder (HFS+ rather than APFS: every macOS the app runs on
 reads it, and it matches the case-insensitive names package.py checks
-for). hdiutil sometimes fails with "Resource busy" while something
+for). ULMO is LZMA: the same files as the zlib image (UDZO) that releases
+up to 0.2.8-dp.2.1 had, in about a fifth less (1,056 MB down to about
+850 MB for 0.2.8-dp.2.1's app). macOS reads ULMO since 10.15; the app
+needs 11.0 (LSMinimumSystemVersion), so no Mac the app runs on is left
+out. An app whose Info.plist names an earlier macOS, or none, gets the
+zlib image as before (dmg_format). hdiutil sometimes fails with "Resource busy" while something
 still scans the new files, so it is tried up to four times; then
 "hdiutil verify" checks the image's checksum. Sign the app before this
 step: the image and the zip hold it as it is.
@@ -145,6 +150,7 @@ import collections
 import hashlib
 import json
 import os
+import plistlib
 import re
 import shutil
 import stat
@@ -164,6 +170,20 @@ import xtalk_extensions  # noqa: E402
 
 HARDLINK_MIN_SIZE = 64 * 1024
 Levels = collections.namedtuple('Levels', 'zip xz')
+
+# The xz preset of the tarballs. 9 rather than xz's own 6: a 64 MiB
+# dictionary instead of 8 MiB, which makes 0.2.8-dp.2.1's Linux package
+# 638 MB instead of 707 MB with the same files in it. Extracting needs
+# about 65 MiB of memory instead of 9 MiB; any tar and xz extract it.
+XZ_PRESET = 9
+
+# The disk image's format (--dmg): ULMO, LZMA-compressed, which macOS
+# reads since 10.15 (see the module notes), DMG_MIN_MACOS. An app whose
+# LSMinimumSystemVersion is lower (or unreadable) gets the zlib image,
+# DMG_FALLBACK_FORMAT, that every macOS reads, as before.
+DMG_FORMAT = 'ULMO'
+DMG_MIN_MACOS = (10, 15)
+DMG_FALLBACK_FORMAT = 'UDZO'
 
 # Names that must never reach an archive, whatever the tables say: GENTLE
 # 97 (gentle-target, and its reflex-target) may not be redistributed
@@ -610,6 +630,37 @@ def use_ditto():
     return sys.platform == 'darwin' and shutil.which('ditto') is not None and os.environ.get('OXT_PYTHON_ZIP') != '1'
 
 
+def _version_tuple(text):
+    """(10, 15) for "10.15"; None for anything that is not a version."""
+    parts = str(text).strip().split('.')
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    return tuple(int(p) for p in parts)
+
+
+def dmg_format(app):
+    """The disk image format for the app bundle app: DMG_FORMAT when its
+    Info.plist's LSMinimumSystemVersion is DMG_MIN_MACOS or later, so that
+    every Mac the app runs on can open the image; DMG_FALLBACK_FORMAT
+    otherwise."""
+    try:
+        with open(os.path.join(app, 'Contents', 'Info.plist'), 'rb') as f:
+            minimum = _version_tuple(plistlib.load(f).get('LSMinimumSystemVersion', ''))
+    except (OSError, ValueError, plistlib.InvalidFileException, AttributeError):
+        minimum = None
+    if minimum is not None and minimum >= DMG_MIN_MACOS:
+        return DMG_FORMAT
+    return DMG_FALLBACK_FORMAT
+
+
+def dmg_create_command(volume, src, out, fmt=DMG_FORMAT):
+    """The hdiutil command that makes the disk image out of the folder src."""
+    cmd = ['hdiutil', 'create', '-volname', volume, '-srcfolder', src, '-fs', 'HFS+', '-format', fmt]
+    if fmt == 'UDZO':
+        cmd += ['-imagekey', 'zlib-level=9']
+    return cmd + ['-ov', out]
+
+
 def write_dmg(p, stage, out, version, log, attempts=4):
     """The disk image of the staged app (see the module notes). Returns the
     number of files and links it holds."""
@@ -628,8 +679,11 @@ def write_dmg(p, stage, out, version, log, attempts=4):
         if r.returncode:
             raise DistError('ditto %s failed: %s' % (app, r.stdout.decode('utf-8', 'replace').strip()))
         os.symlink('/Applications', os.path.join(src, 'Applications'))
-        cmd = ['hdiutil', 'create', '-volname', volume, '-srcfolder', src, '-fs', 'HFS+', '-format', 'UDZO',
-               '-imagekey', 'zlib-level=9', '-ov', tmp]
+        fmt = dmg_format(app)
+        if fmt != DMG_FORMAT:
+            log('%s needs a macOS before %s (or says none); the disk image is %s, not %s'
+                % (p.engine, '.'.join(map(str, DMG_MIN_MACOS)), fmt, DMG_FORMAT))
+        cmd = dmg_create_command(volume, src, tmp, fmt)
         for attempt in range(1, attempts + 1):
             _remove(tmp)
             r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -878,8 +932,8 @@ def main(argv=None):
     ap.add_argument('--assets-cache', metavar='DIR', help='asset cache (for the default xTalk cache)')
     ap.add_argument('--zip-level', type=int, choices=range(10), default=9,
                     help='zlib level of the zips (default: 9, the closest to .NET\'s Optimal)')
-    ap.add_argument('--xz-preset', type=int, choices=range(10), default=6,
-                    help='xz preset of the tarballs (default: 6, as xz and tar -J)')
+    ap.add_argument('--xz-preset', type=int, choices=range(10), default=XZ_PRESET,
+                    help='xz preset of the tarballs (default: %d; see XZ_PRESET)' % XZ_PRESET)
     ap.add_argument('--no-hardlinks', action='store_true',
                     help='Linux: store identical staged files separately')
     ap.add_argument('--dmg', action='store_true',
