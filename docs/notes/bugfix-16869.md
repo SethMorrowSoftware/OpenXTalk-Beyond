@@ -1,2 +1,2 @@
-# Update system icon cache after installing LiveCode on Linux
+# Update system icon cache after installing OXT-Beyond on Linux
 

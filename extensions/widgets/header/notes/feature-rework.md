@@ -1,11 +1,11 @@
 # Theming and appearance
 
-* The header bar colors are now controlled by the standard LiveCode
+* The header bar colors are now controlled by the standard OXT-Beyond
   **foregroundColor**, **backgroundColor**, **hiliteColor** and **borderColor**
   properties.  They can be edited in the property inspector.
 
 * The visibility of the border at the bottom edge of the header bar is now
-  controlled by the standard LiveCode **showBorder** property, which can be
+  controlled by the standard OXT-Beyond **showBorder** property, which can be
   edited in the property inspector.
 
 * The header bar now uses the **theme** property to control its appearance.

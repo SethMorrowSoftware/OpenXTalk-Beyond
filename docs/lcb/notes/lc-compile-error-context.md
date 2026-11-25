@@ -1,4 +1,4 @@
-# LiveCode Builder Tools
+# xTalk Builder Tools
 ## lc-compile
 ### Messages
 

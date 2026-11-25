@@ -140,11 +140,8 @@ turned on).
 
 The following versions of Mac OS X:
 
-- 10.9.x (Mavericks) through 11.x (Big Sur)
+- macOS 11 (Big Sur) or later, on Apple Silicon and Intel Macs
 
-- On Apple Silicon (M1, M2Pro, etc.) only Reossetta 2 Intel translation
-mode is currently supported. If you need native Apple Silcon support we recommend
-purchasing [LiveCode](livecode.com)
 ## Using the Documentation
 
 ### Documentation Conventions
@@ -217,105 +214,26 @@ features.
 
 ### Navigating the Documentation
 
-The documentation is spread across four areas; the Start
-Center, the Dictionary (API), the Guides and other resources.
+The documentation is spread across four areas: Home, the Dictionary
+(API), the Guides and other resources.
 
-The Start Center is aimed at introducing you to the environment, and should be
+Home is aimed at introducing you to the environment, and should be
 your first port of call if you are a new user. The dictionary, or API,
 is a reference resource which you can refer to while
 implementing your projects.
-Other resources include Sample Stacks, a free, online repository of
-user-contributed stacks, User forums, and the resources page at
-livecode.com/resources/.
+Other resources include the OXT Community Stacks, a gallery of
+user-contributed stacks, and the user forums at forums.openxtalk.org.
 
 You can access the documentation from within the IDE from the **Help**
 menu.
 
-### Start Center
+### Home
 
-The purpose of the Start Center is to introduce you to xTalk and
-provide you with enough knowledge to start implementing your own
-projects. It can be accessed by choosing **Help -\> Start Center**.
-
-The first time you open the Start Center you will see an invitation to
-take the Interactive Tour, a step-by-step tutorial that guides you
-through creation of a simple project. If you choose to
-skip the tour you may always enter it later by clicking the Interactive
-Welcome button in the Start Center.
-
-![](images/startCenter_firstrun.png)
-
-The Start Center itself is split across three sections&mdash;quick links
-to the pages on various social media sites; a collection
-of quick link buttons, which take you to various helps and guides; and
-a list of your most recently opened stacks.
-
-![](images/startCenter_labels.png)
-
-#### Social Media Links
-
-Mintains pages on popular social media sites, such as Facebook,
-YouTube, LinkedIn and Stack Overflow. These can help you keep up to date
-on product announcements, professional networking, and help and
-training resources.
-
-#### Recent Stacks
-
-This shows a list of your most recently opened stacks. Double click on a
-stack to open it and close the Start Center window.
-
-#### Quick Links
-
-The quick link buttons let you quickly access tutorials, sample projects,
-guides, blog posts, and online user forums. Here is an overview
-of these links:
-
-##### Interactive Welcome
-
-Enter the Interactive Tour, a step-by-step tutorial that guides you
-through creation of a simple project.
-
-##### New
-
-Click this button to create a new stack. You will see a menu of common
-stack types and sizes to choose from. Once you choose your stack size
-or type the new stack will be created and the Start Center menu will close.
-
-##### Sample Projects
-
-The Sample Projects button opens an online repository of sample stacks
-submitted by developers. The repository contains dozens of
-stacks that you can download for free and use as you wish.
-
-##### Tutorials
-
-Opens the online tutorial web page. From here you can choose
-one of dozens of lessons and how-to tutorials that give you step-by-step
-instructions on how to create things, from a simple "hello world"
-application to simple games to sophisticated graphical effects.
-
-##### In Depth Guides
-
-Opens the Dictionary. Here you can choose to enter the API
-documentation, the definitive reference of all of the terms in the
-xTalk scripting language. Or you can open one of several user
-guides, which describe in detail how to develop and deploy apps.
-
-##### Forums
-
-xTalk has always had a very active and friendly user community. We encourage all
-new users to sign up to our mailing list and user forums as they are a
-great way to get technical help, meet new people and keep up-to-date
-with what is going on in the world of xTalk. The “User Forums”
-section provides a link to our forum registration page as well as a list
-of links to the most recent posts which have been made.
-
-##### Blog
-
-This button takes you to LiveCode's online blog, where engineers
-and developers regularly post updates about what's new,
-how-to tutorials, and announcements of interest to the
-developer community.
+OXT-Beyond Home is the window that welcomes you when the IDE starts. It
+introduces xTalk and gives you enough knowledge to start your own
+projects. Its sidebar has five places: Home, Academy (step-by-step
+lessons with challenges), How-to, Guides and Examples. Home also lists
+the stacks you opened most recently.
 
 ### Dictionary
 
@@ -351,249 +269,19 @@ The User Guides are a complete reference. They detail what the dialogs and windo
 
 ![](images/guides.png)
 
-### RevOnline
+### Community Stacks
 
-RevOnline gives you the opportunity to upload and share your projects as
-well as download those created by other members of the online
-community. It can be accessed via the Sample Stacks button located in the
-menu bar. The main interface can be seen below:
+The OXT Community Stacks are a gallery of stacks that people share. To
+see them in the IDE, choose **File > Community Stacks**. For each stack
+the window gives its title, its author, its licence, what it does and
+what it reaches for (the internet, files, JavaScript). You can play a
+stack in your web browser, where it runs in a box that keeps it away
+from your computer, read its scripts, or get a copy of it. The same
+window has a Libraries side with script libraries you can install.
 
-![](images/revonline-main.png)
-
-The interface is designed to organise the online content into various
-categories to aid you in finding the kind of content you wish to
-download. You will find three main types of content in RevOnline, stacks
-(programs), externals and code snippets. Externals are
-libraries that can extend the functionality of the xTalk language
-using a lower level language. A code snippet is a portion of xTalk
-script that you can paste into and incorporate into your own projects.
-
-The results of searching or browsing through the RevOnline content are
-displayed in the *search list* area. This is an explanation of the
-controls you can use to adjust the parameters of your search:
-
-| &nbsp;| &nbsp;|
-|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Search field**    | Enter text and press return or click “Go” to search. Matches will be made against the titles of uploaded content, the author’s name and content descriptions.                                                                                                                                                                 |
-| **Type list**       | Highlight one of the items in this list filter search to only show results of that type. Selecting “All” will display content of all three types.                                                                                                                                                                             |
-| **Tag list**        | Tag your own and others people’s content with a word or phrase. All tags are listed here alphabetically. Selecting a tag will filter the search results for uploads that have been tagged accordingly. Selecting “All” will remove the filtering.                                                                             |
-| **Search order**    | Change the order in which the search results are displayed. There are four options. “A to Z” lists content alphabetically by title, “Popularity” by the number of times it has been downloaded, “Rating” by the average user rating (out of five stars) and “Date” by the date on which the content was uploaded to RevOnline |
-| **Order direction** | The direction (ascending/descending) of the search order can be changed by clicking on the arrow to the right of the sort control.                                                                                                                                                                                            |
-| **View mode**       | The search list area can be viewed in two modes, a vertical scrolling list or a grid. In “list” mode 10 results will be displayed per page, in “grid” mode the number of results displayed will be dependent upon the size of the RevOnline stack. Whilst in “grid” mode the *viewing pane* area will not be visible.         |
-| **User filter**     | If you apply user filter to a search, the user’s name will appear above the type and tag lists (see below), subsequently only content by that user will be returned in the search results. Clicking on the button or text of the user filter will remove it.                                                                  |
-
-![](images/revonline-user-filter.png)
-
-The *search list* area displays a preview of the results your search has
-returned. At the top of this list you will see the *page controls* which
-allow you to navigate forwards and backwards through the pages of your
-search should it return more results than can be displayed on one page.
-
-![](images/revonline-page-list.png)
-
-An example of the search list previews can be seen below:
-
-![](images/revonline-list-preview.png)
-
-At the top of the preview is the content’s name. You can also see its
-average user rating out of five stars, the total number of times it has
-been downloaded, the authors name and a list of tags applied to this
-upload. The “download” button at the bottom will download and launch
-this particular stack, it also tells you the size of the download. The
-*preview image* can either be a custom screenshot as above or one of
-three standard images. These are black for stacks, red for code snippets
-and green for externals. The *type icon* in the lower left corner of the
-preview image also indicates the type, these are shown below for a
-stack, code snippet and external respectively:
-
-![](images/image17.png) ![](images/image18.png) ![](images/image19.png)
-
-Clicking on the *preview image* or content title will update the right
-hand *viewing pane* with more detailed information about this upload.
-Clicking on the authors name will display the author’s user profile in
-the *viewing pane* and introduce a *user filter* to the search results.
-When the *search list* is in “grid” mode the *viewing pane* will be
-hidden, doing either of the above operations will cause the *search
-list* to switch back to “list” mode and display the associated content
-in the *viewing pane*.
-
-The *viewing pane* displays detailed information on users and uploads.
-
-![](images/revonline-view-pane.png)
-
-If you are a viewing stack details as shown above, in addition to the
-information provided by the preview you will also see a headline,
-description and a revision number which is incremented whenever the
-author uploads a new version of their stack, code snippet or external.
-Clicking on the author’s name or *user profile image* will display their
-profile view. Clicking on the *content type* or any of the tags in the
-*list of applied tags* will apply these filters to the search controls.
-When viewing an external your will see an additional “Platform:” field
-that indicates which platforms the external library is compatible with,
-make sure your operating system is supported before downloading and
-installing an external. If you are currently logged in to your Rev
-Online account you will be able to give the upload a rating by hovering
-over the *rating control* and clicking when the rating you wish to
-submit is displayed, this can only be done once per upload. You can also
-tag the upload by clicking on the *add tag control* which brings up
-following dialog:
-
-![](images/image21.png)
-
-As you type into the text entry field, tag suggestions will appear in a
-drop down menu that can be selected using the arrow keys. Once you have
-finished typing press the ok button to submit your tag, you must be
-logged in to complete this operation.
-
-The *status bar* at the bottom of the RevOnline interface displays the
-number of results your search has returned as well as a progress bar
-indicating the progression of searches and downloads. You will also see
-text feedback in response to the operations you perform such as
-“Retrieving stack details ...” and “Content tagged” etc.
-
-In the top right corner of RevOnline you will find the *login controls*
-which will display your current login status as shown below:
-
-![](images/revonline-login-status-not-logged-in.png)
-![](images/revonline-login-status-logged-in.png)
-
-In order to upload, rate and tag content in RevOnline you must have an
-account, this account is also required for making comments in the wiki
-docs detailed elsewhere. To register for an account just click on the
-“Sign Up” control and enter your email in the dialog that appears. Your
-email address will be used as your username for logging in, a password
-will be emailed to you upon signing up. After receiving this email you
-must hit the activation link in the email before your account can be
-accessed. Once activated, you can login to your account using the “Log
-In” control pictured above which will bring up the following dialog:
-
-![](images/revonline-login-dialog.png)
-
-The “Remember me” check box will cause RevOnline to maintain your
-username in the “Email :” field between login attempts. The “Sign in
-automatically” check box will mean that you are automatically signed in
-upon opening RevOnline, however if you explicitly sign out you will have
-to re-enter your password regardless of this preference. If you forget
-your password at any time you can use the “Forgot your password?” link
-in the login dialog to have a new one emailed to you.
-
-Upon logging in and viewing your profile for the first time you will be
-presented with your profile view in edit mode where you have the
-opportunity to enter information about into the highlighted fields and
-change your profile picture using the *change profile picture* control
-as shown below:
-
-![](images/revonline-account-details.png)
-
-Clicking on the *change profile picture* control will bring up the
-following dialog:
-
-![](images/image25.png)
-
-Use the *Position Controls* to move the centre of the image up, down,
-left or right. You can zoom in or out using the *Zoom controls*.
-Pressing the *Re-centre image* button will reset the image to its
-original position and zoom level. Once you are happy with orientation of
-your picture click ok, or cancel to discard your changes. This dialog is
-also used to change stack preview pictures.
-
-When you have finished editing your profile you can hit the “save
-changes” button to submit your information, a minimum of a first and
-last name must be entered before you can save. You can also choose to
-display your email or not and change your password to one of your
-choosing using the “Change password” control. You can reach this profile
-at any time by clicking on the “My Account” control in the *login
-controls* which will both display your profile and display all your
-uploads in the *search list*. To exit this view simply remove the user
-filter or hit the “My Account” control again.
-
-To upload content to RevOnline simply click on the “upload content” in
-the *login controls,* you will then be presented with the content
-browser view.
-
-![](images/revonline-content-browser-code.png)
-
-Clicking on the tabs at the top of this view will change the content
-type. Above you can see the code snippet view, it simply requires you to
-paste a section of code into the *code entry field* and press ok, if you
-have your code snippet stored in your clipboard you can simply press the
-“paste” button. For stacks you can either select a stack from the list
-of recently opened stacks or browse to the files location using the
-“browse” button. For externals you need to check which platforms your
-external will support and then browse to the appropriate file you wish
-to upload (shown below). The default file types for extensions on each
-platform are; “.dll” for Windows , “.bundle” for Mac OS X and “.so” for
-Linux.
-
-![](images/revonline-content-browser-external.png)
-
-When uploading a code snippet or external RevOnline will place the code
-or file into an installer stack. The installer stacks give you the
-option to “install” or “try” an external file or “copy to clipboard” a
-code snippet. When using the try option with an external the file will
-be removed from your installation when you next exit.
-
-Once you have pressed ok you will be presented with the edit mode view
-for the file you are uploading. Here you can enter a name description
-and change the preview picture for your upload (note – you cannot edit
-the title of an external upload it must be the name of one of the files
-you have included). If you attempt to upload a file that has already
-been uploaded to RevOnline, you will be taken to the existing version of
-that file to edit, this avoids duplicate uploads.
-
-Whenever you are viewing content that you have uploaded or your own
-profile whilst logged in the edit controls will appear above the
-*viewing pane*, shown below:
-
-![](images/revonline-edit-stack.png)
-
-By clicking on the “edit profile” or “edit stack” (for stacks etc.)
-button you are entering edit mode which allows you to make changes to
-the information shown. When editing your profile you can simply save or
-discard the changes you have made. When editing an upload you have the
-additional options of deleting and updating the uploaded file. The
-delete control will permanently remove your upload from RevOnline. The
-update control allows you to replace the stack file, code snippet or
-external library with a newer version. Clicking on this control will
-present you with the content browser view discussed earlier. After you
-have chosen a replacement file you need to save your changes in order
-for the new file to be submitted.
-
-![](images/revonline-edit-content-controls.png)
-
-The list of tags applied to your own uploads can be altered by using the
-“Add/Delete tags” control
-
-![](images/revonline-add-delete-tags.png)
-
-which will bring up the following dialog:
-
-![](images/image30.png)
-
-This works in a similar way to the previously explained tag dialog
-except that you can view the entire list of tags and edit which ones you
-wish to be displayed. When hitting return after entering the name for
-your tag a new *tag item* will appear in the list (also achieved by
-pressing the *add tag* button). Tags can be removed by clicking on the
-appropriate *remove tag button*. If your tag list is too large for one
-page you can browse through the pages of tags using the *page controls*
-at the bottom of the dialog. Once you have finished editing the list you
-can submit your changes by clicking the ok button.
-
-Additional options for the RevOnline interface can be set in the
-RevOnline tab of the preferences stack. As pictured below:
-
-![](images/revonline-preferences.png)
-
-Here you can set the remember password and user name preferences and
-change your password to one of your choosing. The search results in
-RevOnline are cached to speed up performance. You can tweak the size and
-time for which this cache remains valid using the two slider controls. A
-larger cache will give you faster performance but will take longer to
-pickup changes made to the online content made by other users. If the
-text only searches option is checked RevOnline will only retrieve the
-text data for the search list previews which can also improve
-performance.
+To share a stack of your own, choose **File > Share Stack**. It packs
+the stack into one `.zip` file, which you attach to a post on the
+OpenXTalk forum.
 
 ## Additional Resources
 

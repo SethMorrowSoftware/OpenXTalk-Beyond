@@ -1,4 +1,4 @@
-# Compiling LiveCode to JavaScript for HTML5
+# Compiling OXT-Beyond to JavaScript for HTML5
 
 > **Note:** This page comes from upstream LiveCode and is not maintained
 > for OXT-Beyond. Its instructions are for Emscripten 1.35, with which
@@ -9,7 +9,7 @@
 
 Copyright © 2015 LiveCode Ltd., Edinburgh, UK
 
-**Warning**: Emscripten (HTML5) platform support for LiveCode is experimental and not recommended for production use.
+**Warning**: Emscripten (HTML5) platform support for OXT-Beyond is experimental and not recommended for production use.
 
 ## Dependencies
 

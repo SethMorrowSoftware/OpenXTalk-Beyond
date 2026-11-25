@@ -6,7 +6,7 @@ version: 8.0.0-dp-10
 The array **union** and **intersect** commands and their recursive
 counterparts now follow a consistent recipe to produce their result.
 
-`union <left> with <right>` now has the semantics of the following LiveCode function:
+`union <left> with <right>` now has the semantics of the following xTalk function:
 
 ```
 function ArrayUnion(pLeft, pRight, pRecursive)

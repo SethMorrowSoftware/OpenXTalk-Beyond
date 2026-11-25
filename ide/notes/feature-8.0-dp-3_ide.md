@@ -61,6 +61,6 @@ A field has been added to the "Copy Files" tab of the standalone
 settings which is populated with the list of currently installed
 extensions. All selected extensions from this list are included in
 standalones and loaded when the standalone is launched. Dependencies
-between extensions declared in the LiveCode Builder source code using
+between extensions declared in the xTalk Builder source code using
 `use` are automatically calculated and included along with the
 top-level widget.

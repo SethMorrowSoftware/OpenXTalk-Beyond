@@ -1,2 +1,2 @@
-# Fix crash in LiveCode Server on Windows
+# Fix crash in OXT-Beyond Server on Windows
 

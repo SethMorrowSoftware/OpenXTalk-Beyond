@@ -1,8 +1,8 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Expressions
 
 * It is now possible to use array constants and array expressions in
-  LiveCode Builder programs.  For example:
+  xTalk Builder programs.  For example:
 
       variable tArray as Array
       put {"key": true} into tArray

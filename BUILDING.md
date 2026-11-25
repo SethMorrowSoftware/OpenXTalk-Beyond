@@ -221,7 +221,7 @@ The build calls `git` while configuring, so Git has to be on `PATH`.
 ### 2.5 Cygwin
 
 Several build steps (fetching the prebuilt libraries, flex and bison for
-the LiveCode Builder compiler, the time zone data) run as shell commands
+the xTalk Builder compiler, the time zone data) run as shell commands
 through `util\invoke-unix.bat`, which needs Cygwin. Install the 64-bit
 Cygwin into `C:\cygwin64` and do **not** add it to `PATH`.
 
@@ -670,7 +670,7 @@ LiveCode's Dictionary, the guides and Tom Perry's text dictionary
 (*Preferences > Dictionary*) are generated from their sources, the only
 copies Git keeps: the `.lcdoc` files of `docs/dictionary` and
 `docs/glossary` and mergJSON's (`mergjson/mergJSON.lcdoc`), the
-documentation comments of the LiveCode Builder modules in
+documentation comments of the xTalk Builder modules in
 `libscript/src` and `engine/src`, the guides in `docs/guides`
 and `ide/Documentation/guides`, and the documentation of the extensions
 that OXT-Beyond installs and of the IDE library. For the
@@ -706,7 +706,7 @@ keeps it in the work folder for the next run, and writes the
 documentation in a minute or so. On Linux or macOS it can use
 your own build instead, named as a second argument: a Linux build's
 `linux-<arch>-bin`, or a macOS build's `_build/mac/Release` (not tried
-yet). The engine's `modules/lci` decides which LiveCode Builder modules
+yet). The engine's `modules/lci` decides which xTalk Builder modules
 are documented, so the docs of a new module of `libscript/src` or
 `engine/src` need a newer pinned engine.
 
@@ -1109,8 +1109,8 @@ own manifest, described next.
 
 OXT-Beyond ships the extensions of the
 [xTalk Suite](https://github.com/SethMorrowSoftware/xtalk-suite) built
-in (the [README](README.md#xtalk-suite-extensions) lists them): six LiveCode
-Builder libraries with native code and nine LiveCode Script libraries.
+in (the [README](README.md#xtalk-suite-extensions) lists them): six xTalk
+Builder libraries with native code and nine xTalk Script libraries.
 They are neither kept in this repository nor copied into it.
 [`tools/oxt/xtalk-extensions.json`](tools/oxt/xtalk-extensions.json)
 pins each member repository (`SethMorrowSoftware/<repository>`) at a
@@ -1441,27 +1441,27 @@ python tools\ci\run_engine_tests.py --bin win-x86_64-bin
 `linux-<arch>-bin`, or on macOS `_build/mac/Release`), without a user
 interface:
 
-- `lcs`: each `on Test...` handler of the LiveCode Script tests in
+- `lcs`: each `on Test...` handler of the xTalk Script tests in
   `tests/lcs` (about 850), in its own run of the build's standalone
   engine with `-ui` (`tests/_testrunner.livecodescript invoke`) and a
-  time limit (`--timeout`, 300 seconds). The LiveCode Builder modules of
+  time limit (`--timeout`, 300 seconds). The xTalk Builder modules of
   `tests/` are compiled into `_tests/_build` first.
-- `ext`: the extensions' own LiveCode Script tests, those of a folder
+- `ext`: the extensions' own xTalk Script tests, those of a folder
   named `tests` or `test` of an extension in `extensions/` (the JSON
   library's, the widgets'...: about 80), run as those of `lcs` are and
   named by their path in `extensions/`. They load the extensions they
   test from the build's `packaged_extensions`. (LiveCode ran them with
   `extensions/Makefile`'s `extensions-check`, which no build here calls.)
-- `lcb`: the LiveCode Builder tests of `tests/lcb` (the virtual machine,
+- `lcb`: the xTalk Builder tests of `tests/lcb` (the virtual machine,
   the standard library and compiled code): each `Test...` handler of each
   module, in its own run of `lc-run` with the test library. (LiveCode's
   `tests/_testrunner.lcb` does the same, but not on Windows.)
-- `compiler`: the LiveCode Builder compiler tests of `tests/lcb/compiler`.
-- `parser`: the LiveCode Script parser tests.
+- `compiler`: the xTalk Builder compiler tests of `tests/lcb/compiler`.
+- `parser`: the xTalk Script parser tests.
 
 `--suite` runs some of them; `--filter` takes a regular expression that
 the name `<suite>: <test>` must match, for example
-`--filter "core/strings/sort"`. `--jobs N` runs the LiveCode Script tests
+`--filter "core/strings/sort"`. `--jobs N` runs the xTalk Script tests
 of N files at a time (the tests of one file one after the other); the
 files that use fixed ports, the clipboard or programs they start
 (`SERIAL_FILES` in the script) run one after the other. CI uses
@@ -2267,10 +2267,10 @@ Linux build's job "Web runtime check" on the web runtime alone
 
 ### Web engine tests
 
-[`tools/ci/web_tests.py`](tools/ci/web_tests.py) runs the LiveCode
+[`tools/ci/web_tests.py`](tools/ci/web_tests.py) runs the xTalk
 Script tests of `tests/lcs` in the web engine, as the
 [engine tests](#engine-tests) run them in the desktop's. It compiles
-the LiveCode Builder modules of `tests/` with the build's `lc-compile`,
+the xTalk Builder modules of `tests/` with the build's `lc-compile`,
 makes a web standalone of the tests with the build's development engine
 (as the [web standalone check](#web-standalone-check) does with
 `--runtime`), serves it on 127.0.0.1 and opens it in headless Chromium.
@@ -2284,7 +2284,7 @@ again at the next test. Tests that need what a page cannot have skip
 there through the test library's requirements: sockets and other
 programs (`sockets` and `shell` in
 [`tests/_testlib.livecodescript`](tests/_testlib.livecodescript)), and
-the IDE and the LiveCode Builder compiler (the tests run in a
+the IDE and the xTalk Builder compiler (the tests run in a
 standalone).
 
 ```sh
@@ -2311,20 +2311,20 @@ it packages.
 ### Android script tests
 
 [`tools/ci/android_tests.py`](tools/ci/android_tests.py) runs the
-LiveCode Script tests of `tests/lcs` on an Android emulator, as the
+xTalk Script tests of `tests/lcs` on an Android emulator, as the
 [web engine tests](#web-engine-tests) run them in the web engine, once
 with LiveCode 9.6.3's Android engine and once with OXT-Beyond's own, so
 that what a stack would see differently with the other engine is known
 before either is the default. `prepare` puts the tests beside the stack
 that the [Android standalone check](#android-standalone-check) makes as
-its "tests" probe: the checkout's `tests/` folder, with the LiveCode
+its "tests" probe: the checkout's `tests/` folder, with the xTalk
 Builder modules compiled by the IDE's own `lc-compile` and the files of
 the checkout that the tests read, and the extensions the tests load,
 from the IDE's `Extensions` folder (one the IDE does not have is noted,
 and the tests that load it fail). The IDE's builder builds the
 standalone, whose main stack is named `StandaloneTestRunnerMainstack`,
 as LiveCode's standalone test runner's is, so that tests needing the
-IDE or the LiveCode Builder compiler skip; its script,
+IDE or the xTalk Builder compiler skip; its script,
 [`tools/ci/android-tests.livecodescript`](tools/ci/android-tests.livecodescript),
 copies the tests into the app's documents folder (so that a test can
 write beside itself), runs the test commands one after the other, each

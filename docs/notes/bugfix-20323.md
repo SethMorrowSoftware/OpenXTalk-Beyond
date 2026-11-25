@@ -1,7 +1,7 @@
 # Remove legacy mergExt externals
 
 The following mergExt deprecated externals are no longer included in
-LiveCode.
+OXT-Beyond.
 
 - mergAES - we have revsecurity based encryption for mobile
 - mergDropbox & mergDropboxSync - these use the now abandoned by Dropbox

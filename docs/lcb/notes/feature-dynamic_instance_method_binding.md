@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Objective-C dynamic instance method binding
 It is now possible to bind to instance methods dynamically, by leaving
 empty the name of the class in the binding string. In particular this 

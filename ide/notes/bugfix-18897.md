@@ -1,1 +1,1 @@
-# "Show Sections" for Project Browser can now be set from LiveCode Preferences -> Project Browser
+# "Show Sections" for Project Browser can now be set from Preferences -> Project Browser

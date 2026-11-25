@@ -1,4 +1,4 @@
-# Compiling LiveCode for Linux
+# Compiling OXT-Beyond for Linux
 
 > **Note:** This page comes from upstream LiveCode and is not maintained
 > for OXT-Beyond. The instructions below have not been checked against
@@ -11,13 +11,13 @@ Copyright © 2015 LiveCode Ltd., Edinburgh, UK
 
 ## Dependencies
 
-LiveCode has several dependencies that are needed in order to build it on Linux.  In general, it is enough to install the tools and libraries that would be typically used to compile a GNOME application written in C++.
+OXT-Beyond has several dependencies that are needed in order to build it on Linux.  In general, it is enough to install the tools and libraries that would be typically used to compile a GNOME application written in C++.
 
 Obviously, the exact packages required vary depending on which Linux distribution you use, and how recent it is.  For examples of the packages you may need, please see the "Standard build environments" section later in this document.
 
 ## Build environment
 
-The LiveCode build obeys all of the standard make environment variables, including:
+The OXT-Beyond build obeys all of the standard make environment variables, including:
 
 * `CC`: C compiler command
 * `CXX`: C++ compiler command
@@ -26,9 +26,9 @@ There are some additional environment variables that it understands:
 
 * `CXX_STD`: which version of the C++ standard to use (`c++11` is recommended)
 
-## Configuring LiveCode
+## Configuring OXT-Beyond
 
-To configure LiveCode, simply run:
+To configure OXT-Beyond, simply run:
 
     make config-linux
 

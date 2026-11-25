@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Canvas library
 
 A new statement `begin effect only layer with <effect>` has been implemented to

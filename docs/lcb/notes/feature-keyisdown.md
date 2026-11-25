@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Engine library
 
 * You can now use `the <modifierkey> is [currently] down` expression to

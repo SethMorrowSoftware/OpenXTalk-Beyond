@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Android Listener support
 An binding string variant has been added which allows the user to 
 create an interface proxy - that is an instance of a generic 

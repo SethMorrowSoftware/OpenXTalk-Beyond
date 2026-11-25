@@ -1,11 +1,11 @@
 # Theming and appearance
 
-* The navbar colors are now controlled by the standard LiveCode
+* The navbar colors are now controlled by the standard OXT-Beyond
   **foregroundColor**, **backgroundColor**, **hiliteColor** and **borderColor**
   properties.  They can be edited in the property inspector.
 
 * The visibility of the border at the top edge of the navbar is now
-  controlled by the standard LiveCode **showBorder** property, which can be
+  controlled by the standard OXT-Beyond **showBorder** property, which can be
   edited in the property inspector.
 
 * There are no longer separate Android and iOS themes for the navbar.

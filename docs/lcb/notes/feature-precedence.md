@@ -1,7 +1,7 @@
 ---
 version: 8.0.0-dp-9
 ---
-# LiveCode Builder Language
+# xTalk Builder Language
 
 ## Syntax
 

@@ -1,4 +1,4 @@
-# LiveCode Builder Standard Library
+# xTalk Builder Standard Library
 
 ## Java utilities
 

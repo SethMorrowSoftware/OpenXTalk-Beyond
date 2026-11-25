@@ -1,4 +1,4 @@
-# Type Naming in LiveCode Builder
+# Type Naming in xTalk Builder
 Copyright 2015 LiveCode Ltd.
 
 ## Introduction

@@ -3,18 +3,18 @@ The engine supports a variety of operating systems and versions. This section de
 
 ## Windows
 
-LiveCode supports the following versions of Windows:
+OXT-Beyond supports the following versions of Windows:
 
 * Windows 7 (both 32-bit and 64-bit)
 * Windows Server 2008
 * Windows 8.x (Desktop)
 * Windows 10
 
-**Note:** On 64-bit Windows installations, LiveCode can run either as a 32-bit application through the WoW layer or as a native 64-bit Windows application, depending on the installer that is chosen.
+**Note:** On 64-bit Windows installations, OXT-Beyond can run either as a 32-bit application through the WoW layer or as a native 64-bit Windows application, depending on the installer that is chosen.
 
 ## Linux
 
-LiveCode supports the following Linux distributions, on 32-bit or
+OXT-Beyond supports the following Linux distributions, on 32-bit or
 64-bit Intel/AMD or compatible processors:
 
 * Ubuntu 14.04 and 16.04
@@ -22,7 +22,7 @@ LiveCode supports the following Linux distributions, on 32-bit or
 * Debian 7 (Wheezy) and 8 (Jessie) [server]
 * CentOS 7 [server]
 
-LiveCode may also run on Linux installations which meet the following
+OXT-Beyond may also run on Linux installations which meet the following
 requirements:
 
 * Required dependencies for core functionality:
@@ -37,9 +37,9 @@ requirements:
   * lcms (optional, required for color profile support in images)
   * gksu (optional, required for privilege elevation support)
 
-**Note:** If the optional requirements are not present then LiveCode will still run but the specified features will be disabled.
+**Note:** If the optional requirements are not present then OXT-Beyond will still run but the specified features will be disabled.
 
-**Note:** The requirements for GUI functionality are also required by Firefox and Chrome, so if your Linux distribution runs one of those, it will run LiveCode.
+**Note:** The requirements for GUI functionality are also required by Firefox and Chrome, so if your Linux distribution runs one of those, it will run OXT-Beyond.
 
 **Note:** It may be possible to compile and run LiveCode Community for Linux on other architectures but this is not officially supported.
 
@@ -56,7 +56,7 @@ The Mac engine supports:
 * 11.x (Big Sur)
 
 ## iOS
-iOS deployment is possible when running LiveCode IDE on a Mac, and provided Xcode is installed and has been set in LiveCode *Preferences* (in the *Mobile Support* pane).
+iOS deployment is possible when running OXT-Beyond IDE on a Mac, and provided Xcode is installed and has been set in OXT-Beyond *Preferences* (in the *Mobile Support* pane).
 
 Currently, the supported versions of Xcode are:
 * Xcode 9.2 on MacOS 10.12 (Note: You need to upgrade to 10.12.6)
@@ -82,7 +82,7 @@ We currently support building against the following versions of the iOS SDK:
 ## Android
 
 
-LiveCode allows you to save your stack as an Android application, and
+OXT-Beyond allows you to save your stack as an Android application, and
 also to deploy it on an Android device or simulator from the IDE.
 
 Android deployment is possible from Windows, Linux and Mac OSX.
@@ -106,11 +106,11 @@ then use the 'Android SDK Manager' to install:
 * the latest "Android SDK Platform Tools"
 
 You also need to install the Java Development Kit (JDK).  On Linux,
-this usually packaged as "openjdk".  LiveCode requires JDK version 1.6
+this usually packaged as "openjdk".  OXT-Beyond requires JDK version 1.6
 or later.
 
 Once you have set the path of your Android SDK in the "Mobile Support"
-section of the LiveCode IDE's preferences, you can deploy your stack
+section of the OXT-Beyond IDE's preferences, you can deploy your stack
 to Android devices.
 
 Some users have reported successful Android Watch deployment, but it
@@ -118,8 +118,8 @@ is not officially supported.
 
 ## HTML5
 
-LiveCode applications can be deployed to run in a web browser, by running the LiveCode engine in JavaScript and using modern HTML5 JavaScript APIs.
+xTalk applications can be deployed to run in a web browser, by running the OXT-Beyond engine in JavaScript and using modern HTML5 JavaScript APIs.
 
 HTML5 deployment does not require any additional development tools to be installed.
 
-LiveCode HTML5 standalone applications are currently supported for running in recent versions of [Mozilla Firefox](https://www.mozilla.org/firefox/new/), [Google Chrome](https://www.google.com/chrome/) or [Safari](https://support.apple.com/HT204416).  For more information, please see the "HTML5 Deployment" guide in the LiveCode IDE.
+OXT-Beyond HTML5 standalone applications are currently supported for running in recent versions of [Mozilla Firefox](https://www.mozilla.org/firefox/new/), [Google Chrome](https://www.google.com/chrome/) or [Safari](https://support.apple.com/HT204416).  For more information, please see the "HTML5 Deployment" guide in the OXT-Beyond IDE.

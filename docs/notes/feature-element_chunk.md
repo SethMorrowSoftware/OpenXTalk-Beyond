@@ -1,6 +1,6 @@
 # Widget element chunk
 
-In order to facilitate more efficient manipulation of a widget's underlying data, the following LiveCode Script syntax has been added:
+In order to facilitate more efficient manipulation of a widget's underlying data, the following xTalk Script syntax has been added:
 
     the <property> of { element <index> , of } <widget>
 

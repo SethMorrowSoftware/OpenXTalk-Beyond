@@ -1,2 +1,2 @@
-# Make sure LiveCode doesn't keep open handles to images.
+# Make sure OXT-Beyond doesn't keep open handles to images.
 

@@ -5,17 +5,17 @@ and parsing JavaScript Object Notation (JSON) data.  See also <http://json.org>.
 
 ## Functions
 The library has two public handlers, `JsonImport` and `JsonExport`. `JsonImport` takes a string 
-containing JSON-formatted text and parses it into a LiveCode value. `JsonExport` takes a LiveCode 
+containing JSON-formatted text and parses it into an xTalk value. `JsonExport` takes an xTalk 
 value and returns the equivalent value as a string in JSON format.
 
 ## Using the library
 The library is automatically loaded into the IDE, and the `JsonImport` and `JsonExport` handlers 
 placed in the message path where they are available to call from any object.
 
-In LiveCode Script, `JsonExport` takes any value and converts it to a string representing a JSON 
+In xTalk Script, `JsonExport` takes any value and converts it to a string representing a JSON 
 encoded value.
 
-To use the library from a LiveCode Builder widget or library, simply add it to the list of use 
+To use the library from an xTalk Builder widget or library, simply add it to the list of use 
 clauses:
 
     use com.livecode.library.json

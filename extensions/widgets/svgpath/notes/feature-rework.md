@@ -1,6 +1,6 @@
 # Theming and appearance
 
-* The SVG path widget's paints are now controlled by the standard LiveCode
+* The SVG path widget's paints are now controlled by the standard OXT-Beyond
   **foregroundColor** and **hiliteColor** properties, and can use patterns.
   They can be edited in the Property Inspector.
 
@@ -9,10 +9,10 @@
 * All properties are now fully integrated into the IDE Property Inspector.
 
 * The **iconColor** and **iconHiliteColor** properties have been removed.  Set
-  the standard LiveCode **foregroundColor** and **hiliteColor** properties
+  the standard OXT-Beyond **foregroundColor** and **hiliteColor** properties
   instead.
 
-* The **isHilited** property has been removed.  Use the standard LiveCode
+* The **isHilited** property has been removed.  Use the standard OXT-Beyond
   **hilited** property instead.
 
 * The **iconPathPreset** property has been renamed to **iconPresetName** to

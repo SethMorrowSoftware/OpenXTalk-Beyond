@@ -1,1 +1,1 @@
-# Allow accessing Image Library and Object Library from LiveCode menubar
+# Allow accessing Image Library and Object Library from the IDE menubar

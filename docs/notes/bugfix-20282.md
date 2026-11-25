@@ -1,1 +1,1 @@
-# Ensure 'the engine folder' returns a LiveCode path on Windows
+# Ensure 'the engine folder' returns an OXT-Beyond path on Windows

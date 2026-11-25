@@ -1,6 +1,6 @@
 # Platform Identification Triples
 
-LiveCode is built for and supports multiple different platforms with a variety of
+OXT-Beyond is built for and supports multiple different platforms with a variety of
 architecture and toolchain/sdk versions. In order to identify specific builds
 uniquely a standard triple format is used:
 ```

@@ -53,7 +53,7 @@ The following property attributes are supported:
   details on enabled/disabled editors.
 
 The `default` and `options` attributes can have
-their values generated dynamically at runtime using LiveCode Script,
+their values generated dynamically at runtime using xTalk Script,
 by using the `execute` keyword in the attribute value.  Whatever
 remains in the **it** variable after executing the specified script is
 used as the list of options.

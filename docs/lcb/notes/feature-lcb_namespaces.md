@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Identifiers
 
 * Unqualified identifiers are now expected to match `[A-Z0-9_]`. The `.`
@@ -8,7 +8,7 @@
 * Identifiers in LCB can now be qualified, to disambiguate between 
   symbols defined in different namespaces.
 
-# LiveCode Builder Tools
+# xTalk Builder Tools
 ## lc-compile
 ### Errors
 

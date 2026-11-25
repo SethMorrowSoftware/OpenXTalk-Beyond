@@ -1,7 +1,7 @@
 ---
 version: 8.0.0-dp-9
 ---
-# LiveCode Builder Tools
+# xTalk Builder Tools
 ## lc-compile
 ### Command-line interface
 

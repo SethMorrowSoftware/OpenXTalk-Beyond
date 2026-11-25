@@ -42,7 +42,7 @@ What works in it:
   the stack's file, and File > Open Stack opens one from their computer.
   The IDE's preferences (Open Recent, where the palettes are, ...) are kept
   there too;
-- the extensions that are scripts or LiveCode Builder modules (widgets and
+- the extensions that are scripts or xTalk Builder modules (widgets and
   libraries);
 - revXML, revZip, revDB with SQLite, and revSpeech, which the web engine
   has built in;

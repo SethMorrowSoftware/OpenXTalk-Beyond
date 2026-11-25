@@ -1,1 +1,1 @@
-# Updated release notes for how LiveCode runs on Windows
+# Updated release notes for how OXT-Beyond runs on Windows

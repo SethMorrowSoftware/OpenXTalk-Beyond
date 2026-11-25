@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Unsafe Attributes
 
 * The compiler now understands the idea of 'safety' of handlers and blocks of

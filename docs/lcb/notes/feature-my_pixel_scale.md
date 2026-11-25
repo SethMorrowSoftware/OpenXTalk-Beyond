@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Widget library
 
 A new expression `my pixel scale` has been implemented. Use the widget's

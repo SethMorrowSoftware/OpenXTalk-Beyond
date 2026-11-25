@@ -1,1 +1,1 @@
-# Typo in LiveCode Builder doc
+# Typo in xTalk Builder doc

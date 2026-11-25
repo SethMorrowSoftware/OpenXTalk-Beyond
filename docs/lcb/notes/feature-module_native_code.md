@@ -1,10 +1,10 @@
 ---
 version: 8.0.0-dp-3
 ---
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Native code in extensions
 
-LiveCode Builder extensions can now contain native code libraries
+xTalk Builder extensions can now contain native code libraries
 which LCB will use to resolve foreign handler references.
 
 The foreign handler binding string should be of the form

@@ -5,9 +5,9 @@ type: library
 Description:
 mergJSON is an external for encoding and decoding [JSON](http://json.org).
 
-This external has been implemented to encode/decode UTF8 JSON to a LiveCode 
+This external has been implemented to encode/decode UTF8 JSON to an xTalk 
 array as quickly as possible. Currently externals can not work with 
-multi-dimensional LiveCode arrays so the intention is it is used with two 
+multi-dimensional xTalk arrays so the intention is it is used with two 
 functions like this:
 
     function ArrayToJSON pArray,pForceRootType,pPretty

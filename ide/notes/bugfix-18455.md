@@ -1,1 +1,1 @@
-# Show the correct version of LiveCode in Start Center title
+# Show the correct version of OXT-Beyond in Start Center title

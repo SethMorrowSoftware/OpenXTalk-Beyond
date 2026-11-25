@@ -1,4 +1,4 @@
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Canvas library
 
 New syntax has been added to enable getting image metadata and density

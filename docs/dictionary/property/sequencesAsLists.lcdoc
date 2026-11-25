@@ -5,7 +5,7 @@ Type: property
 Syntax: set the sequencesAsLists to {true | false}
 
 Summary:
-Specifies whether arrays marked as sequences go into LiveCode Builder
+Specifies whether arrays marked as sequences go into xTalk Builder
 as Lists.
 
 Introduced: 9.7.1
@@ -30,15 +30,15 @@ The <sequencesAsLists> is true or false. It is false when a <handler>
 starts.
 
 Description:
-A LiveCode Builder List comes into script as an array keyed 1 to N,
-marked as a sequence (see <is strictly>). Going back into LiveCode
+An xTalk Builder List comes into script as an array keyed 1 to N,
+marked as a sequence (see <is strictly>). Going back into xTalk
 Builder, an array is an Array, whatever is in it, except where a
 handler's parameter or a property is itself a List, so a List inside an
 Array arrives as an Array.
 
 Set the <sequencesAsLists> to true to have every array marked as a
-sequence go into LiveCode Builder as a List, however deep it is: to a
-LiveCode Builder handler's parameters, to a widget's properties, and to
+sequence go into xTalk Builder as a List, however deep it is: to a
+xTalk Builder handler's parameters, to a widget's properties, and to
 the state that <import> `widget from array` gives to the widget's
 `OnLoad` handler. That last is what lets a widget whose saved state
 holds Lists be copied with <export> and <import>, as it is when its

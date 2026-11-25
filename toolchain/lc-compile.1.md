@@ -1,4 +1,4 @@
-lc-compile(1) -- compile LiveCode Builder source code
+lc-compile(1) -- compile xTalk Builder source code
 =====================================================
 
 ## SYNOPSIS
@@ -27,16 +27,16 @@ is not specified, then **lc-compile** may additionally generate an interface
   created for _LCBFILE_.
 
 * --output _OUTFILE_:
-  Generate LiveCode bytecode in _OUTFILE_, which should be the path to a `.lcm`
+  Generate OXT-Beyond bytecode in _OUTFILE_, which should be the path to a `.lcm`
   file.  If _OUTFILE_ already exists, it will be overwritten.
 
 * --outputc _OUTFILE_:
-  Generate LiveCode bytecode as a static array(s) embedded in C source code in
+  Generate OXT-Beyond bytecode as a static array(s) embedded in C source code in
   _OUTFILE_, which should be the path to a `.c` file.  If _OUTFILE_ already
   exists, it will be overwritten.
 
 * --outputauxc _OUTFILE_:
-  Generate LiveCode bytecode as a static array(s) embedded in C source code in
+  Generate OXT-Beyond bytecode as a static array(s) embedded in C source code in
   _OUTFILE_, which should be the path to a `.c` file.  If _OUTFILE_ already
   exists, it will be overwritten.
   This is the same as --outputc mode, except that it does not emit the 'builtin'
@@ -49,7 +49,7 @@ is not specified, then **lc-compile** may additionally generate an interface
   below.
 
 * --manifest _MANIFEST_:
-  Generate a module manifest in _MANIFEST_.  This is used by the LiveCode IDE.
+  Generate a module manifest in _MANIFEST_.  This is used by the OXT-Beyond IDE.
 
 * --interface _INTERFACE_:
   Generate the module interface file in _INTERFACE_.

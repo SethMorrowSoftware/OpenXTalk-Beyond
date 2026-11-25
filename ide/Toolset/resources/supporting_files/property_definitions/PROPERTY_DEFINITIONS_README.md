@@ -37,7 +37,7 @@ tabs in the property inspector.
 
 ## Editor
 
-This is the editor to be used to edit the property. See the [Extending LiveCode](../../../../Documentation/guides/Extending Livecode.md) guide for more information
+This is the editor to be used to edit the property. See the [Extending OXT](../../../../Documentation/guides/Extending%20OXT.md) guide for more information
 on property editors.
 
 ## User Visible

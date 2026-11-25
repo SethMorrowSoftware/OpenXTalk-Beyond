@@ -36,7 +36,7 @@ Any value.
 Description:
 Use the <as> <operator> to give a value the kind a later step needs:
 an array marked as a sequence or a dictionary for <is strictly> and for
-LiveCode Builder (see <sequencesAsLists>), or a number, an integer, a
+xTalk Builder (see <sequencesAsLists>), or a number, an integer, a
 boolean, a string or a binary string for <is strictly> and for code that
 needs one.
 

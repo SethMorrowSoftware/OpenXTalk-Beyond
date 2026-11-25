@@ -1,4 +1,4 @@
-# LiveCode Builder Language
+# xTalk Builder Language
 ## Core types
 
 * The use of the keyword `undefined`, which was deprecated in LiveCode

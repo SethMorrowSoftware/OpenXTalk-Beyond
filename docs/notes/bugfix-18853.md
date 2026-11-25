@@ -1,6 +1,6 @@
 # Support for loading multi-module bytecode files (experimental)
 
-The **load extension** command is now able to load LiveCode Builder
+The **load extension** command is now able to load xTalk Builder
 bytecode files (`.lcm` files) that contain multiple modules' bytecode.
 
 The first module in each `.lcm` file is treated as the "main module"

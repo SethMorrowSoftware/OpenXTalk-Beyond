@@ -1,7 +1,7 @@
-# LiveCode Builder Tools
+# xTalk Builder Tools
 ## lc-compile-ffi-java
 
-* **lc-compile-ffi-java** is a tool to create LiveCode Builder code which 
+* **lc-compile-ffi-java** is a tool to create xTalk Builder code which 
   provides an interface between LCB modules and the Java Native 
   Interface (JNI). It does this by taking a specification of a java
   package written in a domain-specific language and creating an LCB 

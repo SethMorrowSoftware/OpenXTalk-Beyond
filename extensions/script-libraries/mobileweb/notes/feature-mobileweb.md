@@ -22,7 +22,7 @@ end openStack
   messages do, and pass on to its group, card and stack: `swipe
   pDirection`, `pinchStart`, `pinch pScale`, `pinchEnd`, `longPress`.
 - The current card gets `orientationChanged`, `keyboardActivated` and
-  `keyboardDeactivated`, the names LiveCode's iOS and Android engines
+  `keyboardDeactivated`, the names OXT-Beyond's iOS and Android engines
   use.
 - `mwViewport()` gives the part of the page that can be seen, the
   keyboard's height, the notch's insets and the orientation.
@@ -36,7 +36,7 @@ end openStack
   finger on its own, for drawing and games with more than one finger,
   to the control the finger touched first, as on iOS and Android.
 - `mwStartSensor` and `mwStopSensor` read the phone's sensors, with the
-  messages LiveCode's iOS and Android engines send: `locationChanged`,
+  messages OXT-Beyond's iOS and Android engines send: `locationChanged`,
   `headingChanged`, `accelerationChanged`, `rotationRateChanged`, and
   `trackingError` when the user says no. `mwSensorReading()` gives the
   last reading and `mwSensorAvailable()` says whether there is one.

@@ -1,6 +1,6 @@
 # Add functions for getting synchronous modifier key state
 
-LiveCode currently provides functions for checking the state of so-called
+OXT-Beyond currently provides functions for checking the state of so-called
 "modifier" keys: Caps Lock, Control, Command, Shift, Alt/Option. These
 functions return either "up" or "down", reflecting the state of the key at the
 time the function was called. However, it is often desireable to check the

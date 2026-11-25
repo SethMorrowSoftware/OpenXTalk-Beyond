@@ -1,0 +1,42 @@
+# Mentions of LiveCode that each doc may keep (tools/ci/doc_branding.py).
+# Written by: python3 tools/ci/doc_branding.py baseline
+# Each is history, compatibility or what upstream did; the count may
+# only go down.
+17	BUILDING.md
+1	CODE_OF_CONDUCT.md
+8	CONTRIBUTING.md
+3	LEGACY-TODO.md
+61	README.md
+1	SECURITY.md
+1	SUPPORT.md
+2	docs/contributing_to_docs.md
+1	docs/development/C++-features.md
+1	docs/development/build-android.md
+1	docs/development/build-emscripten.md
+1	docs/development/build-linux.md
+1	docs/development/build-mac.md
+1	docs/development/build-win.md
+1	docs/development/docs_style_guide.md
+1	docs/development/release_branching_policy.md
+1	docs/development/testing.md
+1	docs/dictionary/command/export-audioclip.lcdoc
+1	docs/glossary/d/Database-library.lcdoc
+2	docs/glossary/e/Evaluation-Edition.lcdoc
+2	docs/glossary/s/stack-version.lcdoc
+1	docs/notes-base/overview.md
+3	docs/notes-base/setup.md
+1	docs/notes/bugfix-15231.md
+1	docs/notes/bugfix-17466.md
+1	docs/notes/bugfix-21161.md
+1	docs/notes/feature-messagedigest.md
+1	docs/notes/feature-platforms-9.md
+1	extensions/script-libraries/dropbox/notes/feature-dropbox.md
+1	extensions/script-libraries/mobileweb/notes/feature-mobileweb.md
+1	ide/notes/bugfix-13947.md
+1	ide/notes/bugfix-17189.md
+10	mergjson/README.md
+2	tools/examples/README.md
+15	tools/oxt/README.md
+2	tools/pages/README.md
+11	tools/pages/welcome/README.md
+2	tools/plugins/README.md

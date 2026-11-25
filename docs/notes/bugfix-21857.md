@@ -1,1 +1,1 @@
-# Make autoupdater faster when downloading a new LiveCode version
+# Make autoupdater faster when downloading a new OXT-Beyond version

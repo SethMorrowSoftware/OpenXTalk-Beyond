@@ -284,7 +284,7 @@ The throw statement causes an error to be raised. This causes execution to termi
 
 The Error expression must be an expression that evaluates to a string.
 
-Note: There is currently no try / catch mechanism in LiveCode Builder, so throwing an error will cause the error to be raised in LiveCode Script in the appropriate context.
+Note: There is currently no try / catch mechanism in xTalk Builder, so throwing an error will cause the error to be raised in xTalk Script in the appropriate context.
 
 Name: PutInto
 Type: statement

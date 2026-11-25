@@ -251,7 +251,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   machine can run; Android packages are built by the IDE's Android
   builder with a real Android SDK, checked, and run on Android emulators
   by a workflow of their own (see [BUILDING.md](BUILDING.md#android-standalone-check)),
-  and the LiveCode Script tests run on an Android emulator with both
+  and the xTalk Script tests run on an Android emulator with both
   Android engines (see [BUILDING.md](BUILDING.md#android-script-tests)).
 - **Some old third-party libraries.** OpenSSL (3.5.9, a long-term
   support release), curl (8.22.0) and ICU (78.3) are current, built from
@@ -311,7 +311,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   standalone runtimes, get the smoke test, the engine tests and the
   standalone check too. Every build on all three platforms also runs the
   engine tests that LiveCode Community keeps in `tests/` (about 1,150:
-  LiveCode Script, LiveCode Builder, the LiveCode Builder compiler and
+  xTalk Script, xTalk Builder, the xTalk Builder compiler and
   the script parser)
   and compares the failures with a list of known ones (see
   [BUILDING.md](BUILDING.md#engine-tests)). CI also checks that the
@@ -921,8 +921,8 @@ and in the IDE:
 OXT-Beyond 0.2.1 "Frankenstein" (its release candidates were 0.2.1-rc.1
 to 0.2.1-rc.7) adds:
 
-- LiveCode Community's engine test suites, about 1,150 tests of LiveCode
-  Script, LiveCode Builder, the LiveCode Builder compiler and the script
+- LiveCode Community's engine test suites, about 1,150 tests of xTalk
+  Script, xTalk Builder, the xTalk Builder compiler and the script
   parser, on every build of all three platforms, compared with lists of
   known failures (see [BUILDING.md](BUILDING.md#engine-tests));
 - fixes for engine bugs that those tests and the compiler's warnings
@@ -944,7 +944,7 @@ to 0.2.1-rc.7) adds:
   resolves; on Linux the last second of 1969 converts, and file lists on
   the clipboard and in drag and drop keep names with spaces and "+"; on
   macOS, Java support finds Java 9 and later, on Apple Silicon an
-  Objective-C exception in a method that LiveCode Builder calls is an LCB
+  Objective-C exception in a method that xTalk Builder calls is an LCB
   error again instead of ending the program, and without a user interface
   (`-ui`) socket events are handled at once instead of at the next timer,
   so libURL's requests no longer take until their 60-second timeout
@@ -968,10 +968,10 @@ to 0.2.1-rc.7) adds:
   such as the euro sign or curly quotes depended on how the string had
   been made); a pressed button's hilite follows the pointer again
   instead of flickering; exporting a widget whose kind is not loaded no
-  longer crashes; LiveCode Builder's base conversion no longer crashes
+  longer crashes; xTalk Builder's base conversion no longer crashes
   for a base below 2; and the `constraints` of a player (QTVR, which no
   current player supports) are zeros instead of random numbers;
-- one change in behaviour: `baseConvert` (and LiveCode Builder's
+- one change in behaviour: `baseConvert` (and xTalk Builder's
   `converted from base`) of a number above 4,294,967,295 is an error
   instead of a wrong, wrapped-around result;
 - the repository's new address,
@@ -1395,7 +1395,7 @@ on:
   wait for one, and what the model may do. **Get Models** lists the
   provider's models and says at once whether the key works. The
   current models are offered before that, and one is chosen for you.
-- **Answers it has checked.** The model gets a guide to LiveCode Script
+- **Answers it has checked.** The model gets a guide to xTalk Script
   on OXT-Beyond, and every block of xTalk code in its answer is
   compiled before you read it; one that does not compile goes back to
   the model to correct (up to 5 times, which you can change). The
@@ -4955,8 +4955,8 @@ repositories at pinned commits when OXT-Beyond is packaged (see
 | `org.openxtalk.library.datachannel`, `dataChannelHelpers` | DataChannelXT: WebRTC data channels through libdatachannel, and its script helpers | [dataChannelXT](https://github.com/SethMorrowSoftware/dataChannelXT) |
 | `org.openxtalk.box2dxt`, `box2dxt-kit` | Box2Dxt: 2D physics through Box2D, and the Box2Dxt Kit | [Box2Dxt](https://github.com/SethMorrowSoftware/Box2Dxt) |
 | `org.openxtalk.library.coin`, `coinxt` | CoinXT: Bitcoin and Ethereum cryptography (hashes, keys, addresses, HD wallets, transactions) | [CoinXT](https://github.com/SethMorrowSoftware/CoinXT) |
-| `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (LiveCode Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
-| `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (LiveCode Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
+| `onionxt`, `onion-httpd` | OnionXT: Tor transport and onion services, and a small HTTP server on top of it (xTalk Script) | [OnionXT](https://github.com/SethMorrowSoftware/OnionXT) |
+| `nostrxt`, `nostr-relay` | NostrXT: the Nostr protocol and a relay client (xTalk Script) | [NostrXT](https://github.com/SethMorrowSoftware/NostrXT) |
 | `org.openxtalk.library.curl`, `curlHelpers`, `tsNetCompat` | curlxt: HTTP(S), FTP(S), SFTP, SCP and SMTP through libcurl, its script helpers, and the tsNet calls by name over them | [xtalk-suite, `curlxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/curlxt) |
 | `org.openxtalk.library.boxthreed` | box3dxt: 3D rigid-body physics through Box3D (bodies, eight kinds of shape, joints, ray casts, contact and sensor events) and a small renderer that draws the world into a picture for an image | [xtalk-suite, `box3dxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/box3dxt) |
 | `org.openxtalk.library.audioxt` | audioxt: sound through miniaudio, beside the engine's own `play` (mixing, streaming, tones, 3D sound and microphone capture; WAV, FLAC and MP3) | [xtalk-suite, `audioxt/`](https://github.com/SethMorrowSoftware/xtalk-suite/tree/main/audioxt) |
@@ -5183,8 +5183,8 @@ describes.
 | `engine/` | The engine: IDE ("development"), standalone, server and installer engines. |
 | `libfoundation/`, `libgraphics/`, `libscript/`, `libcore/`, `libbrowser/`, `libexternal*/` | Libraries the engine is built from. |
 | `rev*/` | Externals: database access (`revdb`), XML, zip, speech, PDF printing, browser and others. |
-| `toolchain/` | The LiveCode Builder compiler (`lc-compile`) and runner (`lc-run`). |
-| `extensions/` | Widgets and libraries written in LiveCode Builder, and script libraries. |
+| `toolchain/` | The xTalk Builder compiler (`lc-compile`) and runner (`lc-run`). |
+| `extensions/` | Widgets and libraries written in xTalk Builder, and script libraries. |
 | `ide/` | The IDE: OpenXTalk Lite 1.15's IDE, with its history from Terry Little's .91 onwards (see [HISTORY.md](HISTORY.md)), and OXT-Beyond's changes. `ide/Extensions/` holds the extensions the IDE ships but this repository does not build. |
 | `ide-support/` | Eleven IDE libraries kept in the engine repository (the standalone builder and others); they are installed into `Toolset/libraries`. |
 | `docs/` | Dictionary, guides and release note fragments from LiveCode Community; development notes in `docs/development/`. |
@@ -5223,7 +5223,7 @@ Known limitations, in rough order of importance:
    9.6.3's until its **OXT-Beyond engine** box is ticked. The Android
    builder is tested automatically with each engine (packages built with
    a real Android SDK, checked, and run on Android 13 and 16 KB page
-   emulators), and the LiveCode Script tests run in an Android
+   emulators), and the xTalk Script tests run in an Android
    standalone with each. The Windows and Linux runtimes are built from
    this repository from 0.2.1-rc.3 on, and every package's tests build a
    standalone from each of them.

@@ -9,26 +9,26 @@ and toolmakers.
 It consists of the following functions:
 
 * `ideDocsFetchLCSData pEntryName` : Fetch the data for entries with 
-  name `pEntryName` in the LiveCode Script dictionary.
+  name `pEntryName` in the xTalk Script dictionary.
 * `ideDocsFetchLCSDataOfType pEntryName, pType`: Fetch the data for the 
-  entry with name `pEntryName` and type `pType` in the LiveCode Script 
+  entry with name `pEntryName` and type `pType` in the xTalk Script 
   dictionary.
 * `ideDocsFetchLCSElementOfType pEntryName, pType, pElement`: Fetch the 
   data for the docs element `pElement` with entry name `pEntryName` and 
-  type `pType` in the LiveCode Script dictionary.
+  type `pType` in the xTalk Script dictionary.
 * `ideDocsFetchLCSEntries`: Fetch all the data for entries in the 
-  LiveCode Script dictionary.
+  xTalk Script dictionary.
 
 * `ideDocsFetchLCBData pEntryName` : Fetch the data for entries with 
-  name `pEntryName` in the LiveCode Builder dictionary.
+  name `pEntryName` in the xTalk Builder dictionary.
 * `ideDocsFetchLCBDataOfType pEntryName, pType`: Fetch the data for the 
-  entry with name `pEntryName` and type `pType` in the LiveCode Builder 
+  entry with name `pEntryName` and type `pType` in the xTalk Builder 
   dictionary.
 * `ideDocsFetchLCBElementOfType pEntryName, pType, pElement`: Fetch the 
   data for the docs element `pElement` with entry name `pEntryName` and 
-  type `pType` in the LiveCode Builder dictionary.
+  type `pType` in the xTalk Builder dictionary.
 * `ideDocsFetchLCBEntries`: Fetch all the data for entries in the 
-  LiveCode Builder dictionary.
+  xTalk Builder dictionary.
 
 To fetch the entries for a specific extension, use the following:
 

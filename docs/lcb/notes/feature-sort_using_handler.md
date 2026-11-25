@@ -1,7 +1,7 @@
 ---
 version: 8.0.0-dp-5
 ---
-# LiveCode Builder Standard Library
+# xTalk Builder Standard Library
 ## Sorting
 
 * Lists can now be sorted using an arbitrary comparison handler.

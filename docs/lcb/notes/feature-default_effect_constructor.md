@@ -1,7 +1,7 @@
 ---
 version: 8.0.0-dp-5
 ---
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Canvas library
 
 * You can now create a new canvas `Effect` object without setting up

@@ -8,11 +8,11 @@
   Currently, the **theme** property is _not_ saved, and is reset to "native"
   whenever the widget is loaded.
 
-* The switch button colors are now controlled by the standard LiveCode
+* The switch button colors are now controlled by the standard OXT-Beyond
   **hiliteColor**, **borderColor** and **backgroundColor** properties.  They
   can be edited in the property inspector.
 
-* The switch button now obeys the standard LiveCode **showBorder** property,
+* The switch button now obeys the standard OXT-Beyond **showBorder** property,
   which can be edited in the property inspector.
 
 # Properties

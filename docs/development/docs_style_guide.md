@@ -1,4 +1,4 @@
-# LiveCode Documentation Style Guide A-Z
+# OXT-Beyond Documentation Style Guide A-Z
 
 ## A
 
@@ -8,7 +8,7 @@ The first time you use an abbreviation or acronym explain it in full
 on each page unless it's well known, eg MP3, PNG etc. Then refer to
 it by initials.
 
-Your acronym is well known if you believe that 80% of LiveCode users
+Your acronym is well known if you believe that 80% of xTalk users
 will understand, and commonly use, the term.
 
 Don't use full stops in abbreviations - GIF, not G.I.F.
@@ -24,7 +24,7 @@ concise, clear documentation.
 ### Addressing the user
 
 Address the user as 'you' where possible. Documentation often makes a
-direct appeal to LiveCode users to take action, eg 'Deploy your stack
+direct appeal to xTalk users to take action, eg 'Deploy your stack
 to your phone' or 'Store your content in a database'.
 
 ### Americanisms
@@ -146,7 +146,7 @@ See 'eg, etc and ie'.
 
 ### FAQs (frequently asked questions)
 
-Don't use FAQs in LiveCode documentation. If you write content by
+Don't use FAQs in OXT-Beyond documentation. If you write content by
 starting with user needs, you won't need to use FAQs.
 
 ## H
@@ -282,7 +282,7 @@ Use 'one' unless you're talking about a step, a point in a list, or another situ
 
 or this:
 
-> You'll see 5 examples of good LiveCode design practice
+> You'll see 5 examples of good OXT-Beyond design practice
 >
 > There will be:
 >
@@ -342,7 +342,7 @@ number.
 
 ### plain English
 
-All content in LiveCode documentation should be written in plain
+All content in OXT-Beyond documentation should be written in plain
 English. You should also make sure you use language your audience
 will understand.
 
@@ -362,7 +362,7 @@ Use single quotes:
 * in headlines
 * for unusual terms
 * when referring to words or publications, for example: 'Download the
-  'LiveCode Builder Reference Manual' (PDF, 360KB)'
+  'xTalk Builder Reference Manual' (PDF, 360KB)'
 
 #### Double quotes
 
@@ -430,7 +430,7 @@ Summaries should:
 
 ### Synonyms
 
-Avoid using synonyms when referring to LiveCode syntax. Always use the 
+Avoid using synonyms when referring to xTalk syntax. Always use the 
 canonical form specified in dictionary entries. For example, use 'field'
 not 'fld', 'backgroundColor' not 'backColor' or 'secondColor'. 
 
@@ -482,7 +482,7 @@ Upper case, because it's a brand name.
 
 ### Words to avoid
 
-Plain English is mandatory for all LiveCode documentation, so please
+Plain English is mandatory for all OXT-Beyond documentation, so please
 avoid using these words:
 
 * deliver (pizzas, post and services are delivered, not abstract

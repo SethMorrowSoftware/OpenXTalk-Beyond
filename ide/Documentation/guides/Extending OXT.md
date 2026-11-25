@@ -2028,74 +2028,26 @@ A valid package can be built from a minimum set of files:
 	support/icon.png // 20x40 png image
 	support/icon@extra-high.png // 40x80 png image
 
-## The Extension Store
+## Sharing Extensions
 
-Once you have created and packaged your extension you can make it
-available to the Community via the
-[Extension Store](https://livecode.com/products/extensions), in the
-[widgets](https://livecode.com/products/widgets/) section.
+Once you have created and packaged your extension you can share the
+`.lce` file with other people: attach it to a post on the
+[OpenXTalk forum](https://forums.openxtalk.org/), or offer it from a
+website or a repository of your own. Anyone can install it with the
+Extension Manager (Tools > Extension Manager): click the "+" button and
+choose the `.lce` file.
 
-### Registering as an Extension Developer
+Extensions must have unique identifiers. These identifiers use reverse
+domain notation, for example `community.oxt.yourname.extensionName`:
+choose a name for the middle part that nobody else is likely to use,
+such as your forum name.
 
-The first step is to
-[register](https://livecode.com/account/developer/register) as an
-Extension Developer.
+### The Repo tab of the Extension Manager
 
-- Log in to your LiveCode Account
-- Select the Register option under the Developer section
-
-![enter image description here](images/extensions-developer_id.png)
-
-Extensions must have unique identifiers. These identifiers use
-reverse domain notation.
-
-You can sign up on this page for a Community Developer ID.
-Having a developer ID will allow you to use extension identifiers of the
-form: `community.oxt.developerID.extensionName`.
-
-Choose the Developer ID you want to use here. If your chosen ID is
-already in use you will be asked to choose a different one.
-
-### Uploading Extensions to the Store
-
-To upload a packaged extension to the store log in to your LiveCode
-account and go to the
-[Extensions](https://livecode.com/account/developer/extensions) section
-of the Developer area.
-
-Any extensions you have uploaded will be shown here, and you have the
-option to add new extensions.
-
-- Click the "Add New Extension" button (if available)
-- Drag your packaged extension (`.lce`) file into the upload area
-- When the extension has uploaded it will appear in your list
-
-![enter image description here](images/extensions-upload.png)
-
-### Activating your Extension
-
-When an extension is first uploaded it is not active so will not show in
-the Extension Store.
-
-To activate your extension click "activate" under Status. At this stage
-you will be warned if any information is missing and you can add it by
-clicking the "Edit" button.
-
-![enter image description here](images/extensions-activate.png)
-
-Once your extension is activated its status will change to "Active".
-
-### The Extension Store in the Extension Manager
-
-You can view and downlaod extensions via the Extension Store. To see the
-extensions that are available to download open the Extension Manager
-from the Tools menu and select the "Store" tab.
-
-![enter image description here](images/extensions-store.png)
-
-You can also download extensions from the [Widget
-Store](https://livecode.com/products/widgets/) on the website
-then install the downloaded extension using the Extension Manager.
+The Extension Manager's **Repo** tab shows the OpenXTalk Resource Depot,
+where the community lists extensions and other resources. Extensions you
+download from there are installed with the Extension Manager in the same
+way.
 
 ## Other ways to extend the Built-in Capabilities
 

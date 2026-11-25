@@ -18,7 +18,7 @@ Any bug fix is made against the *develop* branch.
 
 When the first RC is released, a new branch release-*x.y.z* is created, branch off at the tag of this first RC release. That allows the merging of any new bug fix or feature implementation to be done without affecting the release branch.
 
-Only regressions (bugs introduced in the LiveCode *x.y.z*) can be fixed against release-*x.y.z*; any other bug fix must be made against the develop branch, in order to avoid an everlasting regression-fixing state.
+Only regressions (bugs introduced in the OXT-Beyond *x.y.z*) can be fixed against release-*x.y.z*; any other bug fix must be made against the develop branch, in order to avoid an everlasting regression-fixing state.
 
 Merging release-*x.y.z* branch into its develop branch must be done after each new RC release; there is no harm in doing it more often though.
 

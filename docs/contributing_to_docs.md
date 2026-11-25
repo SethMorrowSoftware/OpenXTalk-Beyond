@@ -1,4 +1,4 @@
-# Contributing to LiveCode Documentation
+# Contributing to OXT-Beyond Documentation
 
 > **Note:** This page comes from upstream LiveCode and is not fully
 > maintained for OXT-Beyond. The descriptions of the documentation
@@ -7,14 +7,14 @@
 > [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 *Note this document is specifically about contributing to the 
-documentation of LiveCode. If you are looking for a general guide to 
-contributing to the LiveCode source, see the 
+documentation of OXT-Beyond. If you are looking for a general guide to 
+contributing to the OXT-Beyond source, see the 
 [toplevel CONTRIBUTING.md document](../CONTRIBUTING.md)*
 
 Have you noticed an error in the documentation? Do you want to add an 
 instructive example? Or can you explain a concept better than it is 
 currently explained? Please consider submitting your proposed changes 
-directly to the LiveCode repo on GitHub.
+directly to the OXT-Beyond repo on GitHub.
 
 Please consult the [documentation style guide](development/docs_style_guide.md)
 and the [documentation format specification](guides/Documentation%20Format%20Reference.md)
@@ -23,7 +23,7 @@ documentation.
 
 # Documentation Objectives
 
-Our objectives for the LiveCode documentation can be categorised as
+Our objectives for the OXT-Beyond documentation can be categorised as
 - Completeness
 - Correctness
 - Instructiveness
@@ -31,14 +31,14 @@ Our objectives for the LiveCode documentation can be categorised as
 ## Completeness
 
 In the context of the dictionary, completeness clearly entails the 
-documentation of all LiveCode syntax. The most basic form of 
+documentation of all xTalk syntax. The most basic form of 
 incompleteness is a completely missing dictionary entry. If you intend 
 to write a missing dictionary entry, please bear these documentation 
 objectives in mind and consult the 
 [documentation format specification](guides/Documentation%20Format%20Reference.md).
 
 The dictionary ought to contain *all* the relevant information about a
-particular piece of LiveCode syntax. Every syntax variant should be 
+particular piece of xTalk syntax. Every syntax variant should be 
 explained in detail in the description. Some of the most commonly 
 missing information in our current dictionary is as follows:
 - Inadequate or missing explanation of a parameter's function

@@ -2,7 +2,7 @@
 
 These tools need only Python 3 (standard library, 3.8 or later: the Linux
 build container has 3.8) and run on Windows, Linux and macOS, except the
-IDE stack tools (`ide-stack-*`), which are LiveCode scripts run by a
+IDE stack tools (`ide-stack-*`), which are xTalk scripts run by a
 development engine without a user interface.
 
 | tool | purpose |

@@ -1,7 +1,7 @@
 ---
 version: 8.0.0-dp-3
 ---
-# LiveCode Builder Host Library
+# xTalk Builder Host Library
 ## Widget library
 
 * Added the ability to use widgets within popup dialog windows.

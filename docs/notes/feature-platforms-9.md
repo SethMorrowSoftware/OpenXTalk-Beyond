@@ -2,7 +2,7 @@
 
 As
 [announced on the LiveCode blog](https://livecode.com/updated-platform-support-policy),
-running LiveCode on the following platforms is no longer officially
+running OXT-Beyond on the following platforms is no longer officially
 supported from LiveCode 9.0 onwards:
 
 - Windows XP

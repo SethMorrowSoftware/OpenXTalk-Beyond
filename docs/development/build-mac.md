@@ -1,4 +1,4 @@
-# Compiling LiveCode for Mac OS X and iOS
+# Compiling OXT-Beyond for Mac OS X and iOS
 
 > **Note:** This page comes from upstream LiveCode and is not maintained
 > for OXT-Beyond, which builds for macOS but not for iOS. The
@@ -14,17 +14,17 @@ Copyright © 2015-2016 LiveCode Ltd., Edinburgh, UK
 
 ### Required dependencies
 
-You must install Xcode.  This will allow you to build LiveCode for:
+You must install Xcode.  This will allow you to build OXT-Beyond for:
 
 * iPhone OS
 * iPhoneSimulator
 
-You will not be able to compile the OS X desktop version of LiveCode
+You will not be able to compile the OS X desktop version of OXT-Beyond
 unless you install some older OS X SDKs; see the next section for details.
 
 ### Optional dependencies
 
-By default, LiveCode is compiled for a large number of versions of iPhoneSimulator, and requires quite a lot of Apple SDKs to be installed.
+By default, OXT-Beyond is compiled for a large number of versions of iPhoneSimulator, and requires quite a lot of Apple SDKs to be installed.
 
 Create a directory on your hard disk (say, `/Applications/Xcode-Dev/`).
 
@@ -51,7 +51,7 @@ Where `Xcode_V_V_V.app` is the latest version of Xcode that you have installed o
 
 Before proceeding to the next step, make sure to run Xcode at least once and get to the starting screen. Not doing this might break your Xcode installation and result in an error complaining that it ***could not find the default platform*** 
 
-After checking out the LiveCode git repository, you need to run a tool to finalize the Xcode setup and to make sure all of the necessary SDKs are installed.  If LiveCode is checked out to `~/git/livecode`, run:
+After checking out the OXT-Beyond git repository, you need to run a tool to finalize the Xcode setup and to make sure all of the necessary SDKs are installed.  If OXT-Beyond is checked out to `~/git/livecode`, run:
 ```
     cd /Applications/Xcode-Dev/
     sh ~/git/livecode/tools/setup_xcode_sdks.sh
@@ -62,7 +62,7 @@ save disk space), you can run:
 ```
     sh ~/git/livecode/tools/setup_xcode_sdks.sh --cache
 ```
-## Configuring LiveCode
+## Configuring OXT-Beyond
 
 ### Build environment
 
