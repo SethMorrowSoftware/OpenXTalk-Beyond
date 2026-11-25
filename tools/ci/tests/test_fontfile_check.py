@@ -30,6 +30,7 @@ CI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, CI)
 
 import fontfile_check  # noqa: E402
+import ubuntu_pango  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(CI))
 
@@ -381,6 +382,51 @@ class TheCaseCheckInTheScript(unittest.TestCase):
             self.assertIn('$' + name, self.script)
         self.assertIn("'XDG_DATA_HOME': os.path.join(work, 'xdg')", self.python)
         self.assertIn("user_fonts = os.path.join(work, 'xdg', 'fonts')", self.python)
+
+
+class UbuntuPango(unittest.TestCase):
+    """tools/ci/ubuntu_pango.py and the step that runs the check with it
+    (issue #639 crashed only with Ubuntu 26.04's Pango 1.57)."""
+
+    def test_the_packages_are_pinned(self):
+        self.assertTrue(re.match(r'^https://snapshot\.ubuntu\.com/ubuntu/\d{8}T\d{6}Z/pool/main/$',
+                                 ubuntu_pango.SNAPSHOT))
+        for path, digest in ubuntu_pango.PACKAGES:
+            self.assertTrue(path.endswith('_amd64.deb'), path)
+            self.assertRegex(digest, r'^[0-9a-f]{64}$')
+        names = ' '.join(path for path, _ in ubuntu_pango.PACKAGES)
+        self.assertIn('libpangoft2-1.0-0_1.57.', names)
+
+    def test_a_wrong_digest_is_refused(self):
+        import tempfile
+        from unittest import mock
+
+        class Response:
+            def __init__(self, data):
+                self.data = data
+
+            def read(self):
+                return self.data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        with tempfile.TemporaryDirectory() as work, \
+                mock.patch.object(ubuntu_pango.urllib.request, 'urlopen', return_value=Response(b'not it')):
+            with self.assertRaises(RuntimeError):
+                ubuntu_pango.fetch('p/x.deb', '0' * 64, work)
+
+    def test_the_workflow_runs_the_check_with_it(self):
+        with open(os.path.join(REPO, '.github', 'workflows', 'build-linux.yml'), encoding='utf-8') as f:
+            wf = f.read()
+        step = wf[wf.index("- name: Font file check with Ubuntu 26.04's Pango"):]
+        step = step[:step.index('\n\n')]
+        self.assertIn('tools/ci/ubuntu_pango.py --out "$RUNNER_TEMP/pango-26.04"', step)
+        self.assertIn('LD_LIBRARY_PATH="$RUNNER_TEMP/pango-26.04" /usr/bin/python3 tools/ci/fontfile_check.py', step)
+        self.assertIn("matrix.arch == 'x86_64'", step)
 
 
 class TheEngine(unittest.TestCase):
