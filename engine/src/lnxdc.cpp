@@ -876,6 +876,90 @@ void MCResPlatformHandleScaleChange(void)
 typedef void (*pango_fc_font_map_set_configPTR)(PangoFcFontMap *fcfontmap, FcConfig *fcconfig);
 extern "C" pango_fc_font_map_set_configPTR pango_fc_font_map_set_config_ptr;
 
+// Issue #639: a loaded font whose family differs only in case from a font
+// already there (the IDE's "fontawesome" beside a system "FontAwesome", as
+// fonts-font-awesome installs it) crashed the engine with Pango 1.57
+// (Ubuntu 26.04) as soon as text in that family was measured. Pango lists
+// the families of the fonts with fontconfig, which treats the two names as
+// one family and keeps the spelling of the font it met first (the system
+// font); then it looks the matched font's own spelling up in that list with
+// strcmp, finds nothing, and uses the NULL family it gets
+// (pango_fc_font_map_get_face, ensure_faces). Older Pangos let the NULL
+// through to a function that refuses it, so nothing crashed there.
+//
+// So a loaded font takes the spelling the family already has: the spelling
+// of the first system font of that family, or of an application font loaded
+// before it. fontconfig compares family names without case, so which font a
+// name matches is as it was; only the spelling Pango sees changes, and with
+// it the family Pango finds.
+
+// The spelling the fonts of p_set before p_limit give the family p_name, or
+// nil when none of them has it.
+static const FcChar8 *MCLinuxFontFamilySpelling(FcFontSet *p_set, int p_limit, const FcChar8 *p_name)
+{
+    if (p_set == nil)
+        return nil;
+    for (int i = 0; i < p_limit && i < p_set -> nfont; i++)
+    {
+        FcChar8 *t_family;
+        for (int j = 0; FcPatternGetString(p_set -> fonts[i], FC_FAMILY, j, &t_family) == FcResultMatch; j++)
+            if (FcStrCmpIgnoreCase(t_family, p_name) == 0)
+                return t_family;
+    }
+    return nil;
+}
+
+static void MCLinuxFontConfigMatchFamilySpellings(FcConfig *p_config)
+{
+    FcFontSet *t_system, *t_application;
+    t_system = FcConfigGetFonts(p_config, FcSetSystem);
+    t_application = FcConfigGetFonts(p_config, FcSetApplication);
+    if (t_application == nil)
+        return;
+
+    for (int i = 0; i < t_application -> nfont; i++)
+    {
+        FcPattern *t_font;
+        t_font = t_application -> fonts[i];
+
+        // Every family name of the font, in its order, each in the spelling
+        // it is to have
+        FcChar8 *t_names[32];
+        int t_count = 0;
+        bool t_changed = false;
+        FcChar8 *t_family;
+        for (int j = 0; t_count < 32 && FcPatternGetString(t_font, FC_FAMILY, j, &t_family) == FcResultMatch; j++)
+        {
+            const FcChar8 *t_spelling;
+            t_spelling = MCLinuxFontFamilySpelling(t_system, t_system != nil ? t_system -> nfont : 0, t_family);
+            if (t_spelling == nil)
+                t_spelling = MCLinuxFontFamilySpelling(t_application, i, t_family);
+            if (t_spelling == nil || strcmp((const char *)t_spelling, (const char *)t_family) == 0)
+                t_spelling = t_family;
+            else
+                t_changed = true;
+            t_names[t_count] = FcStrCopy(t_spelling);
+            if (t_names[t_count] == nil)
+            {
+                t_changed = false;
+                break;
+            }
+            t_count += 1;
+        }
+
+        // A font with more names than fit is left as it is
+        if (t_changed && FcPatternGetString(t_font, FC_FAMILY, t_count, &t_family) != FcResultMatch)
+        {
+            FcPatternDel(t_font, FC_FAMILY);
+            for (int j = 0; j < t_count; j++)
+                FcPatternAddString(t_font, FC_FAMILY, t_names[j]);
+        }
+
+        for (int j = 0; j < t_count; j++)
+            FcStrFree(t_names[j]);
+    }
+}
+
 static bool MCLinuxFontConfigLoad(MCStringRef p_adding, MCStringRef p_removing)
 {
     if (!FcInit())
@@ -918,7 +1002,10 @@ static bool MCLinuxFontConfigLoad(MCStringRef p_adding, MCStringRef p_removing)
         if (FcFalse == FcConfigAppFontAddFile(t_config, (FcChar8*)*t_file))
             return false;
     }
-    
+
+    // Issue #639: no two families that differ only in case
+    MCLinuxFontConfigMatchFamilySpellings(t_config);
+
     if (FcFalse == FcConfigSetCurrent(t_config))
         return false;
     

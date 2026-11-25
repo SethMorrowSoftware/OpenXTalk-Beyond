@@ -58,7 +58,17 @@ CODE_GOOD = [
 ]
 
 
-def run(rounds=fontfile_check.ROUNDS, widths=None, result='', code=None):
+# The CASE lines 0.2.8-dp.2.1's standalone engine logged on Xvfb with
+# Pango 1.52 (Ubuntu 24.04), which never crashed here
+CASE_GOOD = ['INFO case font file /x/oxtcasefont.ttf exists=true',
+             'CASE before 1,0,26,26', 'CASE loaded 1,0,26,26 ', 'CASE unloaded 1,0,26,26 ']
+
+# What the same engine logged with Ubuntu 26.04's Pango 1.57: it ended as
+# it measured text in the loaded spelling (issue #639)
+CASE_CRASH = CASE_GOOD[:2]
+
+
+def run(rounds=fontfile_check.ROUNDS, widths=None, result='', code=None, case=None):
     lines = ['INFO platform=Linux version=9.7.1-BeyondEngine processor=x86_64', 'BASE ' + BASE,
              'INFO font file /x/fontawesome.ttf exists=true']
     for n in range(1, rounds + 1):
@@ -67,6 +77,7 @@ def run(rounds=fontfile_check.ROUNDS, widths=None, result='', code=None):
             lines.append(('%s %d %s %s' % (step, n, got, result)).rstrip() if result else '%s %d %s ' % (step, n, got))
     lines.append('INFO code font folder /x/fonts exists=true icons=fontawesome')
     lines += CODE_GOOD if code is None else code
+    lines += CASE_GOOD if case is None else case
     lines.append('QUIT 12345')
     return lines
 
@@ -225,6 +236,62 @@ class TheFontsItLoads(unittest.TestCase):
         self.assertIsNone(fontfile_check.parse_code('true,false,1,2,3,x'))
 
 
+class TheSpellingOfAFamily(unittest.TestCase):
+    """The CASE lines (issue #639): a loaded font whose family differs only
+    in case from a font the machine has."""
+
+    def test_the_crash_fails(self):
+        result = [x for x in run(case=CASE_CRASH) if not x.startswith('QUIT')]
+        self.assertEqual(sorted(failures(result)), [
+            'after the font file of another case is unloaded: measured',
+            'the engine quit when it was done',
+            'with the font file of another case loaded: measured',
+        ])
+        self.assertIn('issue #639', ' '.join(details(result)))
+
+    def test_the_family_listed_in_both_spellings_fails(self):
+        case = [x.replace('CASE loaded 1,0,', 'CASE loaded 1,1,') for x in CASE_GOOD]
+        self.assertEqual(failures(run(case=case)),
+                         ['with the font file of another case loaded: the family is not listed as oxtcasefont'])
+
+    def test_a_system_copy_fontconfig_did_not_read_fails(self):
+        case = [x.replace('CASE before 1,', 'CASE before 0,') for x in CASE_GOOD]
+        self.assertEqual(failures(run(case=case)),
+                         ['before the font file of another case is loaded: the family is listed once, as OxtCaseFont'])
+        self.assertIn('cannot tell', ' '.join(details(run(case=case))))
+
+    def test_text_that_does_not_measure_fails(self):
+        case = [x.replace('CASE loaded 1,0,26,26', 'CASE loaded 1,0,26,0') for x in CASE_GOOD]
+        self.assertEqual(failures(run(case=case)),
+                         ['with the font file of another case loaded: text in either spelling measures'])
+
+    def test_a_load_with_an_error_fails(self):
+        case = [x.replace('CASE loaded 1,0,26,26 ', "CASE loaded 1,0,26,26 can't load font file") for x in CASE_GOOD]
+        self.assertEqual(failures(run(case=case)),
+                         ['with the font file of another case loaded: without an error'])
+
+    def test_parse_case(self):
+        self.assertEqual(fontfile_check.parse_case("1,0,26,27 can't load"), (1, 0, 26, 27, "can't load"))
+        self.assertIsNone(fontfile_check.parse_case('1,0,26'))
+        self.assertIsNone(fontfile_check.parse_case('1,0,26,x'))
+
+    def test_renamed_font(self):
+        with open(fontfile_check.FONT, 'rb') as f:
+            data = f.read()
+        for family in (fontfile_check.CASE_SYSTEM, fontfile_check.CASE_LOADED):
+            renamed = fontfile_check.renamed_font(data, fontfile_check.FONT_FAMILY, family)
+            self.assertEqual(len(renamed), len(data))
+            self.assertNotIn(b'fontawesome', renamed)
+            self.assertIn(family.encode('ascii'), renamed)
+            self.assertIn(family.encode('utf-16-be'), renamed)
+        self.assertNotEqual(fontfile_check.CASE_SYSTEM, fontfile_check.CASE_LOADED)
+        self.assertEqual(fontfile_check.CASE_SYSTEM.lower(), fontfile_check.CASE_LOADED)
+        with self.assertRaises(ValueError):
+            fontfile_check.renamed_font(data, 'fontawesome', 'short')
+        with self.assertRaises(ValueError):
+            fontfile_check.renamed_font(data, 'notinthere1', 'NotInThere1')
+
+
 class TheScript(unittest.TestCase):
     def setUp(self):
         with open(os.path.join(CI, 'fontfile-check.livecodescript'), encoding='utf-8') as f:
@@ -284,6 +351,36 @@ class TheScript(unittest.TestCase):
         self.assertIn("'OXT_FONTFILE_ICONS': args.font_family", src)
         self.assertIn('put $OXT_FONTFILE_CODE into tCode', self.script)
         self.assertIn('put $OXT_FONTFILE_ICONS into tIcons', self.script)
+
+
+class TheCaseCheckInTheScript(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(CI, 'fontfile-check.livecodescript'), encoding='utf-8') as f:
+            self.script = f.read()
+        with open(os.path.join(CI, 'fontfile_check.py'), encoding='utf-8') as f:
+            self.python = f.read()
+
+    def test_the_steps_agree(self):
+        self.assertEqual(tuple(re.findall(r'logLine "CASE (\w+)"', self.script)), fontfile_check.CASE_STEPS)
+
+    def test_it_runs_after_the_code_steps(self):
+        self.assertGreater(self.script.index('      caseCheck\n'), self.script.index('codeStep "after"'))
+
+    def test_the_count_tells_the_spellings_apart(self):
+        count = self.script[self.script.index('function caseCount'):self.script.index('end caseCount')]
+        self.assertIn('set the caseSensitive to true', count)
+
+    def test_the_result_of_the_load_is_read_first(self):
+        check = self.script[self.script.index('command caseCheck'):self.script.index('end caseCheck')]
+        load = check[check.index('start using font file tFile'):]
+        self.assertLess(load.index('put the result into tResult'), load.index('caseProbe()'))
+
+    def test_the_python_passes_the_file_and_spellings(self):
+        for name in ('OXT_FONTFILE_CASE_FILE', 'OXT_FONTFILE_CASE_SYSTEM', 'OXT_FONTFILE_CASE_LOADED'):
+            self.assertIn("'%s'" % name, self.python)
+            self.assertIn('$' + name, self.script)
+        self.assertIn("'XDG_DATA_HOME': os.path.join(work, 'xdg')", self.python)
+        self.assertIn("user_fonts = os.path.join(work, 'xdg', 'fonts')", self.python)
 
 
 class TheEngine(unittest.TestCase):
@@ -358,6 +455,21 @@ class TheLinuxFonts(unittest.TestCase):
             body = self.body(self.text, head)
             self.assertIn('lnx_pango_follow_font_config();', body, head)
             self.assertLess(body.index('lnx_pango_follow_font_config();'), body.index('pango_layout_set_text'), head)
+
+    def test_a_loaded_family_takes_the_spelling_it_already_has(self):
+        # Issue #639: Pango 1.57 crashed on a family that differs only in case
+        build = self.body(self.dc, 'static bool MCLinuxFontConfigLoad(')
+        self.assertLess(build.index('FcConfigAppFontAddFile(t_config, (FcChar8*)*t_file))\n            return false;'),
+                        build.index('MCLinuxFontConfigMatchFamilySpellings(t_config);'))
+        self.assertLess(build.index('MCLinuxFontConfigMatchFamilySpellings(t_config);'),
+                        build.index('FcConfigSetCurrent(t_config)'))
+        match = self.body(self.dc, 'static void MCLinuxFontConfigMatchFamilySpellings(')
+        # system fonts first, then the application fonts loaded before
+        self.assertLess(match.index('MCLinuxFontFamilySpelling(t_system,'),
+                        match.index('MCLinuxFontFamilySpelling(t_application, i,'))
+        self.assertIn('FcPatternDel(t_font, FC_FAMILY);', match)
+        spelling = self.body(self.dc, 'static const FcChar8 *MCLinuxFontFamilySpelling(')
+        self.assertIn('FcStrCmpIgnoreCase(t_family, p_name) == 0', spelling)
 
     def test_set_config_is_weak_linked_as_optional(self):
         # Pango 1.38's: an older Pango must still start the engine
