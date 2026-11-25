@@ -500,10 +500,10 @@ have any effect on printing cards into a layout. Use the
 **printRectangle** to get the printable area when working with layout
 printing.
 
-For example, lets say that we want to print the text field from the
-middle of the stack in the figure below. (You can load the stack shown in
-the picture by going to your installation folder then opening
-Resources-\> Examples-\> SQLite Sampler.rev.) We want the output to
+For example, lets say that we want to print the text field named
+"theText" from the middle of the stack in the figure below: a card with
+a title, the field, and two buttons. (To try it, make a stack like it
+with a field named "theText".) We want the output to
 scale to take up the entire width of the paper and half the height.
 
 ![Stack with text field to print into a layout](images/printing-stack_with_text_field.png)

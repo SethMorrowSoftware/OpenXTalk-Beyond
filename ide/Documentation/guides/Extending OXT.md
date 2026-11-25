@@ -44,19 +44,22 @@ Open the "Extension Builder" from the tools menu:
 ![Extension Builder plugin](images/extensions-plugin-overview.png)
 
 1. Shows the currently selected extension.
-2. Data that the builder was able to parse from the directory such as icons, resources, API's the user guides.
-3. Console: Shows status, error and log messages.
+2. Data that the builder was able to parse from the directory such as icons, resources, the default script, API's and the user guide.
+3. Log: Shows status, error and log messages.
 4. Test: Creates a stack, compiles the extensions and creates an instance.
-5. Script: Opens the lcb script in an external default editor.
+5. Stop testing: Closes the test window and unloads the extension.
 6. Install: Installs the extension into the IDE
 7. Uninstall: Uninstalls the extension from the IDE
-8. Package: Creates a .lce package which can uploaded to the extension store. It is placed in the extension directory
+8. Package: Creates a .lce package which can be shared with others. It is placed in the extension directory
+9. Edit source: Opens the lcb script in an external default editor.
+10. Open: Locates an extension you've not loaded before.
+11. Settings: Chooses the folders to search for extensions.
 
 > **Note:** A great way to get started is to tweak the script of one of
 > our widget examples.
 
 Using the selection dropdown (1), you can select the extension you wish
-to develop or click the "open" icon in the header back to locate an
+to develop or click the "open" icon (10) in the header to locate an
 extension you've not loaded before.
 
 ### Create your own simple widget
