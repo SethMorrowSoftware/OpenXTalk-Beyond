@@ -533,23 +533,9 @@ jobs:
       - name: Install Python 2.7
         id: python
         timeout-minutes: 15
-        run: |
-          $python = 'C:\Python27\python.exe'
-          for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
-            # python2 has no releases after 2.7.18. Do not request a specific
-            # Chocolatey package revision: older mirrors can expose the final
-            # Python release under a different package revision.
-            choco install python2 -y --no-progress
-            $code = $LASTEXITCODE
-            Write-Host "choco exited with code $code (attempt $attempt)"
-            if ($code -ne 0 -and $attempt -lt 2) { Start-Sleep -Seconds 10 }
-          }
-          if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
-          $version = & $python -c "import sys; sys.stdout.write('%d.%d.%d' % sys.version_info[:3])"
-          if ($LASTEXITCODE -ne 0 -or -not "$version".StartsWith('2.7')) {
-            throw "$python reports version '$version', expected 2.7"
-          }
-          Write-Host "Python $version at $python"
+        # From nuget.org, pinned by SHA-256, with Chocolatey as the fallback
+        # (its feed was down on 25 Nov 2026): tools/ci/install-python27.ps1.
+        run: ./tools/ci/install-python27.ps1
 
       - name: Install Cygwin
         id: cygwin
@@ -1540,14 +1526,9 @@ jobs:
 
       - name: Install Python 2.7
         timeout-minutes: 15
-        run: |
-          $python = 'C:\Python27\python.exe'
-          for ($attempt = 1; $attempt -le 2 -and -not (Test-Path -LiteralPath $python); $attempt++) {
-            choco install python2 -y --no-progress
-            Write-Host "choco exited with code $LASTEXITCODE (attempt $attempt)"
-            if ($LASTEXITCODE -ne 0 -and $attempt -lt 2) { Start-Sleep -Seconds 10 }
-          }
-          if (-not (Test-Path -LiteralPath $python)) { throw "$python was not installed" }
+        # From nuget.org, pinned by SHA-256, with Chocolatey as the fallback
+        # (its feed was down on 25 Nov 2026): tools/ci/install-python27.ps1.
+        run: ./tools/ci/install-python27.ps1
 
       - name: Install Cygwin
         timeout-minutes: 20
