@@ -521,6 +521,20 @@ def main(argv=None):
         def step_menu_slide():
             """File's title clicked, then a slide to Edit, back to File and
             on to Help, the open menu's items read at each stop"""
+            # the step before clicked the desktop, which makes the Finder
+            # the active app and puts its menu bar on the screen: the IDE
+            # made the active app again, or the slide would be in the
+            # Finder's menus
+            code, said = osascript('tell application "System Events" to set frontmost of '
+                                   '(first application process whose unix id is %d) to true' % pid)
+            time.sleep(1.5)
+            active = frontmost()
+            log('%.3f the active app: %s (the IDE is %d)%s' % (time.time(), active, pid,
+                                                              '' if code == 0 else ' (exit status %s: %s)' % (code, said)))
+            if active != str(pid):
+                log('error: the IDE could not be made the active app: no slide')
+                slide_faults.append('the IDE could not be made the active app')
+                return
             titles = {m: menu_title(pid, m) for m in ('File', 'Edit', 'Help')}
             if None in titles.values():
                 log('error: a title of File, Edit and Help was not found (System Events): no slide')
