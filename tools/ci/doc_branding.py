@@ -41,7 +41,9 @@ backquotes, fenced or indented code, URLs and link targets, identifiers
 name followed by Ltd, Limited, Community or a version number.
 
 EXEMPT names the files read as they are: the licence and its notices, the
-history, the glossary entry for the name itself, the guides the xTalk
+history, the changelog (CHANGELOG.md and the fragments of changelog/
+that a release folds into it: a record of what changed, which may have to
+name what was changed from), the glossary entry for the name itself, the guides the xTalk
 Assistant and the MCP Bridge give the language model (they tell it what
 the user's LiveCode knowledge is worth here), and vendored code.
 """
@@ -62,11 +64,12 @@ EXEMPT = (
     'NOTICE-OF-MODIFICATIONS.md',
     'THIRD-PARTY-NOTICES.md',
     'HISTORY.md',
+    'CHANGELOG.md',
     'docs/glossary/l/LiveCode.lcdoc',
     'ide/Extensions/org.openxtalk.plugin.xtalkassistant/xtalk-guide.md',
     'ide/Extensions/org.openxtalk.plugin.mcpbridge/bridge-guide.md',
 )
-EXEMPT_DIRS = ('thirdparty/', 'prebuilt/', 'node_modules/')
+EXEMPT_DIRS = ('thirdparty/', 'prebuilt/', 'node_modules/', 'changelog/')
 
 # Spans that are code, addresses or identifiers, not prose
 PROTECTED = re.compile(

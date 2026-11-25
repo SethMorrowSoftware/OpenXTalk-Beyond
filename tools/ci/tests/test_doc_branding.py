@@ -60,7 +60,8 @@ class TheCheckout(unittest.TestCase):
     def test_the_licence_and_history_are_left_alone(self):
         files = doc_branding.tracked_docs(REPO)
         for path in ('LICENSE-EXCEPTION.md', 'NOTICE-OF-MODIFICATIONS.md',
-                     'THIRD-PARTY-NOTICES.md', 'HISTORY.md', 'docs/glossary/l/LiveCode.lcdoc'):
+                     'THIRD-PARTY-NOTICES.md', 'HISTORY.md', 'CHANGELOG.md',
+                     'docs/glossary/l/LiveCode.lcdoc', 'changelog/637.md'):
             self.assertNotIn(path, files)
 
     def test_each_exempt_file_exists(self):
@@ -167,6 +168,9 @@ class TheRatchet(unittest.TestCase):
     def test_vendored_code_is_out_of_scope(self):
         self.assertFalse(doc_branding.in_scope('thirdparty/x/README.md'))
         self.assertFalse(doc_branding.in_scope('engine/src/x.cpp'))
+        # a changelog fragment is folded into CHANGELOG.md at a release,
+        # so both are a record, read as they are
+        self.assertFalse(doc_branding.in_scope('changelog/999.md'))
         self.assertTrue(doc_branding.in_scope('docs/notes/x.md'))
 
 

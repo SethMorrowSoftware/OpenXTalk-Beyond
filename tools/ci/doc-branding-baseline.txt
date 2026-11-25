@@ -3,16 +3,12 @@
 # Each is history, compatibility or what upstream did; the count may
 # only go down.
 17	BUILDING.md
-30	CHANGELOG.md
 1	CODE_OF_CONDUCT.md
 8	CONTRIBUTING.md
 3	LEGACY-TODO.md
 61	README.md
 1	SECURITY.md
 1	SUPPORT.md
-1	changelog/619.md
-1	changelog/628.md
-1	changelog/632.md
 2	docs/contributing_to_docs.md
 1	docs/development/C++-features.md
 1	docs/development/build-android.md
