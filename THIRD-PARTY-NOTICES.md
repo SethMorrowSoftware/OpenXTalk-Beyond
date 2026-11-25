@@ -224,6 +224,7 @@ with an AI assistant; they say so in their own messages.
 | The custom property editor's `openField` in the Inspector (`com.livecode.pi.customprops.behavior.livecodescript`) | BerndN, commit 973afeb0 ("Update com.livecode.pi.customprops.behavior.livecodescript (#601)") |
 | `shell()` on Linux: the server's wait for more output tries poll again only when poll itself was interrupted, and the SIGCHLD handler leaves `errno` as it found it (`MCS_lnx_shellread` and `handle_signal` in `engine/src/dsklnx.cpp`) | Stam Kapetanakis, commit f23d49b4 ("Linux server: stop shell() spinning at 100% CPU after a child exits", HyperXTalk #581) |
 | The IDE's start-up goes on when the dictionary build throws (`revInternal__openStack` in `ide/Toolset/home.livecodescript`) | Stam Kapetanakis, commit 9ec83c1d ("IDE start-up carries on when the dictionary build fails", HyperXTalk #615) |
+| The templateGraphic's colorOverlay put back after colour names are read (`__fetchNamesToColors` in `ide/Toolset/libraries/revidelibrary.8.livecodescript`) | Stam Kapetanakis, HyperXTalk pull request #620 ("Tools palette: Browse and Pointer icons visible in dark mode; no green tint on new graphic objects"), its `__fetchNamesToColors` change only |
 
 ### Code from Tom Perry's OpenXTalk Lite 7
 
