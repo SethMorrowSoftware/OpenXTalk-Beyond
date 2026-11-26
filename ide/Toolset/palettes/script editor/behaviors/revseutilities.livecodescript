@@ -750,6 +750,10 @@ command sePrefGetDefaults
    -- OXT-Beyond: the list of completions from HyperXTalk
    -- (ideautocompletelibrary) shows only when the user turns it on
    put false into tPrefs["editor,showautocomplete"]
+   -- OXT-Beyond: and when it shows, an abbreviation finds a long name
+   -- ("poc" finds preOpenCard) unless Edit > Options > Match Abbreviations
+   -- is unticked (from HyperXTalk #607)
+   put true into tPrefs["editor,autocompletehumps"]
    
    return tPrefs
 end sePrefGetDefaults

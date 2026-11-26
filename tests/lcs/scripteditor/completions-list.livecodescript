@@ -26,7 +26,16 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 -- while no list is showing. One test shows the list for a word, moves
 -- through it, closes it and takes a completion with Tab, as the editor's
 -- calls do. (Where the window appears, and that it is in front of the
--- editor, is checked by hand in the IDE; see the pull request.)
+-- editor, is checked by hand in the IDE; see the pull request.) The tests
+-- after it check HyperXTalk #607's changes: what is offered depends on
+-- where the word is in the line, keywords and words of three letters or
+-- fewer are never offered, nothing is offered in a comment, the variables
+-- in reach are offered after "into", end offers the handler it is in,
+-- messages are offered after "on" with no dictionary, Match Abbreviations
+-- turns the hump matching off, and a call's parameters are shown above it.
+-- On Windows the list and the hint are never hidden once shown, only moved
+-- out of sight (HyperXTalk's fix for the editor's title bar flicker), so
+-- "shown" here means visible and not parked there.
 --
 -- The editor's behavior has syntax that compiles only in the IDE
 -- (_internal), so its handlers are compiled on their own, from its file,
@@ -34,6 +43,9 @@ along with OXT-Beyond.  If not see <http://www.gnu.org/licenses/>.  */
 
 constant kLibrary = "ideautocompletelibrary"
 constant kPopup = "ideAutoCompletePopup"
+constant kHint = "ideAutoCompletePopupHint"
+-- Where the library parks the list and the hint on Windows
+constant kParked = "-20000,-20000"
 
 local sEditor, sLibraryFound
 
@@ -87,6 +99,12 @@ on TestTeardown
       if there is a stack kPopup then
          delete stack kPopup
       end if
+      if there is a stack kHint then
+         delete stack kHint
+      end if
+   end if
+   if there is a stack "revPreferences" and the cMadeByTest of stack "revPreferences" is true then
+      delete stack "revPreferences"
    end if
 end TestTeardown
 
@@ -140,7 +158,7 @@ on TestLibraryKeysCarryOnWithNoList
    TestAssert "left carries on", __Command("ideAutocompleteHandleArrow", "editor", "left", "object") is true
    TestAssert "Help goes on to the dictionary", __Command("ideAutocompleteHandleHelp", "editor", "object") is false
    get __Command("ideAutocompleteCancelFind", "editor", true)
-   TestAssert "no list was shown", there is no stack "ideAutoCompletePopup" or not the visible of stack "ideAutoCompletePopup"
+   TestAssert "no list was shown", not __Shown(kPopup)
 end TestLibraryKeysCarryOnWithNoList
 
 on TestLibraryLoadsOnce
@@ -185,7 +203,7 @@ on TestTheListForAWord
    -- its timer
    get __Command("ideAutocompleteUpdate", sEditor, sEditor, empty)
    send "ideAutocomplete_DoUpdate" to stack kLibrary
-   TestAssert "the list shows", there is a stack kPopup and the visible of stack kPopup
+   TestAssert "the list shows", __Shown(kPopup)
    TestAssert "it has the commands the word begins", "replace" is among the lines of the text of field "completions" of stack kPopup
    TestAssert "it is a palette", the style of stack kPopup is "palette"
    -- On Windows the editor, taking the keyboard back, came in front of a
@@ -198,15 +216,161 @@ on TestTheListForAWord
    TestAssert "down moves through the list", __Command("ideAutocompleteHandleArrow", sEditor, "down", sEditor) is false
    TestAssert "to the second word", the hilitedLine of field "completions" of stack kPopup is 2
    get __Command("ideAutocompleteCancelFind", sEditor, true)
-   TestAssert "Escape closes it", not the visible of stack kPopup
+   TestAssert "Escape closes it", not __Shown(kPopup)
 
    -- Tab takes the first completion, through the editor
    get __Command("ideAutocompleteUpdate", sEditor, sEditor, empty)
    TestAssert "Tab is taken", __Command("ideAutocompleteHandleTab", sEditor, sEditor) is false
    put line 1 of the text of field "completions" of stack kPopup into tFirst
    TestAssert "the first word replaces the one typed", the cReplaced of sEditor is "15,rep," & tFirst
-   TestAssert "the list closes", not the visible of stack kPopup
+   TestAssert "the list closes", not __Shown(kPopup)
 end TestTheListForAWord
+
+on TestWhereTheWordIs
+   __LoadLibrary
+   __OpenEditor
+   local tList
+   -- At the start of a statement: commands and control structures
+   put __ListFor("on mouseUp|   rep", "rep") into tList
+   TestAssert "a statement's start offers repeat", "repeat" is among the lines of tList
+   TestAssert "and the replace command", "replace" is among the lines of tList
+   TestAssert "but not the replaceText function", "replaceText" is not among the lines of tList
+   -- Mid-line: functions, properties and constants, never a command
+   put __ListFor("on mouseUp|   put repl", "repl") into tList
+   TestAssert "mid-line offers replaceText", "replaceText" is among the lines of tList
+   TestAssert "mid-line does not offer the replace command", "replace" is not among the lines of tList
+   -- After "set the": properties only
+   put __ListFor("on mouseUp|   set the backgroundC", "backgroundC") into tList
+   TestAssert "set the offers backgroundColor", "backgroundColor" is among the lines of tList
+   TestAssert "set the offers only properties", __AllAmong(tList, propertyNames())
+   -- After "is a": the types a value can be tested for
+   put __ListFor("on mouseUp|   if tX is a num", "num") into tList
+   TestAssert "is a offers number", tList is "number"
+   -- After "on": the name of a message, from the built-in list when there
+   -- is no dictionary, as there is none here
+   put __ListFor("on preOpenC", "preOpenC") into tList
+   TestAssert "on offers preOpenCard", "preOpenCard" is among the lines of tList
+   put __ListFor("on mouseU", "mouseU") into tList
+   TestAssert "on offers mouseUp", "mouseUp" is among the lines of tList
+end TestWhereTheWordIs
+
+on TestNothingToOffer
+   __LoadLibrary
+   __OpenEditor
+   -- A keyword typed in full
+   TestAssert "into offers nothing", __ListFor("on mouseUp|   put 1 into", "into") is empty
+   -- In a comment, of either kind
+   TestAssert "nothing in a -- comment", __ListFor("on mouseUp|   -- rep", "rep") is empty
+   -- (no hash sign in a test's name: the test protocol reads one as the
+   -- start of a directive, and the run never ends)
+   TestAssert "nothing in a hash comment", __ListFor("on mouseUp|   # rep", "rep") is empty
+   TestAssert "nothing in a block comment", __ListFor("on mouseUp|   /* a note|   rep", "rep") is empty
+   TestAssert "a closed block comment does not count", "repeat" is among the lines of \
+         __ListFor("on mouseUp|   /* a note */|   rep", "rep")
+   -- In a string
+   TestAssert "nothing in a string", __ListFor("on mouseUp|   put " & quote & "rep", "rep") is empty
+   -- Words of three letters or fewer are never on the list
+   TestAssert "put is never offered", "put" is not among the lines of __ListFor("on mouseUp|   pu", "pu")
+   -- A single letter is too few
+   TestAssert "one letter offers nothing", __ListFor("on mouseUp|   r", "r") is empty
+end TestNothingToOffer
+
+on TestVariablesAndBlocks
+   __LoadLibrary
+   __OpenEditor
+   local tList
+   -- The variables in reach after into, typed or not
+   put __ListFor("on mouseUp|   local tCounter|   put 1 into tCo", "tCo") into tList
+   TestAssert "a local is offered first after into", line 1 of tList is "tCounter"
+   put __ListFor("on mouseUp pFirst|   local tCounter|   put 1 into ", empty) into tList
+   TestAssert "after into and a space, the local", "tCounter" is among the lines of tList
+   TestAssert "and the parameter", "pFirst" is among the lines of tList
+   -- A variable of another handler is not in reach
+   put __ListFor("on mouseDown|   local tOther|end mouseDown|on mouseUp|   put 1 into ", empty) into tList
+   TestAssert "another handler's local is not", "tOther" is not among the lines of tList
+   -- end offers the handler the caret is in, and the block that is open
+   put __ListFor("on mouseUp|   beep|   end mou", "mou") into tList
+   TestAssert "end offers the handler", tList is "mouseUp"
+   put __ListFor("on mouseUp|   repeat 3 times|      beep|   end ", empty) into tList
+   TestAssert "end after a space offers the open repeat, and only that", tList is "repeat"
+   put __ListFor("on mouseUp|   repeat 3 times|      exit ", empty) into tList
+   TestAssert "exit offers the repeat and the handler", tList is "repeat" & return & "mouseUp"
+end TestVariablesAndBlocks
+
+on TestMatchAbbreviations
+   __LoadLibrary
+   __OpenEditor
+   -- Hump matching: the capitals of a long name. Mid-line it starts at
+   -- three letters. (The engine's own lists of names are in lower case,
+   -- and there is no dictionary here, so a handler of the script is used.)
+   local tScript
+   put "function sayHelloWorld|end sayHelloWorld|on mouseUp|   put " into tScript
+   TestAssert "shw finds sayHelloWorld", "sayHelloWorld" is among the lines of __ListFor(tScript & "shw", "shw")
+   if there is a stack "revPreferences" then
+      -- (the IDE's own: its preference is the user's, not this test's)
+      exit TestMatchAbbreviations
+   end if
+   local tPref
+   put "cScriptEditor,editor,autocompletehumps" into tPref
+   create invisible stack "revPreferences"
+   set the cMadeByTest of stack "revPreferences" to true
+   set the defaultStack to "TestCompletionsListStack"
+   set the tPref of stack "revPreferences" to false
+   TestAssert "unticked, shw finds nothing", "sayHelloWorld" is not among the lines of __ListFor(tScript & "shw", "shw")
+   TestAssert "a plain start still matches", "sayHelloWorld" is among the lines of __ListFor(tScript & "sayH", "sayH")
+   set the tPref of stack "revPreferences" to true
+   TestAssert "ticked again, it does", "sayHelloWorld" is among the lines of __ListFor(tScript & "shw", "shw")
+end TestMatchAbbreviations
+
+on TestMatchAbbreviationsMenu
+   -- The script editor's Edit > Options item, and its default
+   local tText
+   put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & \
+         "/Toolset/palettes/script editor/behaviors/revsemenubarbehavior.livecodescript"), "UTF-8") into tText
+   TestAssert "the menu has the item", tText contains quote & "Match Abbreviations" & quote
+   TestAssert "the menu pick sets the preference", \
+         tText contains "case " & quote & "Options|Match Abbreviations" & quote
+   put textDecode(url ("binfile:" & TestGetIDERepositoryPath() & \
+         "/Toolset/palettes/script editor/behaviors/revseutilities.livecodescript"), "UTF-8") into tText
+   TestAssert "on by default", tText contains "put true into tPrefs[" & quote & "editor,autocompletehumps" & quote & "]"
+end TestMatchAbbreviationsMenu
+
+on TestParameterHint
+   __LoadLibrary
+   __OpenEditor
+   local tScript
+   put "function addUp pFirst, pSecond|   return pFirst + pSecond|end addUp|" & \
+         "command greet pName, pTimes|end greet|on mouseUp|" into tScript
+   -- After a function's "(": its parameters, above the line
+   get __ListFor(tScript & "   put addUp(", empty)
+   TestAssert "a function's hint shows", __Shown(kHint)
+   TestAssert "with its parameters", the text of field "hint" of stack kHint is "addUp(pFirst, pSecond)"
+   TestAssert "the first is the one being typed", \
+         the textStyle of char 7 to 12 of field "hint" of stack kHint is "bold"
+   -- After the comma, the second
+   get __ListFor(tScript & "   put addUp(1, ", empty)
+   TestAssert "the second after a comma", \
+         the textStyle of char 15 to 21 of field "hint" of stack kHint is "bold" and \
+         the textStyle of char 7 to 12 of field "hint" of stack kHint is "plain"
+   -- Out of the call, it goes
+   get __ListFor(tScript & "   put addUp(1, 2) ", empty)
+   TestAssert "the hint goes after the call", not __Shown(kHint)
+   -- A command's, after a space
+   get __ListFor(tScript & "   greet ", empty)
+   TestAssert "a command's hint shows", __Shown(kHint)
+   TestAssert "with its parameters", the text of field "hint" of stack kHint is "greet pName, pTimes"
+   -- Not in a comment
+   get __ListFor(tScript & "   -- put addUp(", empty)
+   TestAssert "no hint in a comment", not __Shown(kHint)
+   -- Not for a declaration
+   get __ListFor(tScript & "   local ", empty)
+   TestAssert "no hint for local", not __Shown(kHint)
+   if the platform is "Win32" then
+      TestAssert "a system window on Windows", the systemWindow of stack kHint is true
+   else
+      TestAssert "not a system window here", the systemWindow of stack kHint is false
+   end if
+end TestParameterHint
 
 on TestInsertGoesThroughTheEditor
    get __Command("ideAutocompleteInsertCompletion", 12, "rep", "repeat")
@@ -214,6 +378,62 @@ on TestInsertGoesThroughTheEditor
 end TestInsertGoesThroughTheEditor
 
 --------------------------------------------------------------------------------
+
+-- Whether the list or the hint is on the screen: visible, and on Windows,
+-- where the library parks it instead of hiding it, not parked
+private function __Shown pStack
+   if there is not a stack pStack then return false
+   if not the visible of stack pStack then return false
+   return the topLeft of stack pStack is not kParked
+end __Shown
+
+-- Whether every line of pList is a line of pAmong
+private function __AllAmong pList, pAmong
+   if pList is empty then return false
+   repeat for each line tLine in pList
+      if tLine is not among the lines of pAmong then return false
+   end repeat
+   return true
+end __AllAmong
+
+-- The editor's script field on an open stack, with the IDE's stand-in the
+-- library asks for an object's key
+private command __OpenEditor
+   go stack "TestCompletionsListStack"
+   set the defaultStack to "TestCompletionsListStack"
+   if there is not a field "script" then
+      create field "script"
+   end if
+   set the cScriptField of sEditor to the long id of field "script"
+   if there is not a button "standIns" then
+      create button "standIns"
+      set the script of button "standIns" to \
+            "function revRuggedId pObject" & return & "return pObject" & return & "end revRuggedId"
+      insert the script of button "standIns" into back
+   end if
+end __OpenEditor
+
+-- Types pText (with "|" for a return) into the script field, the caret at
+-- its end after the word pToken, runs the update the editor asks for and
+-- gives the list it shows, or empty if it shows none. The list is closed
+-- again; a parameter hint is left as it is.
+private function __ListFor pText, pToken
+   local tField, tList
+   put the cScriptField of sEditor into tField
+   replace "|" with return in pText
+   set the text of tField to pText
+   select after text of tField
+   set the cToken of sEditor to pToken
+   get __Command("ideAutocompleteUpdate", sEditor, sEditor, empty)
+   send "ideAutocomplete_DoUpdate" to stack kLibrary
+   if __Shown(kPopup) then
+      put the text of field "completions" of stack kPopup into tList
+   end if
+   -- (cancel the update's timer, and close the list, but not the hint)
+   send "ideAutocomplete_DeferredHide" to stack kLibrary
+   get __Command("ideAutocompleteCancelFind", sEditor, false)
+   return tList
+end __ListFor
 
 private function __Call pFunction
    dispatch function pFunction to sEditor
