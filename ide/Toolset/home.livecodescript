@@ -371,6 +371,14 @@ on revInternal__openStack
       revIDESetPreference "cScriptEditor,editor,fontsize", 16
    end if
    
+   -- OXT-Beyond: the window positions earlier versions kept for stacks
+   -- named by a temporary file, which only made the preferences grow
+   -- (revIDEForgetTempPaletteRects, from HyperXTalk #623)
+   try
+      get revIDEForgetTempPaletteRects()
+   catch tError
+   end try
+   
    --tperry 28-5-2026 -- if recent files as gallery is unset...
    if the cRecentstacksAsGallery of stack "revPreferences" is empty then
       set the cRecentstacksAsGallery of stack "revPreferences" to false

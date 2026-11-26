@@ -225,6 +225,7 @@ with an AI assistant; they say so in their own messages.
 | `shell()` on Linux: the server's wait for more output tries poll again only when poll itself was interrupted, and the SIGCHLD handler leaves `errno` as it found it (`MCS_lnx_shellread` and `handle_signal` in `engine/src/dsklnx.cpp`) | Stam Kapetanakis, commit f23d49b4 ("Linux server: stop shell() spinning at 100% CPU after a child exits", HyperXTalk #581) |
 | The IDE's start-up goes on when the dictionary build throws (`revInternal__openStack` in `ide/Toolset/home.livecodescript`) | Stam Kapetanakis, commit 9ec83c1d ("IDE start-up carries on when the dictionary build fails", HyperXTalk #615) |
 | The templateGraphic's colorOverlay put back after colour names are read (`__fetchNamesToColors` in `ide/Toolset/libraries/revidelibrary.8.livecodescript`) | Stam Kapetanakis, HyperXTalk pull request #620 ("Tools palette: Browse and Pointer icons visible in dark mode; no green tint on new graphic objects"), its `__fetchNamesToColors` change only |
+| No window position kept for a stack named by a file in the temporary folder, and those kept before taken out as the IDE starts (`revIDESetPaletteRectPreference`, `revIDEStackNameIsTempPath` and `revIDEForgetTempPaletteRects` in `ide/Toolset/libraries/revidelibrary.8.livecodescript`, called from `ide/Toolset/home.livecodescript`), for any OS's temporary folder | Mark Wieder, HyperXTalk pull request #623 ("Preferences stack cleaning"), its `palette_rect_/tmp` change only |
 
 ### Code from Tom Perry's OpenXTalk Lite 7
 
