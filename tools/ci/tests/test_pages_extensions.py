@@ -86,7 +86,9 @@ MEMBERS = ['sodiumxt', 'coinxt', 'nostrxt', 'torrentxt', 'enetxt', 'datachannelx
 # The other hosts the page may link to: the suite, each extension's own
 # repository, and OXT-Beyond; a card made from a package links its folder
 # in the suite at the release's tag (checked in TheBuiltPage.build)
-EXTERNAL = {SUITE, SUITE + '/releases', 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'}
+EXTERNAL = {SUITE, SUITE + '/releases', 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond',
+            # the xTalk Suite's own packages page, for the IDEs built on LiveCode Community 9
+            'https://sethmorrowsoftware.github.io/xtalk-suite/'}
 EXTERNAL |= {row[5] for row in build_pages.EXTENSIONS}
 BEYOND = 'https://github.com/SethMorrowSoftware/OpenXTalk-Beyond'
 EXTERNAL |= {BEYOND + '/releases', BEYOND + '/tree/main/tools/plugins'}

@@ -38,6 +38,22 @@ the site it is about to deploy, as a warning;
 [test_pages_at_rest.py](../ci/tests/test_pages_at_rest.py) holds the
 pages without a browser).
 
+## The OpenXTalk family bar
+
+Every page here that is read rather than played (the front page, the
+extensions page, the web stacks gallery and its samples' pages, the
+lessons and the welcome pages) starts with the same slim strip of links
+as the xTalk Suite's extensions page
+(sethmorrowsoftware.github.io/xtalk-suite) and the OXT Community Stacks
+gallery (oxt-stacks.github.io/oxt-community-stacks): OXT-Beyond, Web IDE,
+Lessons, Extensions, Community stacks and Forum, with the part a page is
+in marked. [family.py](family.py) writes it, inline (its own style and an
+SVG mark: it asks no host for anything), and `build_pages.py` runs it over
+the site before the sitemap. Parts of this site are linked relatively and
+only when the site has them. The other two sites carry copies of its
+`FAMILY`, `FAMILY_CSS`, `MARK` and `family_bar`: change the three together.
+[test_pages_family.py](../ci/tests/test_pages_family.py) holds it.
+
 ## The web stacks gallery
 
 [games/index.html](games/index.html) is the gallery: the big ones, each on
