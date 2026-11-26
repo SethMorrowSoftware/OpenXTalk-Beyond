@@ -1955,6 +1955,11 @@ private command ideAutocomplete_RevealWindow pName, pX, pY
 end ideAutocomplete_RevealWindow
 
 private command ideAutocomplete_ConcealWindow pName
+   -- The window may be gone (deleted from memory, or a test's teardown)
+   -- while a watch timer still means to put it away: nothing to do then.
+   if there is not a stack pName then
+      exit ideAutocomplete_ConcealWindow
+   end if
    if the platform contains "win" then
       set the topLeft of stack pName to kParkedLoc
    else

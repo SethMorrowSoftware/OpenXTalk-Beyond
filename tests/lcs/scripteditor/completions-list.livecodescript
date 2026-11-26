@@ -398,6 +398,18 @@ on TestParameterHint
    else
       TestAssert "not a system window here", the systemWindow of stack kHint is false
    end if
+   -- The hint's window gone from memory while it shows: putting it away
+   -- is no error, and the next call makes it again
+   get __ListFor(tScript & "   put calc(", empty)
+   delete stack kHint
+   local tError
+   try
+      dispatch "ideAutocompleteCancelFind" to stack kLibrary with sEditor, true
+   catch tError
+   end try
+   TestAssert "no error when the hint's window is gone", tError is empty
+   get __ListFor(tScript & "   put calc(", empty)
+   TestAssert "the hint comes back", __Shown(kHint)
 end TestParameterHint
 
 on TestInsertGoesThroughTheEditor
