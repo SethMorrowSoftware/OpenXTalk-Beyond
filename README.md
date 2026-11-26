@@ -1755,8 +1755,8 @@ New:
   MB instead of 1,056 MB, the Linux x86-64 package about 638 MB
   instead of 707 MB, and the Windows installer about 135 MB smaller
   (#636).
-- **Docs in OXT-Beyond's own name**, and the screenshots that still
-  showed LiveCode retaken from OXT-Beyond (#637, #640).
+- **Docs in OXT-Beyond's own name**, xTalk Script and xTalk Builder,
+  with every guide screenshot taken from OXT-Beyond (#637, #640).
 
 Fixed:
 
@@ -1779,7 +1779,7 @@ Fixed:
   starts, listens and seeds on Android 11 and later (#625). webpxt
   refuses an animation longer than WebP can time, where it wrote it
   wrong (#629).
-- The Project Browser's own stack no longer carries LiveCode's stray
+- The Project Browser's own stack no longer carries the stray audio clip
   "Clap.mp3" (#632); a click into a custom property's value in the
   Property Inspector no longer selects all of it, and the splash opens
   on the screen the menu bar was last on (from HyperXTalk) (#627); the

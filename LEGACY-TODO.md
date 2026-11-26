@@ -81,7 +81,7 @@ Code its authors knew to be wrong or incomplete. 64 notes, by part of the reposi
 ### FIXME: tests (8)
 
 - [tests/_testerlib.livecodescript:272](tests/_testerlib.livecodescript#L272) FIXME this really doesn't work properly if LiveCode's stdout
-- [tests/_testrunner.lcb:69](tests/_testrunner.lcb#L69) FIXME this should use proper LiveCode builder syntax for string
+- [tests/_testrunner.lcb:69](tests/_testrunner.lcb#L69) FIXME this should use proper xTalk Builder syntax for string
 - [tests/_testrunner.lcb:211](tests/_testrunner.lcb#L211) FIXME HACK HACK HACK
 - [tests/_testrunner.lcb:234](tests/_testrunner.lcb#L234) FIXME Currently, this is implemented by redirecting the lc-run's
 - [tests/_testrunner.lcb:262](tests/_testrunner.lcb#L262) FIXME Currently, this is implemented by redirecting the lc-run's
