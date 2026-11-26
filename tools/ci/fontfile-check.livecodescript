@@ -115,6 +115,54 @@ command codeStep pState, pAction, pFile, pIcons
    logLine "CODE" && pState && codeProbe(pIcons) && tResult
 end codeStep
 
+-- Issue #639: a font file whose family differs only in case from a font
+-- the machine has (the IDE's "fontawesome" beside a system "FontAwesome")
+-- crashed the engine with Pango 1.57 when text in it was measured. The
+-- check puts a copy of a font in the user's font folder under one
+-- spelling ($OXT_FONTFILE_CASE_SYSTEM) and has this script load another
+-- copy under the other ($OXT_FONTFILE_CASE_LOADED), then measures text in
+-- each spelling and counts how often the fontNames list each
+function caseCount pFamily
+   local tCount, tLine
+   -- the spellings differ only in case, which "is" would not see
+   set the caseSensitive to true
+   put 0 into tCount
+   repeat for each line tLine in the fontNames
+      if tLine is pFamily then add 1 to tCount
+   end repeat
+   return tCount
+end caseCount
+
+function caseProbe
+   local tLine, tFamily
+   put caseCount($OXT_FONTFILE_CASE_SYSTEM) & comma & caseCount($OXT_FONTFILE_CASE_LOADED) into tLine
+   repeat for each item tFamily in $OXT_FONTFILE_CASE_SYSTEM & comma & $OXT_FONTFILE_CASE_LOADED
+      set the textFont of field "Case" of stack kProbe to tFamily
+      put comma & the formattedWidth of line 1 of field "Case" of stack kProbe after tLine
+   end repeat
+   return tLine
+end caseProbe
+
+command caseCheck
+   local tFile, tResult
+   put $OXT_FONTFILE_CASE_FILE into tFile
+   if tFile is empty then exit caseCheck
+   create field "Case"
+   set the width of field "Case" to 2000
+   set the dontWrap of field "Case" to true
+   set the textSize of field "Case" to 15
+   set the text of field "Case" to "abc"
+   logLine "INFO case font file" && tFile && "exists=" & (there is a file tFile)
+   logLine "CASE before" && caseProbe()
+   start using font file tFile
+   put the result into tResult
+   -- Before the fix, Pango 1.57 ended the engine here
+   logLine "CASE loaded" && caseProbe() && tResult
+   stop using font file tFile
+   put the result into tResult
+   logLine "CASE unloaded" && caseProbe() && tResult
+end caseCheck
+
 on runCheck
    local tFile, tResult, tCode, tIcons
    logLine "INFO platform=" & the platform & " version=" & the version & " processor=" & the processor
@@ -155,6 +203,8 @@ on runCheck
       codeStep "no-regular", "unload", tCode & slash & item 1 of kCodeFiles, tIcons
       codeStep "no-bold", "unload", tCode & slash & item 2 of kCodeFiles, tIcons
       codeStep "after", "unload", tFile, tIcons
+      
+      caseCheck
    catch tError
       logLine "ERROR" && line 1 of tError
    end try

@@ -60,6 +60,24 @@ family is listed before any is loaded (installed on the machine, so the
 check could not tell), or when ten i and ten M measure alike before
 (the fallback face is monospaced).
 
+Last, issue #639: a font file whose family differs only in case from a
+font the machine has (the IDE's "fontawesome" beside a system
+"FontAwesome", from fonts-font-awesome) ended the engine with Pango 1.57
+(Ubuntu 26.04) as soon as text in it was measured: Pango lists the two as
+one family in the system font's spelling, then looks the loaded font's own
+spelling up in that list and uses the NULL it finds. The check makes two
+copies of the font file above under a name of its own, one spelled
+OxtCaseFont in a font folder of its own that fontconfig reads as the
+user's (XDG_DATA_HOME), the other spelled oxtcasefont for the script to
+load; the script measures text in each spelling before, while and after
+it is loaded (the CASE lines). The family must be listed once in the
+system spelling, and text in either spelling must measure. An older Pango
+never crashed here, so on one the check proves the listing and the
+measuring only; run it with Ubuntu 26.04's Pango (LD_LIBRARY_PATH) to see
+the crash on an engine before the fix: no CASE loaded line, and no QUIT.
+The check fails when the system copy is not listed before the load
+(fontconfig did not read the folder, so it could not tell).
+
 Needs Xvfb and the DejaVu fonts. Exit status 0 when every check passed,
 1 otherwise. Under GitHub Actions a failure is an annotation and the
 results go into the job summary.
@@ -83,6 +101,13 @@ FONT = os.path.join(FONTS_DIR, 'fontawesome.ttf')
 FONT_FAMILY = 'fontawesome'
 # The IDE's code font files (kCodeFiles in the script) are in FONTS_DIR
 CODE_FILES = ('SourceCodePro-Regular.ttf', 'SourceCodePro-Bold.ttf')
+
+# Issue #639: the two spellings of one family the check makes from FONT,
+# each as long as FONT_FAMILY so that nothing else in the file moves
+CASE_SYSTEM = 'OxtCaseFont'
+CASE_LOADED = 'oxtcasefont'
+# The CASE lines, in the order the script logs them
+CASE_STEPS = ('before', 'loaded', 'unloaded')
 
 # As kRounds, kFonts, kStyles and kSizes in the script
 ROUNDS = 10
@@ -202,6 +227,67 @@ def evaluate_code(result):
     return checks
 
 
+def renamed_font(data, old, new):
+    """The font file data with its family name old (and the names made
+    from it) spelled new: the name table holds it in one-byte and in
+    UTF-16BE text. new must be as long as old, so nothing else moves."""
+    if len(old) != len(new):
+        raise ValueError('%r and %r differ in length' % (old, new))
+    count = 0
+    for a, b in ((old.encode('ascii'), new.encode('ascii')),
+                 (old.encode('utf-16-be'), new.encode('utf-16-be'))):
+        count += data.count(a)
+        data = data.replace(a, b)
+    if count == 0:
+        raise ValueError('%r is not in the font file' % old)
+    return data
+
+
+def parse_case(line):
+    """(system listed, loaded listed, system width, loaded width, result)
+    from the words after 'CASE <state>', or None."""
+    words = line.split(' ', 1)
+    values = words[0].split(',')
+    if len(values) != 4:
+        return None
+    try:
+        numbers = [int(x) for x in values]
+    except ValueError:
+        return None
+    return tuple(numbers) + (words[1].strip() if len(words) > 1 else '',)
+
+
+def evaluate_case(result):
+    """[(name, ok, detail)] for the CASE lines (issue #639)."""
+    checks = []
+    case = {}
+    for line in result:
+        words = line.split(' ', 2)
+        if words[0] == 'CASE' and len(words) > 2:
+            case[words[1]] = parse_case(words[2])
+    for state in CASE_STEPS:
+        got = case.get(state)
+        name = {'before': 'before the font file of another case is loaded',
+                'loaded': 'with the font file of another case loaded',
+                'unloaded': 'after the font file of another case is unloaded'}[state]
+        if got is None:
+            checks.append((name + ': measured', False,
+                           'no CASE %s line%s' % (state, ' (the engine ended as it measured: issue #639)'
+                                                   if state == 'loaded' else '')))
+            continue
+        system, loaded, system_width, loaded_width, said = got
+        if state != 'before':
+            checks.append((name + ': without an error', said == '', 'the result was %r' % said))
+        checks.append((name + ': the family is listed once, as %s' % CASE_SYSTEM, system == 1,
+                       'listed %d times%s' % (system, ' (fontconfig did not read the font folder, so the '
+                                              'check cannot tell)' if state == 'before' and system == 0 else '')))
+        checks.append((name + ': the family is not listed as %s' % CASE_LOADED, loaded == 0,
+                       'listed %d times' % loaded))
+        checks.append((name + ': text in either spelling measures', system_width > 0 and loaded_width > 0,
+                       '%s %d, %s %d' % (CASE_SYSTEM, system_width, CASE_LOADED, loaded_width)))
+    return checks
+
+
 def evaluate(result):
     """[(name, ok, detail)] for the engine's log lines."""
     checks = []
@@ -243,6 +329,7 @@ def evaluate(result):
                 checks.append((name + ': every width as before', not diff,
                                '%d of %d differ: %s' % (len(diff), len(base), '; '.join(diff[:6]))))
     checks += evaluate_code(result)
+    checks += evaluate_case(result)
     checks.append(('the engine quit when it was done', any(x.startswith('QUIT') for x in result), ''))
     return checks
 
@@ -295,6 +382,17 @@ def main(argv=None):
         for name in CODE_FILES:
             if not os.path.isfile(os.path.join(args.code_fonts, name)):
                 raise RuntimeError('the code font file %s is not in %s' % (name, args.code_fonts))
+        # Issue #639: one spelling in a font folder of the check's own,
+        # which fontconfig reads as the user's; the other for the script
+        with open(args.font, 'rb') as f:
+            font_data = f.read()
+        user_fonts = os.path.join(work, 'xdg', 'fonts')
+        os.makedirs(user_fonts)
+        with open(os.path.join(user_fonts, CASE_SYSTEM + '.ttf'), 'wb') as f:
+            f.write(renamed_font(font_data, args.font_family, CASE_SYSTEM))
+        case_file = os.path.join(work, CASE_LOADED + '.ttf')
+        with open(case_file, 'wb') as f:
+            f.write(renamed_font(font_data, args.font_family, CASE_LOADED))
         result_log = os.path.join(work, 'engine.log')
         xvfb, display_name = start_xvfb()
         log('X server %s, engine %s, font file %s' % (display_name, engine, args.font))
@@ -303,7 +401,11 @@ def main(argv=None):
         env.update({'DISPLAY': display_name, 'OXT_FONTFILE_LOG': result_log,
                     'OXT_FONTFILE_FONT': os.path.abspath(args.font),
                     'OXT_FONTFILE_CODE': os.path.abspath(args.code_fonts),
-                    'OXT_FONTFILE_ICONS': args.font_family})
+                    'OXT_FONTFILE_ICONS': args.font_family,
+                    'XDG_DATA_HOME': os.path.join(work, 'xdg'),
+                    'OXT_FONTFILE_CASE_FILE': case_file,
+                    'OXT_FONTFILE_CASE_SYSTEM': CASE_SYSTEM,
+                    'OXT_FONTFILE_CASE_LOADED': CASE_LOADED})
         try:
             proc = subprocess.run([engine, SCRIPT], cwd=work, env=env, stdout=subprocess.PIPE,
                                   stderr=subprocess.STDOUT, timeout=args.timeout)
@@ -314,7 +416,7 @@ def main(argv=None):
         if os.path.exists(result_log):
             with open(result_log, encoding='utf-8', errors='replace') as f:
                 result = [x.rstrip('\r\n') for x in f if x.strip()]
-        lines += ['INFO engine: ' + x for x in result if x.startswith(('INFO', 'BASE', 'CODE', 'ERROR', 'QUIT'))]
+        lines += ['INFO engine: ' + x for x in result if x.startswith(('INFO', 'BASE', 'CODE', 'CASE', 'ERROR', 'QUIT'))]
         if code is None:
             lines.append('INFO the engine timed out after %d seconds' % args.timeout)
         for name, ok, detail in evaluate(result):
@@ -323,7 +425,7 @@ def main(argv=None):
                 problems.append('%s%s' % (name, (': ' + detail) if detail else ''))
         if problems and output.strip():
             lines.append('INFO engine output: ' + output[-2000:])
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         problems.append(str(e))
         lines.append('FAIL ' + str(e))
     finally:

@@ -1811,6 +1811,21 @@ jobs:
           /usr/bin/python3 tools/ci/fontfile_check.py --engine "$OXT_ROOT/Runtime/Linux/$folder/Standalone" \
             --log "$RUNNER_TEMP/logs/fontfile-check.log"
 
+      # The same check with Ubuntu 26.04's Pango (1.57), fetched from a
+      # snapshot by its SHA-256 (tools/ci/ubuntu_pango.py): up to
+      # 0.2.8-dp.2.1 the engine ended there when a font file it loaded had
+      # a family that differs only in case from one the machine had (the
+      # IDE's "fontawesome" beside fonts-font-awesome's "FontAwesome": the
+      # Extension Builder crashed on opening, issue #639). The runner's
+      # Pango 1.52 never crashed on it. x86_64 only: the packages are amd64
+      - name: Font file check with Ubuntu 26.04's Pango
+        if: ${{ !cancelled() && env.OXT_ROOT != '' && matrix.arch == 'x86_64' }}
+        timeout-minutes: 5
+        run: |
+          /usr/bin/python3 tools/ci/ubuntu_pango.py --out "$RUNNER_TEMP/pango-26.04"
+          LD_LIBRARY_PATH="$RUNNER_TEMP/pango-26.04" /usr/bin/python3 tools/ci/fontfile_check.py \
+            --engine "$OXT_ROOT/Runtime/Linux/x86-64/Standalone" --log "$RUNNER_TEMP/logs/fontfile-check-pango-26.04.log"
+
       # A write to a secure socket goes while a read on it waits for the
       # rest of a TLS record: up to 0.2.7 the engine held the write back
       # until the next read, so a request queued behind the handshake never
