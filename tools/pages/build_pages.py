@@ -126,6 +126,7 @@ sys.path.insert(0, HERE)
 
 import build_dictionary  # noqa: E402
 import build_lessons  # noqa: E402
+import family  # noqa: E402
 import seo  # noqa: E402
 
 # The parts of the site, each with its card on the front page, and the
@@ -1313,6 +1314,10 @@ def build(args):
     print('welcome: %s' % ', '.join(welcome(os.path.join(HERE, 'welcome'), os.path.join(out, 'welcome'))))
     front_page(out, parts)
     brand(os.path.join(HERE, 'brand'), os.path.join(out, 'brand'))
+    # The OpenXTalk family bar, the same strip of links on this site, the
+    # xTalk Suite's extensions page and the community stacks gallery, on
+    # every page here that is read rather than played (tools/pages/family.py)
+    print('family bar: %d pages' % len(family.finish(out)))
     # Last, over everything written: each page's one address and the
     # sitemap (tools/pages/seo.py), for search engines
     print('sitemap: %d pages' % len(seo.finish(out)))
