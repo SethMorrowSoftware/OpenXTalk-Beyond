@@ -43,6 +43,14 @@ at the window server's order of the IDE's windows
   backdrop        the backdrop alone, then once more
   away-backdrop   the Finder made the active app, then the backdrop
   menu-desktop    the backdrop off, the menu's title, then the desktop
+  menu-slide      File's title clicked, the pointer moved to Edit's
+                  title, back to File's and on to Help's, without a click
+                  (a slide along the menu bar), the items of the open menu
+                  read with System Events at each: File must never show
+                  Exit nor Help About, which the application menu shows
+                  instead (the report on 0.2.8-dp.2.1, macOS 26 on Apple
+                  silicon and Intel: File gained an Exit item at its
+                  bottom after the pointer went to Edit and back)
 
 After each step with the backdrop on, the backdrop must be behind every
 window of the IDE of the normal layer (the Menubar palette, the stacks),
@@ -54,7 +62,8 @@ named from the build's dSYMs under $OXT_DSYM_DIR), then Escape is pressed
 and the title clicked again to see whether either brings it back, and no
 more steps run. Every screenshot is printed into the log as
 tools/ci/print_images.py reads it. Exit status 0 when the IDE answered and
-kept the backdrop behind its windows after every step, 1 when it did not,
+kept the backdrop behind its windows after every step and the slide
+showed no hidden item, 1 when it did not,
 2 when the check itself could not run. Only the Python 3 standard library
 is used.
 """
@@ -101,6 +110,14 @@ function post(type, x, y, clicks) {
   $.CGEventPost(0, e);
 }
 '''
+
+
+def move(x, y):
+    """The pointer moved to x, y on the screen, no button down: over a
+    title of the menu bar while one of its menus is open, macOS opens that
+    title's menu instead (a slide)."""
+    code, said = osascript(POST + 'post(5, %d, %d, 0);' % (x, y), 'JavaScript')
+    log('%.3f move to %d,%d%s' % (time.time(), x, y, '' if code == 0 and not said else ' (%s: %s)' % (code, said)))
 
 
 def click(x, y):
@@ -226,6 +243,41 @@ def frontmost():
     """The unix id of the active app's process, as System Events sees it."""
     code, said = osascript('tell application "System Events" to get unix id of first process whose frontmost is true')
     return said
+
+
+def menu_items(pid, menu):
+    """The titles of the items of the menu bar menu named menu of the
+    process pid that System Events finds (a separator as "-"; macOS leaves
+    hidden items out), or None when it could not be asked."""
+    code, said = osascript(
+        'tell application "System Events"\n'
+        '  set p to first application process whose unix id is %d\n'
+        '  set t to ""\n'
+        '  repeat with i in menu items of menu 1 of menu bar item "%s" of menu bar 1 of p\n'
+        '    set n to name of i\n'
+        '    if n is missing value then set n to "-"\n'
+        '    set t to t & n & linefeed\n'
+        '  end repeat\n'
+        '  return t\n'
+        'end tell' % (pid, menu))
+    if code != 0:
+        log('System Events: the items of %s: exit status %s: %s' % (menu, code, said))
+        return None
+    items = [x for x in said.splitlines() if x]
+    log('System Events: the items of %s: %s' % (menu, ' | '.join(items)))
+    return items
+
+
+# The items each menu bar menu must not show on a Mac, where the
+# application menu shows them instead (the engine hides them,
+# engine/src/mac-menu.mm, hideShadowedMenuItems)
+HIDDEN_ITEMS = {'File': ('Exit', 'Quit'), 'Help': ('About',)}
+
+
+def shown_hidden(menu, items):
+    """The items of menu that items (as menu_items gives them) shows and
+    must not."""
+    return [x for x in (items or []) if x in HIDDEN_ITEMS.get(menu, ())]
 
 
 def menu_bar_titles(pid):
@@ -464,6 +516,53 @@ def main(argv=None):
             time.sleep(1.5)
             log('%.3f the active app: %s (the IDE is %d)' % (time.time(), frontmost(), pid))
 
+        slide_faults = []
+
+        def step_menu_slide():
+            """File's title clicked, then a slide to Edit, back to File and
+            on to Help, the open menu's items read at each stop"""
+            # the step before clicked the desktop, which makes the Finder
+            # the active app and puts its menu bar on the screen: the IDE
+            # made the active app again, or the slide would be in the
+            # Finder's menus
+            code, said = osascript('tell application "System Events" to set frontmost of '
+                                   '(first application process whose unix id is %d) to true' % pid)
+            time.sleep(1.5)
+            active = frontmost()
+            log('%.3f the active app: %s (the IDE is %d)%s' % (time.time(), active, pid,
+                                                              '' if code == 0 else ' (exit status %s: %s)' % (code, said)))
+            if active != str(pid):
+                log('error: the IDE could not be made the active app: no slide')
+                slide_faults.append('the IDE could not be made the active app')
+                return
+            titles = {m: menu_title(pid, m) for m in ('File', 'Edit', 'Help')}
+            if None in titles.values():
+                log('error: a title of File, Edit and Help was not found (System Events): no slide')
+                slide_faults.append('a title of File, Edit or Help was not found')
+                return
+            first = None
+            for n, (menu, how) in enumerate((('File', click), ('Edit', move), ('File', move), ('Help', move))):
+                how(*titles[menu])
+                time.sleep(1.5)
+                items = menu_items(pid, menu)
+                run.screen('slide-%d-%s' % (n + 1, menu.lower()))
+                if items is None:
+                    slide_faults.append('the items of %s could not be read' % menu)
+                    continue
+                if menu == 'File':
+                    if first is None:
+                        first = items
+                    elif items != first:
+                        log('File\'s items after the slide differ from its first opening\'s')
+                        slide_faults.append('File changed after the slide: %s' % ', '.join(
+                            [x for x in items if x not in first] or ['(its order)']))
+                bad = shown_hidden(menu, items)
+                if bad:
+                    log('::error title=Menu slide::%s shows %s (stop %d of the slide)' % (menu, ', '.join(bad), n + 1))
+                    slide_faults.append('%s showed %s at stop %d of the slide' % (menu, ', '.join(bad), n + 1))
+            key(ESCAPE)
+            time.sleep(1)
+
         def step_menu_desktop():
             command(out, 'set the backdrop to "none"')
             time.sleep(2)
@@ -476,7 +575,7 @@ def main(argv=None):
         # (name, what it does, whether the backdrop is on)
         steps = [('menu-close', step_menu_close, True), ('menu-backdrop', step_menu_backdrop, True),
                  ('backdrop', step_backdrop, True), ('away-backdrop', step_away_backdrop, True),
-                 ('menu-desktop', step_menu_desktop, False)]
+                 ('menu-desktop', step_menu_desktop, False), ('menu-slide', step_menu_slide, False)]
         status = 0
         behind, said = backdrop_behind(window_order(pid), screen)
         log('Ready: %s' % said)
@@ -494,6 +593,8 @@ def main(argv=None):
                 status = 1
                 break
             log('Step %s: the IDE answers.' % name)
+            if name == 'menu-slide' and slide_faults:
+                status = 1
             if not backdrop:
                 continue
             behind, said = backdrop_behind(window_order(pid), screen)
@@ -534,6 +635,8 @@ def main(argv=None):
         log('::endgroup::')
     if status == 1:
         said = []
+        if 'slide_faults' in locals() and slide_faults:
+            said.append('the slide along the menu bar: %s' % '; '.join(slide_faults))
         if misplaced:
             said.append('the backdrop came in front of the IDE\'s windows after the step%s %s' % (
                 's' if len(misplaced) > 1 else '', ', '.join(misplaced)))
@@ -541,7 +644,8 @@ def main(argv=None):
             said.append('the IDE stopped answering after the step %s' % run.stopped)
         verdict = '; '.join(said)
     else:
-        verdict = {0: 'the IDE answered and kept the backdrop behind its windows after every step',
+        verdict = {0: 'the IDE answered and kept the backdrop behind its windows after every step, '
+                      'and the slide along the menu bar showed no item the application menu shows',
                    2: 'the check could not run'}[status]
     log('Menu and backdrop: %s' % verdict)
     return status

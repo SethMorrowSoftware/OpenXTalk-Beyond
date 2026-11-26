@@ -18,7 +18,9 @@
 the IDE's windows, with made-up lists: the backdrop behind them, in front
 of them, missing, or with nothing of its layer to be behind; the lines of
 the window list as the driver reads them; and its look at the IDE's beat
-after a step, with a made-up clock and a real beat.txt.
+after a step, with a made-up clock and a real beat.txt; and the slide
+along the menu bar's reading of a menu's items and its verdict on them
+(File must not show Exit, nor Help About, on a Mac).
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -114,6 +116,46 @@ class WindowOrder(unittest.TestCase):
         with mock.patch.object(mb, 'osascript', return_value=(-1, 'no answer in 30 s')), \
                 mock.patch.object(mb, 'log'):
             self.assertIsNone(mb.window_order(1))
+
+
+# File's items as System Events read them on 0.2.8-dp.2.1, cut short:
+# opened, and after the pointer went to Edit and back (the report)
+FILE_OPEN = 'New Stack\n-\nOpen Stack...\n-\nPage Setup...\nPrint Card...\nPrint Field...\n'
+FILE_AFTER_SLIDE = FILE_OPEN + '-\nExit\n'
+
+
+class MenuItems(unittest.TestCase):
+    def test_items(self):
+        with mock.patch.object(mb, 'osascript', return_value=(0, FILE_OPEN)) as run, \
+                mock.patch.object(mb, 'log'):
+            items = mb.menu_items(123, 'File')
+        self.assertEqual(items, ['New Stack', '-', 'Open Stack...', '-', 'Page Setup...', 'Print Card...',
+                                 'Print Field...'])
+        script = run.call_args[0][0]
+        self.assertIn('unix id is 123', script)
+        self.assertIn('menu bar item "File"', script)
+
+    def test_no_answer(self):
+        with mock.patch.object(mb, 'osascript', return_value=(1, 'execution error')), mock.patch.object(mb, 'log'):
+            self.assertIsNone(mb.menu_items(123, 'File'))
+
+
+class ShownHidden(unittest.TestCase):
+    def test_file_as_it_opens(self):
+        self.assertEqual(mb.shown_hidden('File', FILE_OPEN.splitlines()), [])
+
+    def test_file_after_the_slide_on_the_release(self):
+        self.assertEqual(mb.shown_hidden('File', FILE_AFTER_SLIDE.splitlines()), ['Exit'])
+
+    def test_help_about(self):
+        self.assertEqual(mb.shown_hidden('Help', ['Home', '-', 'Check for Updates', '-', 'About']), ['About'])
+
+    def test_edit_items_are_not_judged(self):
+        # About in a menu other than Help is the menu's own item
+        self.assertEqual(mb.shown_hidden('Edit', ['Undo', 'About']), [])
+
+    def test_no_items(self):
+        self.assertEqual(mb.shown_hidden('File', None), [])
 
 
 class Clock:

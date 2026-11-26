@@ -1366,7 +1366,10 @@ jobs:
       # clicked from another app. After each step the IDE must answer and
       # the window server must have the backdrop behind the IDE's windows:
       # a click on it brought it in front of all of them but the palettes,
-      # as macOS raises a clicked window after the click. The IDE is
+      # as macOS raises a clicked window after the click. Last, a slide
+      # along the menu bar (File, Edit, File, Help) must not show File >
+      # Exit or Help > About, which the application menu shows instead
+      # (0.2.8-dp.2.1 showed Exit after File, Edit and File). The IDE is
       # started as the Finder starts it (open), as on a user's Mac.
       - name: Menu and backdrop check
         if: ${{ !cancelled() }}
