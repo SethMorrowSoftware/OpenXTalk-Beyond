@@ -163,6 +163,12 @@ private command buildEditMenu pContext
    -- had no list to show; the list asks for both, and ticking this item
    -- sets both: see handleEditMenuPick)
    put toggleMenuItem(tab & "Autocomplete", sePrefGet("editor,showautocomplete") is true) & return after tEdit
+   -- OXT-Beyond: whether an abbreviation finds a long name ("poc" finds
+   -- preOpenCard), from HyperXTalk #607; on unless it is unticked, and
+   -- greyed out while the list is off. (The tab, which puts the item in
+   -- the Options submenu, comes before the "(" that greys it out.)
+   put tab & enableMenuItem(toggleMenuItem("Match Abbreviations", sePrefGet("editor,autocompletehumps") is not false), \
+         sePrefGet("editor,showautocomplete") is true) & return after tEdit
    put toggleMenuItem(tab & "Autoformat", sePrefGet("editor,autoformat")) & return after tEdit
    
    put "-" & return & \
@@ -517,6 +523,10 @@ private command handleEditMenuPick pItemName
             sePrefSet "editor,showautocomplete", true
             sePrefSet "editor,providercompletion", true
          end if
+         break
+      case "Options|Match Abbreviations"
+         -- OXT-Beyond: see buildEditMenu
+         sePrefSet "editor,autocompletehumps", (sePrefGet("editor,autocompletehumps") is false)
          break
       case "Options|Autoformat"
          sePrefSet "editor,autoformat", (not sePrefGet("editor,autoformat"))

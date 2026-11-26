@@ -4966,6 +4966,15 @@ on revIDESetPaletteRectPreference pStackName
    if the iconic of stack pStackName then
       exit revIDESetPaletteRectPreference
    end if
+   -- OXT-Beyond: nor for a stack named by a file in the temporary folder
+   -- (a stack with no name of its own takes its file's path as its name):
+   -- each one left a palette_rect_ preference of its own that nothing
+   -- would ever read again, and the preferences file grew with every run.
+   -- From Mark Wieder's HyperXTalk pull request #623, which skips names
+   -- that begin with /tmp; this skips any OS's temporary folder.
+   if revIDEStackNameIsTempPath(pStackName) then
+      exit revIDESetPaletteRectPreference
+   end if
    
    local tRect
    put the rect of stack pStackName into tRect
@@ -4994,6 +5003,63 @@ on revIDEClearPaletteRects
       end if
    end repeat
 end revIDEClearPaletteRects
+
+-- OXT-Beyond: whether pStackName is the path of a file in the temporary
+-- folder (/tmp, or the OS's own: specialFolderPath("temporary")), with
+-- either kind of slash. Spaces count as underscores, so a name read back
+-- from a palette_rect_ preference (revIDESetPaletteRectPreference makes
+-- them underscores) is recognised as well.
+function revIDEStackNameIsTempPath pStackName
+   local tName, tTemp, tTemps
+   put pStackName into tName
+   replace backslash with slash in tName
+   replace space with "_" in tName
+   put "/tmp/" into tTemps
+   put specialFolderPath("temporary") into tTemp
+   replace backslash with slash in tTemp
+   replace space with "_" in tTemp
+   if tTemp is not empty and tTemp is not slash then
+      if the last char of tTemp is not slash then
+         put slash after tTemp
+      end if
+      put return & tTemp after tTemps
+      -- (on macOS /var is a link to /private/var, and a path may be either)
+      if tTemp begins with "/var/" then
+         put return & "/private" & tTemp after tTemps
+      end if
+   end if
+   repeat for each line tTemp in tTemps
+      if tName begins with tTemp then
+         return true
+      end if
+   end repeat
+   return false
+end revIDEStackNameIsTempPath
+
+-- OXT-Beyond: takes out the palette_rect_ preferences that earlier
+-- versions stored for stacks named by a temporary file (see
+-- revIDESetPaletteRectPreference), once, as the IDE starts. Returns how
+-- many it took out; the preferences are saved only if it took any.
+function revIDEForgetTempPaletteRects
+   local tProps, tKey, tCount
+   put 0 into tCount
+   if there is not a stack "revPreferences" then
+      return tCount
+   end if
+   put the customProperties of stack "revPreferences" into tProps
+   repeat for each key tKey in tProps
+      if tKey begins with "palette_rect_" and \
+            revIDEStackNameIsTempPath(char (length("palette_rect_") + 1) to -1 of tKey) then
+         delete variable tProps[tKey]
+         add 1 to tCount
+      end if
+   end repeat
+   if tCount > 0 then
+      set the customProperties of stack "revPreferences" to tProps
+      revInternal__SavePreferences
+   end if
+   return tCount
+end revIDEForgetTempPaletteRects
 
 private function revIDEPaletteBarHeight pStackID
    return the effective height of pStackID - the height of pStackID
