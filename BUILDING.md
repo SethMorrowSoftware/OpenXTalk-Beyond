@@ -3102,7 +3102,7 @@ it.
    limitations if they changed. Leave `ide/.buildnumber` at `0`.
    `ide/.codename` holds the release name ("Frankenstein" for 0.2.1,
    "Bug Hunt" for 0.2.7's release candidates, "Make It So" for 0.2.7
-   and kept for 0.2.8-dp.1, 0.2.8-dp.2 and 0.2.8-dp.2.1),
+   and kept for 0.2.8-dp.1, 0.2.8-dp.2, 0.2.8-dp.2.1 and 0.2.8-dp.3),
    which the About window shows and the GitHub release's title carries;
    change it for a release with a new name, together with its artwork
    (`Installer/oxt-beyond/branding/README.md`).
