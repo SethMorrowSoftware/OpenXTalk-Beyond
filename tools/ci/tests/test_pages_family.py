@@ -107,6 +107,14 @@ class TheBar(unittest.TestCase):
             for one in selector.split(','):
                 self.assertTrue(one.strip().startswith('.oxt-family'), one)
 
+    def test_a_focused_skip_link_shows_over_it(self):
+        # a page's skip link (position absolute, z-index 10) appears over
+        # the top of the page when Tab reaches it: the bar, positioned for
+        # its script, must not stack above it
+        first = family.FAMILY_CSS[:family.FAMILY_CSS.index('}')]
+        self.assertIn('position:relative', first)
+        self.assertNotIn('z-index', first)
+
     def test_a_key_given_none_is_left_out(self):
         p = bar_of(family.family_bar('beyond', {'ide': None}))
         self.assertNotIn(family.BEYOND + 'ide/', p.links)
