@@ -16,6 +16,7 @@ words, is in the [README](README.md#the-ide) and on the
 
 ## 0.2.8-dp.3 (2026-11-26, pre-release)
 
+- Standalone runtimes for the other platforms (Windows x86 and x86-64, Linux x86 and x86-64) rebuilt from 0.2.8-dp.3's engine, with the Android runtime's Java layer and OXT-Beyond's own Android engine built from the same source: the asset `oxt-runtimes-0.2.8-dp.3` replaces `oxt-runtimes-0.2.8-dp.2.1`
 - Menu bar: Cmd+C and Cmd+V (Ctrl on Windows and Linux) work the first time they are pressed; the IDE built its menus a millisecond after the shortcut, so the key found Copy or Paste as the last build left it, often disabled (#621)
 - xTalk Suite: box3dxt's renderer paints a sky: b3RenderSetSky gives the picture behind the shapes one colour on its top row and another on its bottom row, and b3RenderSky reads the two back; b3RenderSetBackground paints what it painted before. The library is now at ABI 3, so b3ABIVersion() returns 3 and b3LibraryVersion() says "box3dxt ABI 3" (#624)
 - Tests: the web IDE's xTalk check expects box3dxt's ABI 3 and draws a picture under a sky (#624)
