@@ -2,10 +2,10 @@ Name: return
 
 Type: control structure
 
-Syntax: return <value> [ for { value | error } ]
+Syntax: return <returnValue> [ for { value | error } ]
 
 Summary:
-Stops the current <handler> and <return|returns> a <value> to the
+Stops the current <handler> and <return|returns> a <returnValue> to the
 <handler> that <call|called> the current <handler>.
 
 Introduced: 1.0
@@ -74,11 +74,13 @@ Example:
     end testSimpleCommand
 
 Parameters:
-value:
-The value to return to the calling handler.
+returnValue:
+The value to return to the calling handler. In the syntax, the words
+"value" and "error" after "for" are keywords that choose the form; they
+are not placeholders for a value.
 
 Description:
-Use the <return> <control structure> to <return(constant)> a <value>
+Use the <return> <control structure> to <return(constant)> a <returnValue>
 from a custom function or <getProp> <handler>, or to <return(constant)>
 an error message from a <message handler> or <setProp> <handler>.
 
@@ -90,20 +92,20 @@ remaining <statement|statements> in the <handler> are skipped. Hence,
 the <return> <control structure> is usually used either at the end of a
 <handler> or within an <if> <control structure>.
 
-The plain form of the <return> <control structure> always sets the 
-<result> to <value>. Additionally, if it is used within a <function>
-or <getProp> <handler> then <value> is passed to the calling handler as
+The plain form (no "for" clause) of the <return> <control structure> always sets the 
+<result> to <returnValue>. Additionally, if it is used within a <function>
+or <getProp> <handler> then <returnValue> is passed to the calling handler as
 the return value of the <function>, or value of the property.
 
-The value form of the <return> <control structure> always sets the
+The "for value" form of the <return> <control structure> always sets the
 <result> to empty. If it is used within a <command> or <message>
 handler then the <it> variable in the calling handler will be set to
-<value>. If it is used within a <function> handler, then <value> is
+<returnValue>. If it is used within a <function> handler, then <returnValue> is
 passed to the calling handler as the return value of the <function>,
 or value of the property. 
 
-The error form of the <return> <control structure> sets the <result> to
-<value>. If it is used within a <command> or <message> handler, then the
+The "for error" form of the <return> <control structure> sets the <result> to
+<returnValue>. If it is used within a <command> or <message> handler, then the
 <it> variable in the calling handler will be set to empty. If it is used
 within a <function> handler, then the return value of the <function> or
 the value of the property is returned as empty.
@@ -129,7 +131,25 @@ should be used to return an error status to the calling <handler>.
 Any callers of handlers using the new error and value forms of the
 <return> command can uniformly check <the result> is empty to determine
 if the operation succeeded, and if it did then either <it> or the return
-value can be processed to continue operation.
+value can be processed to continue operation:
+
+    command loadSettings pPath
+       if there is not a file pPath then
+          return "no settings file" for error
+       end if
+       return url ("file:" & pPath) for value
+    end loadSettings
+
+    on openStack
+       loadSettings specialFolderPath("documents") & "/settings.txt"
+       if the result is empty then
+          -- success: it holds the settings
+          put it into field "Settings"
+       else
+          -- failure: the result holds the error, and it is empty
+          answer the result
+       end if
+    end openStack
 
 >*Note:* The <return> <control structure> is implemented internally as a
 <command> and appears in the <commandNames>.
