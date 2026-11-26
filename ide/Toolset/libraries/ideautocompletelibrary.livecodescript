@@ -98,7 +98,9 @@ local sSuppressCancel
 
 -- Parameter hint: a one-off line above the caret showing the parameters of
 -- the handler being called.  sPathHandlerInfo is ruggedId -> lower-case
--- handler name -> type, start line and owner (tab-separated), so a handler's
+-- handler name, a comma and the way it is called ("function", "command" or
+-- "property": OXT-Beyond, so that a command and a function of one name each
+-- give their own hint) -> type, start line and owner (tab-separated), so a handler's
 -- declaration can be read from its owner's script when a hint is wanted.
 -- sSyntaxCache holds dictionary syntax already looked up.
 local sHintShowing
@@ -558,7 +560,8 @@ private command ideAutocomplete_RefreshPathHandlers pObjectId
          if tSkip or char 1 of word 1 of tLine is "P" then next repeat
          if word 2 of tLine is not empty then
             -- Remember where the nearest handler of this name is declared
-            put toLower(word 2 of tLine) into tKey
+            -- (OXT-Beyond: of this name and kind; see sPathHandlerInfo)
+            put toLower(word 2 of tLine) & comma & ideAutocomplete_CallKind(char -1 of word 1 of tLine) into tKey
             if tInfoA[tKey] is empty then
                put word 1 of tLine & tab & word 3 of tLine & tab & tCurrentOwner into tInfoA[tKey]
             end if
@@ -610,6 +613,19 @@ private function ideAutocomplete_ScriptHandlers pField
    end repeat
    return tNames
 end ideAutocomplete_ScriptHandlers
+
+-- OXT-Beyond: how a handler of the type revAvailableHandlers gives (F, M,
+-- C, B, A, G or S) is called: "function", "command" or "property"
+private function ideAutocomplete_CallKind pType
+   switch pType
+      case "F"
+         return "function"
+      case "G"
+      case "S"
+         return "property"
+   end switch
+   return "command"
+end ideAutocomplete_CallKind
 
 -- Splits pScript, the script up to the caret, into lines (rLinesA, 1 to
 -- rCount, without the unfinished line the caret is on) and returns the number
@@ -835,14 +851,48 @@ private function ideAutocomplete_InComment pBefore, pPreceding
    
    -- Block comments: a /* with no */ after it
    if pPreceding contains "/*" then
-      replace "/*" with numToChar(1) in pPreceding
-      set the itemDelimiter to numToChar(1)
-      if not (the last item of pPreceding contains "*/") then
-         return true
-      end if
+      return ideAutocomplete_InBlockComment(pPreceding)
    end if
    return false
 end ideAutocomplete_InComment
+
+-- OXT-Beyond: whether the end of pScript is inside a /* */ comment. A /*
+-- in a string ("/*") or after --, # or // on its line opens none, so the
+-- script is read through, line by line: a string ends at its line's end,
+-- a block comment may run over many.
+private function ideAutocomplete_InBlockComment pScript
+   local tInBlock, tLine, tAt, tChar, tLength, tInString
+   put false into tInBlock
+   repeat for each line tLine in pScript
+      put the number of chars of tLine into tLength
+      put 1 into tAt
+      put false into tInString
+      repeat while tAt <= tLength
+         if tInBlock then
+            get offset("*/", char tAt to tLength of tLine)
+            if it is 0 then exit repeat
+            add it + 1 to tAt
+            put false into tInBlock
+            next repeat
+         end if
+         put char tAt of tLine into tChar
+         if tChar is quote then
+            put not tInString into tInString
+         else if not tInString then
+            if tChar is "#" or char tAt to tAt + 1 of tLine is among the items of "--,//" then
+               -- the rest of the line is a comment
+               exit repeat
+            end if
+            if char tAt to tAt + 1 of tLine is "/*" then
+               put true into tInBlock
+               add 1 to tAt
+            end if
+         end if
+         add 1 to tAt
+      end repeat
+   end repeat
+   return tInBlock
+end ideAutocomplete_InBlockComment
 
 -- Works out what kind of word belongs after pBefore, the text of the line up
 -- to the word being typed:
@@ -1409,15 +1459,23 @@ private function ideAutocomplete_Signature pName, pKind, pField, pRuggedId
    -- 1. a handler in the script being edited, applied or not
    local tScript
    put the text of pField into tScript
+   -- OXT-Beyond: only a handler of the kind being called: a function for
+   -- name(, a command for "name " (a script may hold one of each)
+   local tKinds
+   if pKind is "function" then
+      put "function" into tKinds
+   else
+      put "on|command|before|after" into tKinds
+   end if
    filter lines of tScript with regex pattern \
-         "(?i)^\s*(private\s+)?(on|command|function|getprop|setprop|before|after)\s+" & pName & "([^A-Za-z0-9_]|$)"
+         "(?i)^\s*(private\s+)?(" & tKinds & ")\s+" & pName & "([^A-Za-z0-9_]|$)"
    if tScript is not empty then
       return ideAutocomplete_SignatureFromLine(line 1 of tScript)
    end if
    
    -- 2. a handler elsewhere in the message path
    local tInfo, tLine
-   put sPathHandlerInfo[pRuggedId][toLower(pName)] into tInfo
+   put sPathHandlerInfo[pRuggedId][toLower(pName) & comma & pKind] into tInfo
    if tInfo is not empty then
       set the itemDelimiter to tab
       try

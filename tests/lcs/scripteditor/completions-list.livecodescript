@@ -267,6 +267,14 @@ on TestNothingToOffer
    TestAssert "nothing in a block comment", __ListFor("on mouseUp|   /* a note|   rep", "rep") is empty
    TestAssert "a closed block comment does not count", "repeat" is among the lines of \
          __ListFor("on mouseUp|   /* a note */|   rep", "rep")
+   -- A /* in a string or a line comment opens no block comment
+   -- (OXT-Beyond)
+   TestAssert "a /* in a string opens no comment", "repeat" is among the lines of \
+         __ListFor("on mouseUp|   put " & quote & "/*" & quote & " into tPattern|   rep", "rep")
+   TestAssert "nor one after --", "repeat" is among the lines of \
+         __ListFor("on mouseUp|   -- a /* in a note|   rep", "rep")
+   TestAssert "a */ in a comment's string still closes it", "repeat" is among the lines of \
+         __ListFor("on mouseUp|   /* a " & quote & "note */|   rep", "rep")
    -- In a string
    TestAssert "nothing in a string", __ListFor("on mouseUp|   put " & quote & "rep", "rep") is empty
    -- Words of three letters or fewer are never on the list
@@ -365,6 +373,26 @@ on TestParameterHint
    -- Not for a declaration
    get __ListFor(tScript & "   local ", empty)
    TestAssert "no hint for local", not __Shown(kHint)
+   -- A command and a function of one name: each call shows its own
+   -- (OXT-Beyond), in the script being edited
+   put "command calc pInput|end calc|function calc pWidth, pHeight|end calc|on mouseUp|" into tScript
+   get __ListFor(tScript & "   put calc(", empty)
+   TestAssert "calc( shows the function's", the text of field "hint" of stack kHint is "calc(pWidth, pHeight)"
+   get __ListFor(tScript & "   calc ", empty)
+   TestAssert "calc shows the command's", the text of field "hint" of stack kHint is "calc pInput"
+   -- ... and in the message path (the stack's script)
+   set the script of stack "TestCompletionsListStack" to \
+         "command pathCalc pOne" & return & "end pathCalc" & return & \
+         "function pathCalc pA, pB" & return & "end pathCalc"
+   get __ListFor("on mouseUp|   put 1 into x", empty)
+   get __ListFor("on mouseUp|   put pathCalc(", empty)
+   TestAssert "a path function's", __Shown(kHint) and \
+         the text of field "hint" of stack kHint is "pathCalc(pA, pB)"
+   get __ListFor("on mouseUp|   put 1 into x", empty)
+   get __ListFor("on mouseUp|   pathCalc ", empty)
+   TestAssert "a path command's", __Shown(kHint) and \
+         the text of field "hint" of stack kHint is "pathCalc pOne"
+   set the script of stack "TestCompletionsListStack" to empty
    if the platform is "Win32" then
       TestAssert "a system window on Windows", the systemWindow of stack kHint is true
    else
