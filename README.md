@@ -143,7 +143,7 @@ clone at the new one.
 ## Status
 
 **OXT-Beyond 0.2.7 "Make It So"** is the current stable release, and
-**0.2.8-dp.2** is the current developer preview: the second look at
+**0.2.8-dp.3** is the current developer preview: the third look at
 0.2.8, with what has been built and fixed since 0.2.7, for anyone who
 would like it early and does not mind telling us what breaks. Both are
 on the
@@ -169,6 +169,7 @@ every change, release by release.
 
 | Version | What it brings |
 | --- | --- |
+| [0.2.8-dp.3](#028-dp3-the-third-developer-preview-of-028) | The third developer preview of 0.2.8, with HyperXTalk's best in it: autocomplete with parameter hints in the Script Editor, the markdownText of fields, `move file ... to trash` and `show ... in finder`, language words as array keys, effects drawn on widgets and externals in folders of their own; the SVG Drawing widget; midixt built in, on the desktop and in the browser; the opt-in closeEndedProcesses; smaller downloads; and fixes for yellow-green graphics, the Mac File menu's stray Exit, Copy and Paste on the first press, a crash on Ubuntu 26.04, a UDP listener that spun a core, shell() spinning on Linux, and TorrentXT on Android 11 and later |
 | [0.2.8-dp.2](#028-dp2-the-second-developer-preview-of-028) | The second developer preview of 0.2.8, again with stacks made for phones as its highlight: Ember Bricks, a brick breaker with an online duel that opens on a lobby; a Target menu for the API an Android app targets, and Android libraries with their own resources; the browser widget and revBrowser on Chromium 156; curlxt and tsNet's calls built in; MP4 on Windows with no codec to install; animated GIFs as browsers show them; the community's stacks in the File menu; about fifty more HyperCard externals that do their work; and the fixes for what 0.2.8-dp.1's testers reported: the Quick Start Guide's first lesson and its lessons in the dark, a build that stops and leaves the stack as it was, the keyboard left in the Linux backdrop, full screen that stays on an iPad, and four engine crashes |
 | [0.2.8-dp.1](#028-dp1-the-first-developer-preview-of-028) | The first developer preview of 0.2.8, with stacks made for phones as its highlight: new Android apps are built with OXT-Beyond's own Android engine, launcher icons can be adaptive and themed, an app with an .aar builds again, and Nova Rescue is flown by tilt; WebSockets, desktop-width fonts and a self-hosted bundle on the web; MySQL 8.4 and PostgreSQL's SCRAM logins; video on Linux without mplayer; Windows follows a switch between light and dark at once; and the dark appearance's last unreadable menus and dialogs |
 | [0.2.7](#027-make-it-so) | The stable release that the Bug Hunt's nineteen rounds made, with the last of the forum's finds squashed: the SVG icon picker, the Message Box's colours, the Extension Manager's icons and the Project Browser's Refresh arrows in the dark; ticks in a submenu, so File > Import Stack's HyperCard options show; the "menu" button style in the Inspector; Android apps that can be drawn edge to edge, a box to build them with OXT-Beyond's own Android engine, and no hang on a density change; the "Make It So" splash, installer and banner |
@@ -224,7 +225,7 @@ Earlier versions, from 0.2.1 to 0.2.5, are described under
   x86-64, macOS for Apple Silicon and Intel, Linux x86-64), and so are
   the standalone runtimes that every package carries for Windows
   (x86-64 and x86) and Linux (x86-64 and x86): CI builds the 32-bit
-  engines for them, and a release asset (`oxt-runtimes-0.2.8-dp.2.1.zip`)
+  engines for them, and a release asset (`oxt-runtimes-0.2.8-dp.3.zip`)
   brings each platform's runtimes into the other packages. The web
   engine of HTML5 standalones, which every package carries, is built
   from this repository too (see [The engine](#the-engine)), and so is
@@ -379,8 +380,8 @@ Releases whose tags do not start with `v`, such as `prebuilts-v1`,
 `runtimes-0.2.7-rc.6.16b`, `runtimes-0.2.7-rc.6.17`,
 `runtimes-0.2.7-rc.6.18`, `runtimes-0.2.7-rc.6.18b`,
 `runtimes-0.2.7-rc.6.19`, `runtimes-0.2.7`,
-`runtimes-0.2.8-dp.1`, `runtimes-0.2.8-dp.2` and
-`runtimes-0.2.8-dp.2.1`, are not
+`runtimes-0.2.8-dp.1`, `runtimes-0.2.8-dp.2`,
+`runtimes-0.2.8-dp.2.1` and `runtimes-0.2.8-dp.3`, are not
 programs. They hold files that the build and the packager download: the
 prebuilt third-party libraries of earlier versions and the standalone
 runtimes for other platforms.
@@ -1718,6 +1719,91 @@ undo, and the folders where it keeps copies of stacks before changing
 them are readable by you alone. The Script Editor can tell the bridge
 the line its caret was on. With the bridge off, nothing else differs
 from 0.2.6-rc.1.
+
+#### 0.2.8-dp.3: the third developer preview of 0.2.8
+
+OXT-Beyond 0.2.8-dp.3 is the third developer preview of 0.2.8: the
+fixes for what was reported in 0.2.8-dp.2 and 0.2.8-dp.2.1, and much
+that came from HyperXTalk. 0.2.7 "Make It So" stays the stable
+release. Help > Check for Updates offers this preview to someone who
+runs an earlier 0.2.8 preview; on 0.2.7 it says you are up to date.
+
+New:
+
+- **Autocomplete in the Script Editor.** A list of completions beside
+  the caret, the language's words and the message path's handlers, by
+  their start or their humps, with a call's parameters shown above the
+  line and what fits where the word is (commands at a statement's
+  start, messages after "on", properties after "set the"). It is off
+  until Edit > Options > Autocomplete is ticked. From HyperXTalk
+  (Emily-Elizabeth Howard and Stam Kapetanakis) (#627, #646).
+- **The language.** `move file <path> to trash` (or `move folder`) and
+  `show <path> in finder` (or `in explorer`); the markdownText of a
+  field, or a chunk of one; a word of the language as a key in
+  brackets (`tArray[from]`); randomBytes without the security library;
+  and the opt-in global `the closeEndedProcesses`, which makes Linux
+  and macOS drop a process read to its end from the openProcesses, as
+  Windows always has (#627, #633).
+- **Widgets and extensions.** The SVG Drawing widget shows a whole SVG
+  in its own colours, scaled to fit, and a saved stack shows it
+  without the drawing library (#579). dropShadow, innerShadow,
+  outerGlow, innerGlow and colorOverlay are drawn on widgets, and an
+  external in a folder of its own loads (#627). midixt is built in,
+  under ShowControl's id and handlers, and in the web engines over the
+  browser's Web MIDI (#630). box3dxt's renderer paints a sky (#624).
+- **Smaller downloads, the same files:** the Mac disk image about 850
+  MB instead of 1,056 MB, the Linux x86-64 package about 638 MB
+  instead of 707 MB, and the Windows installer about 135 MB smaller
+  (#636).
+- **Docs in OXT-Beyond's own name**, xTalk Script and xTalk Builder,
+  with every guide screenshot taken from OXT-Beyond (#637, #640).
+
+Fixed:
+
+- New graphics no longer come out under a yellow-green overlay once
+  the Property Inspector's colour editor has been used (Stam
+  Kapetanakis, from HyperXTalk) (#638).
+- On macOS, File no longer gains an Exit item, nor Help an About item,
+  after the pointer slides from File to Edit and back (#644).
+- Cmd+C and Cmd+V (Ctrl on Windows and Linux) work the first time they
+  are pressed (#621).
+- On Ubuntu 26.04 the IDE no longer crashes as the Extension Builder
+  opens when the machine has its own FontAwesome font (reported by
+  Brian Milby) (#642).
+- Closing a UDP listener that had heard a sender no longer leaves a
+  thread using a whole core on Linux and macOS, nor stalls the
+  engine's other sockets, and quitting afterwards can no longer crash
+  (#628). shell() on the server no longer spins on Linux when a child
+  ends at the wrong moment (Stam Kapetanakis, from HyperXTalk) (#635).
+- TorrentXT on Android needs Android 7.0 or later, and a session now
+  starts, listens and seeds on Android 11 and later (#625). webpxt
+  refuses an animation longer than WebP can time, where it wrote it
+  wrong (#629).
+- The Project Browser's own stack no longer carries the stray audio clip
+  "Clap.mp3" (#632); a click into a custom property's value in the
+  Property Inspector no longer selects all of it, and the splash opens
+  on the screen the menu bar was last on (from HyperXTalk) (#627); the
+  preferences no longer keep window positions for temporary stacks
+  (Mark Wieder, from HyperXTalk) (#646); the Dictionary's `return`
+  entry names its placeholder apart from its keywords (#645).
+
+What a script can see:
+
+- `move ... to trash`, `show ... in finder`, the markdownText of a
+  field, keys such as `tArray[from]`, the graphic effects of a widget
+  and `the closeEndedProcesses` are new; each is written so that a
+  script that worked before works as before, and CHANGELOG.md says how
+  for each (#627, #633). `show tVar in finder` with tVar holding an
+  object's name, which showed the object and stopped, now gives "file
+  not found".
+- A write to a datagram name whose listener has closed fails with
+  "error sending datagram", where it went out through whatever had
+  been given the closed descriptor since (#628).
+- No other change is meant to be seen by a script.
+
+Known issues of this preview: those of 0.2.8-dp.2 below, bar the
+Android 15 navigation bar, which 0.2.8-dp.2.1 fixed. The Script
+Editor's autocomplete is new and off by default; a report is welcome.
 
 #### 0.2.8-dp.2: the second developer preview of 0.2.8
 
