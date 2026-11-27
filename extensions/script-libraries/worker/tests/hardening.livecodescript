@@ -60,6 +60,11 @@ end TestSetup
 on TestTearDown
    local tWorkers
    try
+      dispatch "__workerTestStdin" to stack "com.livecode.library.worker" with false
+      dispatch "__workerTestInlineLimit" to stack "com.livecode.library.worker" with empty
+   catch tError
+   end try
+   try
       put workers() into tWorkers
    catch tError
    end try
@@ -430,3 +435,51 @@ on TestOutputThatLooksLikeTheLibrarys
    TestAssert "a line the library cannot read is passed on as output, not dropped", \
          "OXT-WORKER this is not base64" is among the lines of sOutput[tWorker]
 end TestOutputThatLooksLikeTheLibrarys
+
+----------------------------------------------------------------
+-- The input read as on Windows
+----------------------------------------------------------------
+
+on TestTheInputReadAsOnWindows
+   local tWorker, tCall, tTimes, tStart, tBytes
+   -- Stdin, as a worker on Windows reads it, and every request through it
+   dispatch "__workerTestStdin" to stack "com.livecode.library.worker" with true
+   dispatch "__workerTestInlineLimit" to stack "com.livecode.library.worker" with "none"
+   put readyWorker() into tWorker
+   TestAssert "a worker that reads stdin is ready", tWorker is not empty
+
+   -- A call that waited for the engine's quarter-second look took 250 ms
+   repeat with i = 1 to 21
+      put the milliseconds into tStart
+      put workerCall(tWorker, "hEcho", "answered", i) into tCall
+      if not isAnswered(tCall) or sAnswers[tCall]["result"] is not i then
+         put "lost" into tTimes
+         exit repeat
+      end if
+      put (the milliseconds - tStart) & return after tTimes
+      -- Now and then a pause, so that the worker has been idle a while
+      if i mod 5 is 0 then
+         wait 300 milliseconds with messages
+      end if
+   end repeat
+   TestAssert "each of 21 calls is answered with its own value", tTimes is not "lost"
+   delete the last char of tTimes
+   sort lines of tTimes numeric
+   TestDiagnostic "round trips through stdin, median and worst (ms):" && line 11 of tTimes & comma && line -1 of tTimes
+   TestAssert "and a call does not wait a quarter of a second to begin", line 11 of tTimes < 150
+
+   -- Two megabytes of every byte value through stdin, there and back
+   repeat with i = 0 to 255
+      put numToByte(i) after tBytes
+   end repeat
+   repeat 13 times
+      put tBytes after tBytes
+   end repeat
+   put the milliseconds into tStart
+   put workerCall(tWorker, "hEcho", "answered", tBytes) into tCall
+   TestAssert "two megabytes through stdin come back", isAnswered(tCall) and sAnswers[tCall]["result"] is tBytes
+   TestDiagnostic "two megabytes there and back through stdin (ms):" && the milliseconds - tStart
+
+   workerStop tWorker
+   TestAssert "and the worker stops", hasStopped(tWorker)
+end TestTheInputReadAsOnWindows

@@ -58,10 +58,12 @@ anything to a text stream:
    the engine reads as fast as it comes. "read from stdin" is slower: when
    less has come than it was asked for, it waits a quarter of a second
    before it looks again, so a request of megabytes took many seconds. On
-   Windows nothing else reads the input, so a request of more than
-   kWorkerInlineLimit bytes is written to a file, in a folder of the
-   worker's own, and the line "file " and the file's path in UTF-8 is sent
-   in its place.
+   Windows nothing else reads the input, so there the worker takes what
+   has come without waiting and looks again after a pause of 1 to
+   kWorkerIdlePauseLimit milliseconds (__workerReadStdin), and a request
+   of more than kWorkerInlineLimit bytes is written to a file, in a folder
+   of the worker's own, and the line "file " and the file's path in UTF-8
+   is sent in its place.
  - from the worker: a line feed, "OXT-WORKER ", the base64 and a line feed.
    Anything else the worker's script writes to its output ("put" with no
    window) is on other lines, and is passed on as it is (workerOutput).
@@ -153,9 +155,9 @@ handlers. Call one of them with <workerCall>, which returns at once; the
 object that called is sent the message it named when the handler has
 returned. Stop the worker with <workerStop>. A worker runs one call at a
 time, in the order they were made; start more than one worker to do more
-than one thing at once. (On Windows a worker with nothing to do looks for
-its next call four times a second, so a call can start up to a quarter of
-a second after it is made.)
+than one thing at once. (On Windows a worker that has had nothing to do
+for a while looks for its next call about thirty times a second, so a call
+can start a few hundredths of a second after it is made.)
 
 A worker is another process. It shares nothing with the stack that
 started it (no objects, no globals, no script local variables, no open
@@ -232,6 +234,12 @@ constant kWorkerErrorLimit = 4000
 -- through a worker's input; a larger one is sent as a file (see above)
 constant kWorkerInlineLimit = 32768
 
+-- Where a worker reads stdin (Windows): the most it takes at once, and the
+-- longest it pauses before it looks again, in milliseconds, when nothing
+-- has come for a while
+constant kWorkerStdinChunk = 1048576
+constant kWorkerIdlePauseLimit = 32
+
 -- This library's stack, as the browser's JavaScript finds it
 -- (document.liveCode.findStackWithName)
 constant kWorkerLibrary = "com.livecode.library.worker"
@@ -250,6 +258,9 @@ local sWorkers
 -- The largest request sent through a worker's input, or empty for no limit
 -- (see kWorkerInlineLimit)
 local sInlineLimit
+-- For the library's tests: true to have the workers started from here read
+-- their input from stdin as they do on Windows, on any system
+local sTestStdin
 -- The calls that have not been answered, by number: ["worker"], ["target"]
 -- (the object to tell) and ["message"]
 local sCalls
@@ -272,6 +283,8 @@ local sCurrentCall
 local sReplyFile
 -- The file the worker reads its input from instead of stdin, where it can
 local sInputFile
+-- Where it cannot: what has come on stdin and has not been taken yet
+local sStdinBuffer
 
 -- IN A BROWSER
 -- The page's half: the number of the last web worker started
@@ -394,12 +407,16 @@ private function __workerProcessStart
    -- and which process to end with, if this one ends without stopping it
    -- (see __workerMain)
    put the processID into $OXT_WORKER_PARENT
+   if sTestStdin is true then
+      put "1" into $OXT_WORKER_STDIN
+   end if
    try
       put asyncProcessOpen(tEngine, tArguments, "__workerEvent") into tJob
    catch tError
    end try
    put empty into $OXT_WORKER
    put empty into $OXT_WORKER_PARENT
+   put empty into $OXT_WORKER_STDIN
    set the hideConsoleWindows to tHide
    if tError is not empty then
       throw tError
@@ -786,6 +803,13 @@ end __workerRemoveFolder
 on __workerTestInlineLimit pLimit
    put pLimit into sInlineLimit
 end __workerTestInlineLimit
+
+-- For the library's tests: true to have the workers started from now on
+-- read their input from stdin, as on Windows, so that that way is tested
+-- on every system; false for each system's own way
+on __workerTestStdin pStdin
+   put pStdin is true into sTestStdin
+end __workerTestStdin
 
 -- An event of a worker's process, from the Background Jobs library
 on __workerEvent pJob, pEvent, pData, pCode
@@ -1255,8 +1279,12 @@ private command __workerMain
       end repeat
    end if
 
-   -- And it reads its input faster as a file (see the top of the script)
-   if the platform is not "Win32" then
+   -- And it reads its input faster as a file (see the top of the script),
+   -- unless the library's tests ask for stdin, as on Windows
+   local tStdin
+   put $OXT_WORKER_STDIN is "1" into tStdin
+   put empty into $OXT_WORKER_STDIN
+   if the platform is not "Win32" and not tStdin then
       repeat for each item tFile in "/dev/stdin,/proc/self/fd/0"
          open file tFile for binary read
          if the result is empty then
@@ -1316,18 +1344,59 @@ private function __workerRead pCount, @rText
       else
          read from file sInputFile for pCount
       end if
-   else
-      if pCount is empty then
-         read from stdin until linefeed
-      else
-         read from stdin for pCount
-      end if
+      -- (the result has to be taken at once)
+      put the result into tResult
+      put it into rText
+      return tResult is empty
    end if
-   -- (the result has to be taken at once)
-   put the result into tResult
-   put it into rText
-   return tResult is empty
+   return __workerReadStdin(pCount, rText)
 end __workerRead
+
+-- The same from stdin, where the input cannot be read as a file (Windows).
+-- The engine's "read from stdin" that waits for more than has come looks
+-- again only four times a second, so a call waited up to a quarter of a
+-- second to begin, and a large request took seconds. This takes what has
+-- come without waiting ("in 0 milliseconds"), keeps it, and looks again
+-- after a pause that is short while requests are coming and grows while
+-- none do, to kWorkerIdlePauseLimit: an idle worker wakes a few times a
+-- second and uses no more than that.
+private function __workerReadStdin pCount, @rText
+   local tLineFeed, tAt, tResult, tPause
+   put numToChar(10) into tLineFeed
+   put 1 into tPause
+   repeat forever
+      if pCount is empty then
+         put offset(tLineFeed, sStdinBuffer) into tAt
+         if tAt > 0 then
+            put char 1 to tAt of sStdinBuffer into rText
+            delete char 1 to tAt of sStdinBuffer
+            return true
+         end if
+      else if the number of chars of sStdinBuffer >= pCount then
+         put char 1 to pCount of sStdinBuffer into rText
+         delete char 1 to pCount of sStdinBuffer
+         return true
+      end if
+
+      read from stdin for kWorkerStdinChunk in 0 milliseconds
+      put the result into tResult
+      if it is not empty then
+         put it after sStdinBuffer
+         put 1 into tPause
+         next repeat
+      end if
+      if tResult is not empty and tResult is not "timed out" then
+         -- The input has ended (or failed): what is left is not enough
+         put sStdinBuffer into rText
+         put empty into sStdinBuffer
+         return false
+      end if
+      wait tPause milliseconds
+      if tPause < kWorkerIdlePauseLimit then
+         put min(tPause * 2, kWorkerIdlePauseLimit) into tPause
+      end if
+   end repeat
+end __workerReadStdin
 
 -- A web worker's run: the page's requests come to __workerWebRequest, and
 -- are run one after the other. It ends when the page ends the worker.
