@@ -95,6 +95,12 @@ lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile th
 lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/async-native: TestCallIsAJob  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestDeletedWake  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestManyThreadsSignal  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestSignalsBecomeOneMessage  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestWakeFromAnotherThread  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestWakeOfADeletedObject  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
 lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
@@ -316,6 +322,28 @@ lcs: core/strings/matches: TestMatchesRegexCase
 lcs: core/strings/matches: TestMatchesWildcard
 lcs: core/strings/matches: TestMatchesWildcardAsFilter
 lcs: core/strings/matches: TestMatchesWildcardCase
+lcs: extensions/libraries/async-freeze: TestFreezeOfAFolderTree  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async-freeze: TestFreezeOfALargeFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestAppendFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestCancelFileJob  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestCopyFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestFileErrors  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestListFolder  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestManyJobs  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestMessageGoesToCaller  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestMessageWaitsForMessages  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestNoPrograms  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcess  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessArguments  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessCancel  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestProcessFails  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestRelativePath  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShell  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShellCancel  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestShellDoesNotBlock  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWriteText  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWriteThenReadFile  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
+lcs: extensions/libraries/async: TestWrongCalls  # 9.6.3 has no background jobs (the engine functions the library binds to are new); skips until a release's IDE has the library
 lcs: extensions/libraries/hxtcompat: TestIff
 lcs: extensions/libraries/hxtcompat: TestIffBothValuesWorkedOut
 lcs: extensions/libraries/hxtcompat: TestIffNeedsTrueOrFalse

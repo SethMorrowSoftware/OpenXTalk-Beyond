@@ -67,6 +67,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "license.h"
 #include "mode.h"
 #include "securemode.h"
+#include "async.h"
 #include "socket.h"
 #include "mctheme.h"
 #include "mcssl.h"
@@ -1079,6 +1080,10 @@ bool X_open(int argc, MCStringRef argv[], MCStringRef envp[])
 	////
 
 	MCU_init();
+
+	// OXT-Beyond: a Background Workers worker ends with the stack's process,
+	// however that ends, from its first moment (async.cpp)
+	MCAsyncEndWithParentIfWorker();
 	
 	////
     
@@ -1319,6 +1324,14 @@ int X_close(void)
 	}
 #endif
 	MClockmessages = True;
+
+	// OXT-Beyond: the background jobs (async.cpp) stop here: before the
+	// engine's own processes are killed, which ignores the ends of all
+	// children from then on, and before the notifications that the jobs'
+	// threads post are finalized with the screen. The files that scripts
+	// handed over to be written are finished first.
+	MCAsyncFinalize();
+
 	MCS_killall();
 
     // Flush all engine clipboards to the system clipboards

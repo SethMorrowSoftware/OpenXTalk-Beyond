@@ -25,16 +25,24 @@ mergeInto(LibraryManager.library, {
     $LiveCodeSystem__deps: ['$LiveCodeUtil', '$LiveCodeAsync'],
     $LiveCodeSystem: {
 		
+		// OXT-Beyond: the page's liveCode is its document's, as it was; an
+		// engine in a web worker (which has no document) makes its
+		// worker's, self.liveCode
+		_scope: function() {
+			return (typeof document !== 'undefined') ? document : self;
+		},
+
 		initialize: function() {
-			if (!document['liveCode'])
-				document['liveCode'] = {}
-			document['liveCode']['findStackWithName'] = function(name) {
+			var scope = LiveCodeSystem._scope();
+			if (!scope['liveCode'])
+				scope['liveCode'] = {}
+			scope['liveCode']['findStackWithName'] = function(name) {
 				return LiveCodeSystem.getStackWithName(name);
 			};
 		},
 		
 		finalize: function() {
-			delete document['liveCodeGetStackWithName'];
+			delete LiveCodeSystem._scope()['liveCodeGetStackWithName'];
 		},
 		
 		//////////

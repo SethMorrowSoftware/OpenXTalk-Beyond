@@ -19,7 +19,8 @@
 environment and are skipped without one, so a job that set a different
 name, or ran a filter that matched none of them, would pass having tested
 nothing. Its legs are the servers whose default logins the drivers must
-manage, and each compares its results with the newest release's.
+manage, and each compares its results with the newest release's. The
+Background Database library's tests (in the ext suite) run there too.
 
   python3 -m unittest discover -s tools/ci/tests
 """
@@ -34,6 +35,10 @@ CI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(os.path.dirname(CI))
 WORKFLOW = os.path.join(REPO, '.github', 'workflows', 'build-linux.yml')
 TESTS = os.path.join(REPO, 'tests', 'lcs', 'core', 'database')
+# The Background Database library's tests, which have MySQL and
+# PostgreSQL tests of their own (in the ext suite)
+LIBRARY_TESTS = os.path.join(REPO, 'extensions', 'script-libraries', 'asyncdatabase', 'tests',
+                             'asyncdatabase.livecodescript')
 DRIVERS = ('MYSQL', 'POSTGRESQL')
 SETTINGS = ('HOST', 'DATABASE', 'USER', 'PASSWORD', 'TLS')
 
@@ -67,6 +72,13 @@ class DatabasesJob(unittest.TestCase):
         pattern = re.search(r"--filter '([^']+)'", run).group(1)
         for test in ('server_databases', 'db_getters'):
             self.assertRegex('lcs: core/database/%s: TestX' % test, pattern)
+        # and the Background Database library's, in the ext suite
+        self.assertIn('--suite lcs --suite ext', run)
+        for test in ('TestMySQL', 'TestPostgreSQL'):
+            self.assertRegex('ext: script-libraries/asyncdatabase/tests/asyncdatabase: %s' % test, pattern)
+        # (and none of the other suites' tests)
+        self.assertNotRegex('lcs: core/engine/engine: TestX', pattern)
+        self.assertNotRegex('ext: script-libraries/worker/tests/worker: TestX', pattern)
 
     def test_starts_the_servers_of_each_leg_with_tls(self):
         run = self.step('Start the database servers')
@@ -102,6 +114,10 @@ class DatabasesJob(unittest.TestCase):
         self.assertIn('|| true', release['run'])
         self.assertIn("--pattern '*-linux-x86_64-binaries.tar.xz'", release['run'])
         self.assertIn('--output release-database-tests-output.txt', release['run'])
+        # the same tests as this build's
+        this = re.search(r"--filter '([^']+)'", self.step('Database tests')).group(1)
+        self.assertEqual(re.search(r"--filter '([^']+)'", release['run']).group(1), this)
+        self.assertIn('--suite lcs --suite ext', release['run'])
         compare = self.step('Compare with the newest release')
         self.assertIn('compare_test_output.py release-database-tests-output.txt database-tests-output.txt',
                       compare)
@@ -119,6 +135,15 @@ class DatabaseTests(unittest.TestCase):
             for test in ('Connect', 'WrongPassword', 'TLS', 'Values', 'Binary', 'Transactions', 'Errors',
                          'CharacterSet', 'NativeText', 'Types', 'NoServer', 'Server'):
                 self.assertIn('\non Test%s%s\n' % (driver, test), script)
+
+    def test_library_tests_read_the_settings_the_job_sets(self):
+        script = read(LIBRARY_TESTS)
+        self.assertIn('do "return $OXT_TEST_" & toUpper(pDriver) & "_" & pName', script)
+        for name in ('HOST', 'DATABASE', 'USER', 'PASSWORD'):
+            self.assertIn('serverSetting(pDriver, "%s")' % name, script)
+        self.assertIn('throw "SKIP no" && pDriver && "server: OXT_TEST_"', script)
+        for test in ('MySQL', 'PostgreSQL'):
+            self.assertIn('\non Test%s\n' % test, script)
 
     def test_skipped_without_a_server(self):
         script = read(os.path.join(TESTS, 'server_databases.livecodescript'))

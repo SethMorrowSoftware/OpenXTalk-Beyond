@@ -28,6 +28,12 @@
 # a script's own code, so the paths below are where the scripts and what
 # runs them live. A change anywhere else is still tested on Linux by
 # ci-checks.yml and on every platform by the builds. Not a required check.
+#
+# One file of the engine is among the paths: engine/src/async-core.cpp, the
+# threads behind the Background Jobs library, which is built and run on its
+# own by one of these tests (tools/ci/tests/test_async_core.py, with
+# tools/ci/async_core_check.py). Its Windows and macOS halves are checked
+# here, with the sanitizers on macOS, before any build has them.
 name: CI checks (Windows, macOS)
 
 on:
@@ -38,6 +44,7 @@ on:
       - 'util/**'
       - '.github/workflows/**'
       - '.github/actions/**'
+      - 'engine/src/async-core.*'
   pull_request:
     branches: [ main ]
     paths: *script-paths

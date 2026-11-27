@@ -487,6 +487,25 @@ jobs:
             "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_check.py --runtime "$RUNNER_TEMP/web-runtime" \
             --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check" --browser "$BROWSER"
 
+      # The Background Workers library in a browser, where each worker is a
+      # web worker of the page that starts the engine again with no window:
+      # calls with every kind of value, errors, progress, two workers at
+      # once while the page goes on, stopping, a worker that quits, and the
+      # Background Database library's refusal there
+      # (tools/ci/web_workers_check.py, which says what it checks). Every
+      # browser; WebKit gets a second try, as above. Its files go in the
+      # uploaded folder, in workers.
+      - name: Check the Background Workers library in ${{ matrix.browser }}
+        timeout-minutes: ${{ matrix.browser == 'webkit' && 20 || 10 }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+          TRIES: ${{ matrix.browser == 'webkit' && 2 || 1 }}
+        run: |
+          python3 tools/ci/retry_check.py --tries "$TRIES" --files "$RUNNER_TEMP/web-check/workers" \
+            --what "The Background Workers check in $BROWSER" -- \
+            "$RUNNER_TEMP/playwright/bin/python" tools/ci/web_workers_check.py --runtime "$RUNNER_TEMP/web-runtime" \
+            --engine-cache "$RUNNER_TEMP/engine" --work "$RUNNER_TEMP/web-check/workers" --browser "$BROWSER"
+
       # The Mobile Web library (extensions/script-libraries/mobileweb) and
       # the Phone Starter (tools/web-player/stacks) on emulated phones:
       # taps, drags, swipes, a pinch and a long press, the keyboard and a

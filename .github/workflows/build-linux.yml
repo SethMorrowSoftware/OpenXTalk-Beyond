@@ -1044,7 +1044,9 @@ jobs:
   # The MySQL and PostgreSQL drivers of revdb against real servers: the
   # database tests of tests/lcs/core/database (server_databases and
   # db_getters, which the build's engine tests skip, as they have no
-  # server) run by the x86_64 build's standalone engine
+  # server), and those of the Background Database library
+  # (extensions/script-libraries/asyncdatabase), run by the x86_64 build's
+  # standalone engine
   # (tools/ci/run_engine_tests.py, with its baselines) against MySQL or
   # MariaDB and PostgreSQL containers that this job starts, each with TLS.
   # Each leg is one pair of servers, so that every login the drivers'
@@ -1176,8 +1178,9 @@ jobs:
       - name: Database tests
         timeout-minutes: 15
         run: |
-          python3 tools/ci/run_engine_tests.py --bin linux-x86_64-bin --suite lcs \
-            --filter '^lcs: core/database/' --log database-tests.log --output database-tests-output.txt
+          python3 tools/ci/run_engine_tests.py --bin linux-x86_64-bin --suite lcs --suite ext \
+            --filter '^(lcs: core/database/|ext: script-libraries/asyncdatabase/)' \
+            --log database-tests.log --output database-tests-output.txt
 
       # The newest release (or release candidate) with Linux binaries:
       # its engine and drivers, on this checkout's tests
@@ -1199,7 +1202,8 @@ jobs:
           tar -xJf "$RUNNER_TEMP"/release/*-linux-x86_64-binaries.tar.xz -C "$RUNNER_TEMP/release"
           bin=$(dirname "$(find "$RUNNER_TEMP/release" -type f -name standalone-community | head -n 1)")
           # (its own failures do not fail this job)
-          python3 tools/ci/run_engine_tests.py --bin "$bin" --suite lcs --filter '^lcs: core/database/' \
+          python3 tools/ci/run_engine_tests.py --bin "$bin" --suite lcs --suite ext \
+            --filter '^(lcs: core/database/|ext: script-libraries/asyncdatabase/)' \
             --retries 0 --log release-database-tests.log --output release-database-tests-output.txt || true
 
       - name: Compare with the newest release

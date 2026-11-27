@@ -48,6 +48,14 @@ static MCGFloat s_emscripten_device_scale = 1.0;
 void
 MCResPlatformInitPixelScaling()
 {
+	/* OXT-Beyond: an engine without a user interface (a web worker's,
+	 * em-dc-mainloop.cpp) has no window to ask, and a worker has no
+	 * devicePixelRatio */
+	if (MCnoui)
+	{
+		return;
+	}
+
 	s_emscripten_device_scale = emscripten_get_device_pixel_ratio();
 }
 

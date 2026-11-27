@@ -729,6 +729,19 @@ private function __MeetsRequirements pRequirement, pOptions
       -- fails), though it has sockets
       case "shell"
          return the platform is not among the items of "HTML5,android"
+      -- OXT-Beyond: extensions that TestLoadExtension can load here (it
+      -- quits when it cannot). A desktop run and the web standalone have
+      -- every one the build made. The Android standalone has those of the
+      -- latest release's IDE (tools/ci/android_tests.py), so a library
+      -- that is new has its tests run there from the release that has it.
+      case "extension"
+         repeat for each item tExtension in pOptions
+            if tExtension is not among the lines of the loadedExtensions and \
+                  there is not a file (_TestGetBuiltExtensionsFolder() & slash & tExtension & slash & "module.lcm") then
+               return false
+            end if
+         end repeat
+         return true
       case "ui"
          return not (the environment ends with "command line")
       case "desktop"

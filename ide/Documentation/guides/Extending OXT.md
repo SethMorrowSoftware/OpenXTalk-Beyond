@@ -779,6 +779,172 @@ This can be bound to using the following:
 		CFunctionWithCallback(pContext, MyCallback)
 	end handler
 
+##### Native code that takes time, or has threads of its own
+
+A foreign handler is called on the engine's one thread. While the C
+function runs, the windows do not respond and no message is delivered.
+And a callback (above) is only ever safe on that same thread, during a
+call the extension made: native code that calls one from a thread of its
+own will crash the engine sooner or later, because nothing in the engine
+may be touched from two threads at once.
+
+The engine has two things for this. An extension binds to them by name,
+on every platform:
+
+	foreign handler MCAsyncNativeCall(in pFunction as Pointer, \
+			in pContext as optional Pointer, in pMessage as String) \
+			returns CUInt binds to "<builtin>"
+
+	foreign handler MCAsyncNativeWakeCreate(in pMessage as String) \
+			returns CUInt binds to "<builtin>"
+	foreign handler MCAsyncNativeWakeFunction() returns Pointer \
+			binds to "<builtin>"
+	foreign handler MCAsyncNativeWakeContext(in pWake as CUInt) \
+			returns Pointer binds to "<builtin>"
+	foreign handler MCAsyncNativeWakeDelete(in pWake as CUInt) \
+			returns CBool binds to "<builtin>"
+
+Each is called from Builder code, on the engine's thread. The two that
+start something, `MCAsyncNativeCall` and `MCAsyncNativeWakeCreate`, throw
+an error if they cannot.
+
+###### A function called on another thread
+
+`MCAsyncNativeCall` has a function of your native code called on a thread
+the engine keeps for the purpose, and returns at once with the number of
+a job. When the function has returned, the object whose script called
+your library is sent the message you named:
+
+	<pMessage> pJob, pResult, pError, pCode
+
+`pResult` is empty and `pCode` is 0: what the function worked out is in
+your native code, for the handler of the message to fetch with another
+call. `pError` is empty, or "cancelled" if the call was cancelled before
+a thread was free to make it. The message arrives as one sent `in 0
+seconds` would: when the handlers that are running have finished, or
+while one of them waits `with messages`.
+
+The function is a C function that takes one pointer and returns nothing,
+and `pFunction` is its address, which your native code hands over itself:
+
+	typedef struct { const char *path; long long total; } count_job;
+
+	static void count_lines(void *context)
+	{
+		count_job *job = (count_job *)context;
+		/* ... a long piece of work, with no call of the engine ... */
+	}
+
+	void *mylib_count_function(void) { return (void *)count_lines; }
+
+In Builder:
+
+	foreign handler MyLibCountFunction() returns Pointer \
+			binds to "myLib>mylib_count_function"
+	foreign handler MyLibNewCountJob(in pPath as ZStringUTF8) \
+			returns Pointer binds to "myLib>mylib_new_count_job"
+
+	public handler myLibCountLines(in pPath as String) returns Number
+		variable tJob as Number
+		unsafe
+			put MCAsyncNativeCall(MyLibCountFunction(), \
+					MyLibNewCountJob(pPath), "myLibCounted") into tJob
+		end unsafe
+		return tJob
+	end handler
+
+Never give it a Builder handler: Builder code must not run on another
+thread, and the function must not call the engine at all, with the one
+exception of a wake's function (below). What `pContext` points to has to
+stay until the message has come.
+
+The job's number is one of the Background Jobs library's, so a script
+can pass it to `asyncStatus` and `asyncCancel`. A call that is waiting
+for a thread is never made once it is cancelled; one that is being made
+is not interrupted, and it is for the function to notice whatever your
+library uses to tell it to stop. Eight calls are made at a time and the
+rest wait their turn. They do not hold up the library's file jobs, which
+have threads of their own.
+
+In a browser there are no threads: the function is called before
+`MCAsyncNativeCall` returns, and the message is sent as elsewhere.
+
+###### A wake for your own threads
+
+A library with threads of its own (a network library's, an audio
+callback's) needs to tell the script that something has happened. A wake
+is how: the thread signals it, which is safe from any thread at any time,
+and the engine sends a message on its own thread.
+
+	foreign handler MyLibSetWake(in pFunction as Pointer, \
+			in pContext as Pointer) returns nothing \
+			binds to "myLib>mylib_set_wake"
+
+	variable mWake as Number
+
+	public handler myLibStart() returns nothing
+		unsafe
+			put MCAsyncNativeWakeCreate("myLibHasEvents") into mWake
+			MyLibSetWake(MCAsyncNativeWakeFunction(), \
+					MCAsyncNativeWakeContext(mWake))
+		end unsafe
+	end handler
+
+`MCAsyncNativeWakeFunction` is the address of a C function that takes one
+pointer and returns nothing, and `MCAsyncNativeWakeContext` is the pointer
+to call it with for this wake. Your native code keeps the two and calls
+the function whenever it has put something in its own queue:
+
+	static void (*s_wake)(void *);
+	static void *s_wake_context;
+
+	void mylib_set_wake(void (*wake)(void *), void *context)
+	{
+		s_wake = wake;
+		s_wake_context = context;
+	}
+
+	/* on the library's own thread */
+	static void on_packet(const packet *p)
+	{
+		queue_push(p);              /* under the library's own lock */
+		if (s_wake != NULL)
+			s_wake(s_wake_context);
+	}
+
+The object whose script called `myLibStart` is then sent
+
+	myLibHasEvents pWake
+
+**once for however many signals came since the engine last looked.** So
+the message does not carry an event and does not count them: it says
+there is something to fetch, and its handler asks your library for
+everything that is in the queue.
+
+	on myLibHasEvents
+		local tEvent
+		repeat forever
+			put myLibNextEvent() into tEvent
+			if tEvent is empty then exit repeat
+			-- ...
+		end repeat
+	end myLibHasEvents
+
+This replaces a timer that polls the library many times a second: the
+script runs when there is something to do, and at once.
+
+The signal takes a lock for a moment and does nothing else: it allocates
+nothing, waits for nothing and touches no value of the engine, so it may
+be called from a thread that must not be held up. The context is not an
+address of anything, and there is nothing to free.
+
+`MCAsyncNativeWakeDelete` ends a wake. A wake also ends when the object
+it sends its message to is deleted, and when the engine quits. Signalling
+a wake that has ended does nothing and harms nothing, so a thread that is
+still running with the old pointer is no danger, though a library that
+stops its threads first is tidier. There can be 256 wakes at a time; one
+for each library, or for each connection, is the intended use.
+
 ##### Using compiled libraries
 
 Extensions can include compiled libraries on which they depend. The

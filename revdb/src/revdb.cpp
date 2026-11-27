@@ -725,7 +725,15 @@ void REVDB_GetDriverPath(char *p_arguments[], int p_argument_count, char **r_ret
 {
 	*r_error = False;
 	*r_pass = False;
-	*r_return_string = istrdup(revdbdriverpaths);
+	/* OXT-Beyond: no path is set until revSetDatabaseDriverPath is called
+	 * (the IDE sets one; a standalone usually never does, and revdb then
+	 * looks for its drivers beside the application). The path was copied
+	 * with strdup all the same, which ended the engine on signal 11; now
+	 * the answer is empty. */
+	if (revdbdriverpaths == NULL)
+		*r_return_string = static_cast<char*>(calloc(1,1));
+	else
+		*r_return_string = istrdup(revdbdriverpaths);
 }
 
 /// @brief Opens a connection to a database.

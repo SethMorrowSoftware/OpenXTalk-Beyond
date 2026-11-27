@@ -53,8 +53,15 @@ settings = {
     # (libfoundation/src/foundation-handler.cpp)
     'ALLOW_TABLE_GROWTH': 1,
 
-    # The engine only runs in web pages
-    'ENVIRONMENT': 'web',
+    # The engine runs in web pages, and in a page's web workers (the
+    # Background Workers library: each worker is the engine again, loaded
+    # with importScripts). With 'web' alone Emscripten takes a page for
+    # granted in its own code: since gamepadxt brought in its HTML5 event
+    # library (SDL's gamepads read the Gamepad API through it), the engine
+    # read `document` as it loaded, and in a worker, which has none, it
+    # failed to load at all. 'web,worker' has Emscripten ask; in a page
+    # every answer is the one 'web' assumed
+    'ENVIRONMENT': 'web,worker',
 
     # C++ exceptions are caught where code was compiled to catch them. The
     # engine is not (-fno-exceptions), but revDB's SQLite driver catches

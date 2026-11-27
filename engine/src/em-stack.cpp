@@ -49,6 +49,15 @@ MCStack::realize()
 
 	start_externals();
 
+	/* OXT-Beyond: an engine without a user interface (a web worker's,
+	 * em-dc-mainloop.cpp) makes no window for a stack, as the desktop's
+	 * makes none (desktop-stack.cpp): a worker has no page to put one
+	 * in, and the stack opens without one */
+	if (MCnoui)
+	{
+		return;
+	}
+
 	uint32_t t_window = MCEmscriptenCreateWindow();
 	window = reinterpret_cast<Window>(t_window);
 
