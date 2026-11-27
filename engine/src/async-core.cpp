@@ -4213,7 +4213,9 @@ MCAsyncCoreEndWithParent(uint64_t p_parent)
 	(void)p_parent;
 	return false;
 #elif defined(MCASYNC_WINDOWS)
-	if (p_parent == 0 || p_parent > 0xFFFFFFFFu)
+	/* (A process waiting for its own end would wait for ever) */
+	if (p_parent == 0 || p_parent > 0xFFFFFFFFu ||
+	    p_parent == GetCurrentProcessId())
 		return false;
 	/* The handle keeps the number from naming another process if the
 	 * parent ends before the wait begins */
