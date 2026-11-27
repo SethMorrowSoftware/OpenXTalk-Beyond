@@ -1055,6 +1055,11 @@ private command __workerHeard pWorker, pData
       end try
       if tReply is an array then
          __workerAnswered pWorker, tReply
+      else
+         -- A line of the worker's script's own that only begins as the
+         -- library's do (it wrote "OXT-WORKER " itself): it is output like
+         -- any other, not something to drop
+         __workerQueue sWorkers[pWorker]["owner"], "workerOutput", pWorker, char tStart to -1 of tLine
       end if
    end repeat
 end __workerHeard
