@@ -549,7 +549,19 @@ private function processIsAlive pPid
       put shell("tasklist /NH /FI" && quote & "PID eq" && pPid & quote) into tAnswer
       return word 2 of tAnswer is pPid
    end if
-   -- (A zombie, ended and waiting to be reaped, is not alive)
+   -- (A zombie, ended and waiting to be reaped, is not alive.) Linux says
+   -- in /proc, which every Linux has; ps is not in every container (the
+   -- 32-bit build's has none, and the shell's error read as alive)
+   if there is a folder "/proc/self" then
+      if there is not a folder ("/proc/" & pPid) then
+         return false
+      end if
+      -- (by cat: the engine reads a file of /proc, which says it has no
+      -- size, as empty)
+      put shell("cat /proc/" & pPid & "/stat 2>/dev/null") into tAnswer
+      set the itemDelimiter to ")"
+      return tAnswer is not empty and word 1 of item -1 of tAnswer is not "Z"
+   end if
    put word 1 of shell("ps -o stat= -p" && pPid) into tAnswer
    return tAnswer is not empty and char 1 of tAnswer is not "Z"
 end processIsAlive
