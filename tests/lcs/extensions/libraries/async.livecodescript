@@ -379,8 +379,17 @@ on TestCancelFileJob
       put asyncWriteFile(sFolder & "/cancel-" & tIndex & ".bin", tBytes, "jobDone") into tJob
       put tJob & return after tJobs
    end repeat
+   -- What each job was doing as it was cancelled: one still "queued"
+   -- once asyncCancel has returned had not begun, and must not. (How many
+   -- are still queued then depends on how fast the disk is: on a fast one
+   -- most of the 24 may be done, and one asked about a moment before may
+   -- have been taken and finished in that moment.)
+   local tQueued, tQueuedCancelled
+   put 0 into tQueued
+   put true into tQueuedCancelled
    repeat for each line tJob in tJobs
       asyncCancel tJob
+      put asyncStatus(tJob) into sDone[tJob]["status after cancel"]
    end repeat
 
    put true into tAllDone
@@ -392,9 +401,16 @@ on TestCancelFileJob
       else if sDone[tJob]["error"] is not empty then
          put false into tAllDone
       end if
+      if sDone[tJob]["status after cancel"] is "queued" then
+         add 1 to tQueued
+         if sDone[tJob]["error"] is not "cancelled" then
+            put false into tQueuedCancelled
+         end if
+      end if
    end repeat
    TestAssert "every cancelled job still sends its message, with cancelled or done", tAllDone
-   TestAssert "most of 24 large writes were stopped", tCancelled >= 12
+   TestAssert "every write that was still waiting its turn was stopped", tQueuedCancelled
+   TestDiagnostic tQueued && "of 24 large writes were still waiting once cancelled;" && tCancelled && "were stopped"
 
    asyncCancel line 1 of tJobs
    TestAssert "cancelling a job that is over says so", the result is "no such job"
