@@ -207,6 +207,18 @@ MCAsyncJobId MCAsyncCoreStartProcess(const MCAsyncProcessOptions& p_options,
  * kMCAsyncErrorNotSupported. */
 bool MCAsyncCoreCanStartProcesses(void);
 
+/* For an engine that another started to work for it (a Background Workers
+ * worker): end this process, at once and without tidying up, as soon as the
+ * process p_parent is no longer its parent, whatever ended that process (it
+ * may have crashed, or been killed, and so stopped none of its workers). A
+ * thread of its own looks: on Windows it waits for the parent to end, and
+ * elsewhere it asks the system for this process's parent five times a
+ * second. It touches nothing of the engine. Does nothing and returns false
+ * where no process can be run, or if p_parent is not this process's parent
+ * now (it has already gone, or the number is wrong), or a thread cannot be
+ * started. Any thread may call it; it needs no MCAsyncCoreInitialize. */
+bool MCAsyncCoreEndWithParent(uint64_t p_parent);
+
 /* Queue bytes for the process's input (they are copied). False if the job
  * is not a running process, its input is closed, or there is no memory. */
 bool MCAsyncCoreProcessWrite(MCAsyncJobId p_job, const void *p_bytes,

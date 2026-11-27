@@ -391,11 +391,15 @@ private function __workerProcessStart
    put the hideConsoleWindows into tHide
    set the hideConsoleWindows to true
    put "1" into $OXT_WORKER
+   -- and which process to end with, if this one ends without stopping it
+   -- (see __workerMain)
+   put the processID into $OXT_WORKER_PARENT
    try
       put asyncProcessOpen(tEngine, tArguments, "__workerEvent") into tJob
    catch tError
    end try
    put empty into $OXT_WORKER
+   put empty into $OXT_WORKER_PARENT
    set the hideConsoleWindows to tHide
    if tError is not empty then
       throw tError
@@ -1208,9 +1212,23 @@ end shutdown
 private command __workerMain
    local tFile, tLine, tLength, tText, tRequest, tError
    put true into sIsWorker
+   -- A stack that crashes, or is killed, stops none of its workers, and a
+   -- worker that is running a call does not read its input, so would not
+   -- see it end: it ends with the stack's process instead, whatever ends
+   -- that. (A Background Jobs library without asyncEndWithParent leaves
+   -- it to the input's end.)
+   local tParent
+   put $OXT_WORKER_PARENT into tParent
+   if tParent is not empty and the platform is not "HTML5" then
+      try
+         get asyncEndWithParent(tParent)
+      catch tError
+      end try
+   end if
    -- What this process starts is not a worker: a program that the script
    -- runs gets the environment without the mark
    put empty into $OXT_WORKER
+   put empty into $OXT_WORKER_PARENT
 
    -- The script the worker is given calls this library's handlers
    -- (workerSendProgress), so the library has to be in its message path

@@ -1322,6 +1322,17 @@ extern "C" MC_DLLEXPORT_DEF bool MCAsyncJobsCancel(MCValueRef p_job)
 	return t_cancelled;
 }
 
+/* A Background Workers worker asks to end as soon as the process that
+ * started it does, however that ends (see MCAsyncCoreEndWithParent). The
+ * number is a process's, read as a job's number is. */
+extern "C" MC_DLLEXPORT_DEF bool MCAsyncJobsEndWithParent(MCValueRef p_parent)
+{
+	MCAsyncJobId t_parent = MCAsyncJobFromValue(p_parent);
+	if (t_parent == 0)
+		return false;
+	return MCAsyncCoreEndWithParent(t_parent);
+}
+
 extern "C" MC_DLLEXPORT_DEF void MCAsyncJobsStatus(MCValueRef p_job, MCStringRef& r_status)
 {
 	MCAsyncJobId t_job = MCAsyncJobFromValue(p_job);

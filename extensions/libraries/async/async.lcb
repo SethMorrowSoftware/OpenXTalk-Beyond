@@ -120,6 +120,8 @@ private foreign handler MCAsyncJobsProgress(in pJob as any, \
 		out rProgress as String) returns nothing binds to "<builtin>"
 private foreign handler MCAsyncJobsList(out rJobs as String) \
 		returns nothing binds to "<builtin>"
+private foreign handler MCAsyncJobsEndWithParent(in pParent as any) \
+		returns CBool binds to "<builtin>"
 
 /**
 Summary: Runs a shell command in the background and sends a message with its output when it has ended.
@@ -793,6 +795,42 @@ public handler asyncJobs() returns String
 		MCAsyncJobsList(tJobs)
 	end unsafe
 	return tJobs
+end handler
+
+/**
+Summary: Ends this process as soon as the process that started it ends.
+
+Example:
+-- in a helper that another program started, with its process number
+get asyncEndWithParent($MY_PARENT_PROCESS)
+
+Parameters:
+pParent: The process number of the program that started this one (its <processID>, which it must pass to this one, in its environment or on the command line).
+
+Returns: True if this process now ends with that one. False if <pParent> is not the number of the process that started this one (that process may have ended already), or where no process can be started (Android, iOS and a browser).
+
+Description:
+Use the <asyncEndWithParent> function in a program that another started
+to work for it, and that is of no use once that one has gone. A program
+that ends of its own accord stops those it started with
+<asyncProcessOpen>, but one that crashes, or that the system or a user
+kills, stops none of them, and one that is busy can run on for ever.
+After <asyncEndWithParent> this process ends, at once and without
+running any more of its scripts, when that one ends in any way.
+
+The Background Workers library has each worker call it, with the number
+of the stack's process, as it starts.
+
+Tags: Library
+
+References: asyncProcessOpen (handler), processID (function)
+*/
+public handler asyncEndWithParent(in pParent as any) returns Boolean
+	variable tWatching as Boolean
+	unsafe
+		put MCAsyncJobsEndWithParent(pParent) into tWatching
+	end unsafe
+	return tWatching
 end handler
 
 end library

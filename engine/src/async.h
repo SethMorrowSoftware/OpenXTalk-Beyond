@@ -53,6 +53,7 @@ MC_DLLEXPORT bool MCAsyncJobsCancel(MCValueRef p_job);
 MC_DLLEXPORT void MCAsyncJobsStatus(MCValueRef p_job, MCStringRef& r_status);
 MC_DLLEXPORT void MCAsyncJobsProgress(MCValueRef p_job, MCStringRef& r_progress);
 MC_DLLEXPORT void MCAsyncJobsList(MCStringRef& r_jobs);
+MC_DLLEXPORT bool MCAsyncJobsEndWithParent(MCValueRef p_parent);
 
 /* For an extension with native code (see async.cpp, and "Native code that
  * takes time, or has threads of its own" in

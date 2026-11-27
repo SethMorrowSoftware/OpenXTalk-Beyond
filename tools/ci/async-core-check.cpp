@@ -1228,6 +1228,52 @@ static int child_main(int p_count, char **p_arguments)
 		return 0;
 	}
 
+	/* A worker's parent that ends without stopping it: start another of
+	 * this program ("orphaned") with this one's output, which watches this
+	 * process if p_number is 1, give it a moment, and end at once. The job's
+	 * Done comes when both have closed the pipe: soon if the other ended
+	 * with this one, a few seconds later if it did not. */
+	if (strcmp(t_mode, "orphan") == 0)
+	{
+#if defined(_WIN32)
+		char t_command[4096];
+		snprintf(t_command, sizeof(t_command), "\"%s\" --child orphaned %ld %lu",
+		         p_arguments[2], t_number, (unsigned long)GetCurrentProcessId());
+		STARTUPINFOA t_startup;
+		ZeroMemory(&t_startup, sizeof(t_startup));
+		t_startup.cb = sizeof(t_startup);
+		PROCESS_INFORMATION t_info;
+		if (!CreateProcessA(nullptr, t_command, nullptr, nullptr, TRUE, 0,
+		                    nullptr, nullptr, &t_startup, &t_info))
+			return 4;
+#else
+		char t_parent[32];
+		snprintf(t_parent, sizeof(t_parent), "%ld", (long)getpid());
+		pid_t t_pid = fork();
+		if (t_pid == 0)
+		{
+			execl(p_arguments[2], p_arguments[2], "--child", "orphaned",
+			      p_arguments[1], t_parent, (char *)nullptr);
+			_exit(4);
+		}
+#endif
+		sleep_ms(500);
+		fflush(stdout);
+		_exit(0);
+	}
+
+	/* The other half: say whether it watches, then sleep for 6 seconds */
+	if (strcmp(t_mode, "orphaned") == 0)
+	{
+		unsigned long long t_parent =
+				p_count > 2 ? strtoull(p_arguments[2], nullptr, 10) : 0;
+		bool t_watching = t_number == 1 && MCAsyncCoreEndWithParent(t_parent);
+		fputs(t_watching ? "watching" : "not watching", stdout);
+		fflush(stdout);
+		sleep_ms(6000);
+		return 0;
+	}
+
 #if !defined(_WIN32)
 	/* End by a signal */
 	if (strcmp(t_mode, "signal") == 0)
@@ -2121,6 +2167,50 @@ static void check_wakes(void)
 	      "finalizing destroyed the wakes it had", 0);
 }
 
+/* A worker whose parent ends without stopping it ends too, if it asked to
+ * (MCAsyncCoreEndWithParent), and only then */
+static void check_end_with_parent(void)
+{
+	check(!MCAsyncCoreEndWithParent(0), "no process is no parent", 0);
+#if defined(_WIN32)
+	check(!MCAsyncCoreEndWithParent(GetCurrentProcessId()),
+	      "a process is not its own parent", 0);
+#else
+	check(!MCAsyncCoreEndWithParent((uint64_t)getpid()),
+	      "a process is not its own parent", 0);
+#endif
+
+	start_core();
+	for (int t_watch = 1; t_watch >= 0; t_watch--)
+	{
+		MCAsyncProcessOptions t_options = no_options();
+		unsigned long long t_before = now_ms();
+		MCAsyncJobId t_job = start_child("orphan", t_watch == 1 ? "1" : "0",
+		                                 t_options, s_self);
+		Seen *t_done = wait_done(t_job, 30000);
+		unsigned long long t_took = now_ms() - t_before;
+		bool t_said = t_done != nullptr && t_done->data != nullptr &&
+				t_done->length == (t_watch == 1 ? 8u : 12u) &&
+				memcmp(t_done->data, t_watch == 1 ? "watching" : "not watching",
+				       t_done->length) == 0;
+		if (t_watch == 1)
+		{
+			check(t_said, "a worker watches the parent that started it", 0);
+			check(t_done != nullptr && t_took < 4000,
+			      "and ends soon after that parent ends without stopping it",
+			      (long long)t_took);
+		}
+		else
+		{
+			check(t_said, "(one that does not watch)", 0);
+			check(t_done != nullptr && t_took >= 4000,
+			      "one that does not watch outlives its parent, as before",
+			      (long long)t_took);
+		}
+	}
+	check(stop_core(), "the core finalizes", 0);
+}
+
 struct Group
 {
 	const char *name;
@@ -2143,6 +2233,7 @@ static const Group kGroups[] =
 	{"process-cancel", check_process_cancel},
 	{"native-calls", check_native_calls},
 	{"wakes", check_wakes},
+	{"end-with-parent", check_end_with_parent},
 };
 
 int main(int p_count, char **p_arguments)

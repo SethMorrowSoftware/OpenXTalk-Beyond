@@ -121,6 +121,7 @@ static const MCSLibraryStaticExport kMCEmscriptenEngineExports[] =
 	{ "MCAsyncJobsStatus", reinterpret_cast<void *>(MCAsyncJobsStatus) },
 	{ "MCAsyncJobsProgress", reinterpret_cast<void *>(MCAsyncJobsProgress) },
 	{ "MCAsyncJobsList", reinterpret_cast<void *>(MCAsyncJobsList) },
+	{ "MCAsyncJobsEndWithParent", reinterpret_cast<void *>(MCAsyncJobsEndWithParent) },
 	{ "MCAsyncNativeCall", reinterpret_cast<void *>(MCAsyncNativeCall) },
 	{ "MCAsyncNativeWakeCreate", reinterpret_cast<void *>(MCAsyncNativeWakeCreate) },
 	{ "MCAsyncNativeWakeDelete", reinterpret_cast<void *>(MCAsyncNativeWakeDelete) },

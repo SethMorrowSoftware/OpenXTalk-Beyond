@@ -3403,6 +3403,41 @@ ProcessFree(Process *)
 
 #endif
 
+#if MCASYNC_PROCESSES
+/* How often a worker asks whether its parent is still there, where it
+ * cannot wait for it to end (all but Windows) */
+const unsigned int kMCAsyncParentPollMs = 200;
+
+/* The exit status of a worker whose parent has gone: no one reads it */
+const int kMCAsyncParentGoneStatus = 125;
+
+#if defined(MCASYNC_WINDOWS)
+void
+ParentWatch(void *p_handle)
+{
+	HANDLE t_parent = static_cast<HANDLE>(p_handle);
+	WaitForSingleObject(t_parent, INFINITE);
+	/* Not ExitProcess: that runs what the DLLs do as they are unloaded,
+	 * which can wait for a lock the engine's thread holds */
+	TerminateProcess(GetCurrentProcess(), kMCAsyncParentGoneStatus);
+}
+#else
+void
+ParentWatch(void *p_parent)
+{
+	pid_t t_parent = static_cast<pid_t>(reinterpret_cast<uintptr_t>(p_parent));
+	for (;;)
+	{
+		/* A process whose parent ends is given another (init, or a
+		 * subreaper): its parent's number is then not the one it had */
+		if (getppid() != t_parent)
+			_exit(kMCAsyncParentGoneStatus);
+		poll(nullptr, 0, kMCAsyncParentPollMs);
+	}
+}
+#endif
+#endif
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4164,4 +4199,46 @@ MCAsyncCoreDrain(MCAsyncEventCallback p_callback, void *p_context)
 		if (p_callback != nullptr)
 			p_callback(p_context, t_event);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+//  A WORKER THAT ENDS WITH ITS PARENT
+//
+
+bool
+MCAsyncCoreEndWithParent(uint64_t p_parent)
+{
+#if !MCASYNC_PROCESSES
+	(void)p_parent;
+	return false;
+#elif defined(MCASYNC_WINDOWS)
+	if (p_parent == 0 || p_parent > 0xFFFFFFFFu)
+		return false;
+	/* The handle keeps the number from naming another process if the
+	 * parent ends before the wait begins */
+	HANDLE t_parent = OpenProcess(SYNCHRONIZE, FALSE, static_cast<DWORD>(p_parent));
+	if (t_parent == nullptr)
+		return false;
+	if (WaitForSingleObject(t_parent, 0) != WAIT_TIMEOUT)
+	{
+		CloseHandle(t_parent);
+		return false;
+	}
+	if (!ThreadCreate(ParentWatch, t_parent, nullptr))
+	{
+		CloseHandle(t_parent);
+		return false;
+	}
+	return true;
+#else
+	if (p_parent <= 1 || static_cast<uint64_t>(static_cast<pid_t>(p_parent)) != p_parent)
+		return false;
+	pid_t t_parent = static_cast<pid_t>(p_parent);
+	if (getppid() != t_parent)
+		return false;
+	return ThreadCreate(ParentWatch,
+	                    reinterpret_cast<void *>(static_cast<uintptr_t>(t_parent)),
+	                    nullptr);
+#endif
 }
