@@ -1239,8 +1239,11 @@ private command __workerMain
    -- A stack that crashes, or is killed, stops none of its workers, and a
    -- worker that is running a call does not read its input, so would not
    -- see it end: it ends with the stack's process instead, whatever ends
-   -- that. (A Background Jobs library without asyncEndWithParent leaves
-   -- it to the input's end.)
+   -- that. An engine of this version or later has seen to it as it
+   -- started, from the environment this library gave the worker, since a
+   -- worker on the desktop has not loaded the Background Jobs library; one
+   -- that has (a standalone that includes it) asks again, which is no
+   -- harm. An older engine and library leave it to the input's end.
    local tParent
    put $OXT_WORKER_PARENT into tParent
    if tParent is not empty and the platform is not "HTML5" then

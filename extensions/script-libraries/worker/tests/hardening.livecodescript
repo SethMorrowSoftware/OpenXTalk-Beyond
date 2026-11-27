@@ -483,3 +483,153 @@ on TestTheInputReadAsOnWindows
    workerStop tWorker
    TestAssert "and the worker stops", hasStopped(tWorker)
 end TestTheInputReadAsOnWindows
+
+----------------------------------------------------------------
+-- A stack that is killed while its workers are busy
+----------------------------------------------------------------
+
+-- The stack another engine runs: it starts three workers, has each say its
+-- process and then run a call that never ends, and writes the numbers to
+-- the file it is told of (its standard output may wait for its end, which
+-- here is a kill)
+private function busyParent
+   return "script 'WorkerTestParent'" & return & \
+      "local sPids" & return & \
+      "on startup" & return & \
+      "   load extension from file $OXT_TEST_ASYNC" & return & \
+      "   start using stack $OXT_TEST_WORKER_LIBRARY" & return & \
+      "   local tWorker" & return & \
+      "   repeat 3 times" & return & \
+      "      put workerStart(textDecode(base64Decode($OXT_TEST_WORKER_SCRIPT), 'utf-8')) into tWorker" & return & \
+      "      get workerCall(tWorker, 'pid', 'gotPid')" & return & \
+      "      get workerCall(tWorker, 'busy', 'gotPid')" & return & \
+      "   end repeat" & return & \
+      "   repeat forever" & return & \
+      "      wait 50 milliseconds with messages" & return & \
+      "   end repeat" & return & \
+      "end startup" & return & \
+      "on gotPid pCall, pResult, pError" & return & \
+      "   if pResult is not an integer then exit gotPid" & return & \
+      "   put pResult & return after sPids" & return & \
+      "   if the number of lines of sPids is 3 then" & return & \
+      "      put the processID & return & sPids into url ('file:' & $OXT_TEST_PIDS)" & return & \
+      "   end if" & return & \
+      "end gotPid"
+end busyParent
+
+-- What its workers run: a call that never reads the worker's input again
+private function busyWorker
+   return "function pid" & return & \
+      "   return the processID" & return & \
+      "end pid" & return & \
+      "command busy" & return & \
+      "   repeat forever" & return & \
+      "      wait 10 milliseconds" & return & \
+      "   end repeat" & return & \
+      "end busy"
+end busyWorker
+
+-- The built extensions, which the test library finds the same way
+private function builtExtensionsFolder
+   local tPath
+   put specialFolderPath("engine") into tPath
+   set the itemDelimiter to slash
+   repeat while tPath is not empty
+      if there is a folder (tPath & slash & "packaged_extensions") then
+         return tPath & slash & "packaged_extensions"
+      end if
+      delete the last item of tPath
+   end repeat
+   return empty
+end builtExtensionsFolder
+
+private function processIsAlive pPid
+   local tAnswer
+   if the platform is "Win32" then
+      put shell("tasklist /NH /FI" && quote & "PID eq" && pPid & quote) into tAnswer
+      return word 2 of tAnswer is pPid
+   end if
+   -- (A zombie, ended and waiting to be reaped, is not alive)
+   put word 1 of shell("ps -o stat= -p" && pPid) into tAnswer
+   return tAnswer is not empty and char 1 of tAnswer is not "Z"
+end processIsAlive
+
+private command killProcess pPid
+   if the platform is "Win32" then
+      get shell("taskkill /F /PID" && pPid)
+   else
+      get shell("kill -9" && pPid)
+   end if
+end killProcess
+
+on parentEvent pJob, pEvent, pData, pCode
+end parentEvent
+
+on TestWorkersEndWithAStackThatIsKilled
+   local tAsync, tEngine, tScriptFile, tPidFile, tArguments, tJob, tUntil, tPids, tAlive
+   put builtExtensionsFolder() & "/org.openxtalk.library.async/module.lcm" into tAsync
+   if there is not a file tAsync then
+      TestSkip "a stack that is killed ends its workers", "no built Background Jobs library"
+      exit TestWorkersEndWithAStackThatIsKilled
+   end if
+   set the itemDelimiter to ":"
+   put item 2 to -1 of the address into tEngine
+   set the itemDelimiter to comma
+
+   put the tempName into tScriptFile
+   put replaceText(busyParent(), "'", quote) into url ("binfile:" & tScriptFile)
+   put the tempName into tPidFile
+   put "-ui" into tArguments[1]
+   put tScriptFile into tArguments[2]
+
+   put tAsync into $OXT_TEST_ASYNC
+   put TestGetEngineRepositoryPath() & "/extensions/script-libraries/worker/worker.livecodescript" \
+         into $OXT_TEST_WORKER_LIBRARY
+   put base64Encode(textEncode(busyWorker(), "utf-8")) into $OXT_TEST_WORKER_SCRIPT
+   put tPidFile into $OXT_TEST_PIDS
+   put asyncProcessOpen(tEngine, tArguments, "parentEvent") into tJob
+   put empty into $OXT_TEST_ASYNC
+   put empty into $OXT_TEST_WORKER_LIBRARY
+   put empty into $OXT_TEST_WORKER_SCRIPT
+   put empty into $OXT_TEST_PIDS
+
+   put the milliseconds + kWaitSeconds * 1000 into tUntil
+   repeat while the milliseconds < tUntil
+      if there is a file tPidFile then
+         put url ("file:" & tPidFile) into tPids
+         if the number of lines of tPids is 4 then exit repeat
+      end if
+      wait 20 milliseconds with messages
+   end repeat
+   TestAssert "the stack starts three busy workers", the number of lines of tPids is 4
+   if the number of lines of tPids is not 4 then
+      get asyncCancel(tJob)
+      exit TestWorkersEndWithAStackThatIsKilled
+   end if
+   -- Each worker is in its call, which never reads the input again
+   wait 300 milliseconds with messages
+
+   killProcess line 1 of tPids
+   put the milliseconds + 5000 into tUntil
+   repeat while the milliseconds < tUntil
+      put empty into tAlive
+      repeat with i = 2 to 4
+         if processIsAlive(line i of tPids) then
+            put line i of tPids & return after tAlive
+         end if
+      end repeat
+      if tAlive is empty then exit repeat
+      wait 50 milliseconds with messages
+   end repeat
+   TestAssert "its three workers end within five seconds of it", tAlive is empty
+   if tAlive is not empty then
+      replace return with space in tPids
+      replace return with space in tAlive
+      TestDiagnostic "the stack and its workers:" && tPids & "; still running:" && tAlive
+   end if
+   repeat for each line tPid in tAlive
+      killProcess tPid
+   end repeat
+   delete file tScriptFile
+   delete file tPidFile
+end TestWorkersEndWithAStackThatIsKilled

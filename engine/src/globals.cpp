@@ -1080,6 +1080,10 @@ bool X_open(int argc, MCStringRef argv[], MCStringRef envp[])
 	////
 
 	MCU_init();
+
+	// OXT-Beyond: a Background Workers worker ends with the stack's process,
+	// however that ends, from its first moment (async.cpp)
+	MCAsyncEndWithParentIfWorker();
 	
 	////
     
