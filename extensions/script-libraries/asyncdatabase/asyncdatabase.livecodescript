@@ -357,6 +357,9 @@ whose script called it is sent <pMessage> with four parameters:
   if the worker that held the connection ended (the connection is then
   closed);
 - the names of the columns, one to a line, in their order in the query.
+  A name may have commas of its own (`coalesce(a, b)`); in the rare case
+  where revDB's list of names cannot be told apart, the columns are named
+  1 to N instead, in the rows too.
 
 Two columns of a row with the same name are one key, and the later
 column's value is kept: give them names of their own with AS.
@@ -764,7 +767,7 @@ on _asyncDatabaseWorkerQuery pSQL, pValues
    end if
 
    put revDatabaseColumnCount(tCursor) into tCount
-   put revDatabaseColumnNames(tCursor) into tNames
+   put __asyncDatabaseColumnNames(revDatabaseColumnNames(tCursor), tCount) into tNames
    put 0 into tRow
    if not revQueryIsAtEnd(tCursor) then
       repeat
@@ -772,7 +775,7 @@ on _asyncDatabaseWorkerQuery pSQL, pValues
          repeat with i = 1 to tCount
             if revDatabaseColumnIsNull(tCursor, i) is not true then
                get revDatabaseColumnNumbered(tCursor, i, "tValue")
-               put tValue into tRows[tRow][item i of tNames]
+               put tValue into tRows[tRow][line i of tNames]
             end if
          end repeat
          if tRows[tRow] is empty then
@@ -787,11 +790,71 @@ on _asyncDatabaseWorkerQuery pSQL, pValues
    end if
    revCloseCursor tCursor
 
-   replace comma with return in tNames
    put tRows into tResult["rows"]
    put tNames into tResult["columns"]
    return tResult
 end _asyncDatabaseWorkerQuery
+
+-- The names of a query's columns, one to a line. revDB gives them joined
+-- by commas, and a name can have commas of its own: an expression's
+-- ("coalesce(a, b)") or a quoted alias's. The pieces are joined again
+-- while a bracket or a quote is open in them; if that does not give one
+-- name for each column, which it should not fail to, the columns are named
+-- by their numbers, rather than a row's values be given the wrong names.
+private function __asyncDatabaseColumnNames pJoined, pCount
+   local tNames, tName, tOpen, i
+   if pCount is not an integer or pCount < 1 then
+      return empty
+   end if
+   set the itemDelimiter to comma
+   repeat for each item tPiece in pJoined
+      if tOpen then
+         put comma after tName
+      else
+         put empty into tName
+      end if
+      put tPiece after tName
+      put __asyncDatabaseNameIsOpen(tName) into tOpen
+      if not tOpen then
+         put tName & return after tNames
+      end if
+   end repeat
+   if tOpen then
+      put tName & return after tNames
+   end if
+   delete the last char of tNames
+   if the number of lines of tNames is not pCount then
+      put empty into tNames
+      repeat with i = 1 to pCount
+         put i & return after tNames
+      end repeat
+      delete the last char of tNames
+   end if
+   return tNames
+end __asyncDatabaseColumnNames
+
+private function __asyncDatabaseNameIsOpen pName
+   local tCopy
+   repeat for each char tQuote in (quote & "'`")
+      put pName into tCopy
+      replace tQuote with empty in tCopy
+      if (the number of chars of pName - the number of chars of tCopy) mod 2 is 1 then
+         return true
+      end if
+   end repeat
+   put pName into tCopy
+   replace "(" with empty in tCopy
+   get the number of chars of tCopy
+   replace ")" with empty in tCopy
+   if the number of chars of pName - it is not it - the number of chars of tCopy then
+      return true
+   end if
+   put pName into tCopy
+   replace "[" with empty in tCopy
+   get the number of chars of tCopy
+   replace "]" with empty in tCopy
+   return the number of chars of pName - it is not it - the number of chars of tCopy
+end __asyncDatabaseNameIsOpen
 
 on _asyncDatabaseWorkerExecute pSQL, pValues
    local tResult

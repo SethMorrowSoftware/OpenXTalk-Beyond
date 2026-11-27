@@ -208,6 +208,28 @@ on TestQuery
    TestAssert "the columns are named in order", sAnswers[tRequest]["columns"] is ("id" & return & "name" & return & "price" & return & "note")
 end TestQuery
 
+on TestColumnNamesWithCommas
+   local tConnection, tRequest, tRows, tAmbiguous
+   put openWithTable() into tConnection
+   -- revDB joins the names with commas, and an expression's has its own
+   put asyncDatabaseQuery(tConnection, "SELECT coalesce(NULL, 'x'), 42 AS answer, name FROM fruit WHERE id = 1", "answered") into tRequest
+   TestAssert "a query whose column names have commas is answered", isAnswered(tRequest) and sAnswers[tRequest]["error"] is empty
+   put sAnswers[tRequest]["result"] into tRows
+   TestAssert "with each column named as it is", sAnswers[tRequest]["columns"] is \
+         ("coalesce(NULL, 'x')" & return & "answer" & return & "name")
+   TestAssert "and each value under its own name", tRows[1]["coalesce(NULL, 'x')"] is "x" \
+         and tRows[1]["answer"] is 42 and tRows[1]["name"] is "apple"
+
+   -- A quoted alias's commas cannot be told from revDB's: the columns are
+   -- then named by their numbers, and no value is given another's name
+   put asyncDatabaseQuery(tConnection, "SELECT 'y' AS " & quote & "a, b" & quote & ", name FROM fruit WHERE id = 1", "answered") into tAmbiguous
+   TestAssert "a query whose names cannot be told apart is answered", isAnswered(tAmbiguous) and sAnswers[tAmbiguous]["error"] is empty
+   put sAnswers[tAmbiguous]["result"] into tRows
+   TestAssert "with its columns named by number", sAnswers[tAmbiguous]["columns"] is ("1" & return & "2")
+   TestAssert "and its values under them", tRows[1][1] is "y" and tRows[1][2] is "apple" \
+         and the number of elements of tRows[1] is 2
+end TestColumnNamesWithCommas
+
 on TestNoRows
    local tConnection, tRequest
    put openWithTable() into tConnection
