@@ -95,6 +95,12 @@ lcs: core/engine-lcb/array-kinds: TestIntoLcbAsBefore  # 9.6.3 cannot compile th
 lcs: core/engine-lcb/array-kinds: TestIntoLcbWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestListsComeBackAsSequences  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
 lcs: core/engine-lcb/array-kinds: TestWidgetPropertyWithSequencesAsLists  # 9.6.3 cannot compile the script (array kinds, #578); with an engine that can, it skips in a standalone (lcb)
+lcs: core/engine-lcb/async-native: TestCallIsAJob  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestDeletedWake  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestManyThreadsSignal  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestSignalsBecomeOneMessage  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestWakeFromAnotherThread  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
+lcs: core/engine-lcb/async-native: TestWakeOfADeletedObject  # 9.6.3 has no MCAsyncNative* to bind to (the native-thread helpers, #649); the beyond engine passes it
 lcs: core/engine/android-permissions: TestAPermissionInNoGroupExists  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/android-permissions: TestAPermissionInNoGroupIsHeld  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
 lcs: core/engine/android-permissions: TestAskingForAPermissionInNoGroup  # the runtimes asset's Java layer (0.2.8-dp.2's, which a 9.6.3 build uses) finds a permission only in a permission group, and Android 10 and newer list INTERNET in none
