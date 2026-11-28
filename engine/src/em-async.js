@@ -72,6 +72,79 @@ mergeInto(LibraryManager.library, {
 			});
 		},
 
+		// OXT-Beyond: the engine's timeout for a yield, as a handle
+		// that resume() cancels by forgetting it (clearTimeout() takes
+		// either kind). A wait shorter than 4 ms goes round the page's
+		// MessageChannel instead of setTimeout() (_shortWaits): a browser holds a
+		// timer set from inside another timer's callback for at least
+		// 4 ms, and the engine resumes from its own timers, so every
+		// yield of a running engine cost 4 ms or more. A game giving
+		// the page a turn twice a frame (Orb Island, 2026-11-27) lost
+		// 8 ms of each 40 ms frame to it: 22 to 25 pictures a second
+		// against 25 to 31 without it, in headless Chromium. A message
+		// is a task of its own, so the page still gets its turn (its
+		// sound, its input, its drawing) before the engine runs on;
+		// one that comes before the deadline posts itself again. A
+		// wait of 4 ms or more is a timer, as before, and so is every
+		// wait while the page is hidden.
+		_mcChannel: null,
+		_mcSeq: 0,
+		_mcHandle: null,
+
+		_later: function(timeout) {
+			// A hidden page keeps the browser's timers, which it slows
+			// down there: a game left running in a background tab
+			// should not run on at full speed.
+			if (timeout >= 4 || !LiveCodeAsync._shortWaits() ||
+				typeof MessageChannel === 'undefined' ||
+				(typeof document !== 'undefined' && document.hidden)) {
+				return setTimeout(LiveCodeAsync._resumeTimeout, timeout);
+			}
+			if (!LiveCodeAsync._mcChannel) {
+				LiveCodeAsync._mcChannel = new MessageChannel();
+				LiveCodeAsync._mcChannel.port1.onmessage =
+					LiveCodeAsync._mcMessage;
+			}
+			var handle = {
+				seq: ++LiveCodeAsync._mcSeq,
+				deadline: LiveCodeAsync._now() + timeout
+			};
+			LiveCodeAsync._mcHandle = handle;
+			LiveCodeAsync._mcChannel.port2.postMessage(handle.seq);
+			return handle;
+		},
+
+		_mcMessage: function(e) {
+			var handle = LiveCodeAsync._mcHandle;
+			// A message for an older wait, or for one that an event
+			// resumed first, does nothing: only the current wait's
+			// own messages go round.
+			if (!handle || e.data !== handle.seq ||
+				LiveCodeAsync._timeoutHandle !== handle) {
+				return;
+			}
+			if (LiveCodeAsync._now() < handle.deadline) {
+				LiveCodeAsync._mcChannel.port2.postMessage(handle.seq);
+				return;
+			}
+			LiveCodeAsync._mcHandle = null;
+			LiveCodeAsync._resumeTimeout();
+		},
+
+		// The short waits are on unless the page turns them off with
+		//   do "window.oxtShortWaits = false" as "JavaScript"
+		// (a wait of 1 ms took 4 on the web before them, and a stack
+		// that loops on short waits runs faster and busier with them,
+		// as it does on the desktop).
+		_shortWaits: function() {
+			return !(typeof window !== 'undefined' && window.oxtShortWaits === false);
+		},
+
+		_now: function() {
+			return (typeof performance !== 'undefined') ?
+				performance.now() : Date.now();
+		},
+
 		_resumeTimeout: function() {
 			LiveCodeAsync._timeoutHandle = null;
 			LiveCodeAsync._fromTimeout = true;
@@ -145,9 +218,8 @@ mergeInto(LibraryManager.library, {
 				// timout is negative, never timeout
 				LiveCodeAsync._fromTimeout = false;
 				if (timeout >= 0) {
-					var event = setTimeout(LiveCodeAsync._resumeTimeout,
-										   timeout);
-					LiveCodeAsync._timeoutHandle = event;
+					LiveCodeAsync._timeoutHandle =
+						LiveCodeAsync._later(timeout);
 				}
 			});
 		},
