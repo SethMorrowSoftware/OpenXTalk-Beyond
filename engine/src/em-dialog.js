@@ -747,13 +747,15 @@ mergeInto(LibraryManager.library, {
         // (openWithClick). Never the page's own tab.
         _share: function(path) {
             var name = path.substring(path.lastIndexOf('/') + 1);
+            // the file as it is now, as a download takes it: the engine goes
+            // on while the user is asked, and may write or delete the file
+            var blob;
+            try {
+                blob = LiveCodeDialog._blobOf(path);
+            } catch (e) {
+                return false;
+            }
             var give = function() {
-                var blob;
-                try {
-                    blob = LiveCodeDialog._blobOf(path);
-                } catch (e) {
-                    return false;
-                }
                 var file = null;
                 try {
                     file = new File([blob], name, {'type': blob.type});

@@ -32,7 +32,8 @@ else is given as before. Run in Node with stand-ins for the browser:
   download link;
 - without the Share sheet's files, a new tab opens with the file;
 - without a tap to answer (no user activation) the user is asked first,
-  and the file goes to the Share sheet from the dialog's button;
+  and the file goes to the Share sheet from the dialog's button, as it was
+  when the engine gave it, though the engine wrote it again meanwhile;
 - a Mac (no touch screen), a Linux or Windows browser, and a zip file on an
   iPad are given the download link as before, named as the file is.
 
@@ -86,6 +87,8 @@ LCD.open = function (kind, type, title, message, buttons, text, callback, index)
 };
 out.result = LCD._download(setup.path);
 out.beforeAnswer = { shares: out.shares.length, opens: out.opens.length, clicks: out.clicks.length };
+// the engine goes on while the user is asked: the file is written again
+if (setup.rewrite) global.FS.readFile = (path) => new Uint8Array(123);
 if (pending) pending();
 setTimeout(() => { console.log(JSON.stringify(out)); process.exit(0); }, 20);
 '''
@@ -97,11 +100,11 @@ LINUX = {'platform': 'Linux x86_64', 'touch': 0}
 WINDOWS = {'platform': 'Win32', 'touch': 10}
 
 
-def run(device, path='/downloads/card.pdf', share=True, active=True):
+def run(device, path='/downloads/card.pdf', share=True, active=True, rewrite=False):
     node = shutil.which('node')
     if not node:
         return None
-    setup = dict(device, path=path, share=share, active=active)
+    setup = dict(device, path=path, share=share, active=active, rewrite=rewrite)
     work = tempfile.mkdtemp()
     try:
         harness = os.path.join(work, 'harness.js')
@@ -145,6 +148,10 @@ class ADownloadOnAnIPhoneOrIPad(unittest.TestCase):
         self.assertEqual(r['beforeAnswer'], {'shares': 0, 'opens': 0, 'clicks': 0})
         self.assertEqual(len(r['dialogs']), 1)
         self.assertEqual(r['dialogs'][0]['message'], 'card.pdf')
+        self.assertEqual(r['shares'], [[{'name': 'card.pdf', 'type': 'application/pdf', 'size': 4}]])
+
+    def test_the_file_shared_after_asking_is_the_file_as_it_was_given(self):
+        r = run(IPAD, active=False, rewrite=True)
         self.assertEqual(r['shares'], [[{'name': 'card.pdf', 'type': 'application/pdf', 'size': 4}]])
 
     def test_a_zip_on_an_ipad_is_a_download_as_before(self):
