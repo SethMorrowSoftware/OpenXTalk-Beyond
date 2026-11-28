@@ -11818,6 +11818,16 @@ on revIDETogglePalette pPaletteName
       else
          revIDEOpenPalette pPaletteName -- open the wd as palette
       end if
+      -- OXT-Beyond: a palette shown from its menu item is seen. One that
+      -- opened while the IDE still took itself to be starting got the
+      -- start-up's blendLevel of 99 (its preOpenStack), so it was ticked
+      -- in the Tools menu and could not be seen, however often it was
+      -- picked (richmond62, openxtalk.org p=26724). Only the IDE's
+      -- palettes take that blendLevel; one a script gave its own is kept
+      if there is a stack tStackName and the blendLevel of stack tStackName is 99 and \
+            the visible of stack tStackName and not revIDEStartupSplashIsOpen() then
+         set the blendLevel of stack tStackName to 0
+      end if
    else
       -- it was visible, so close it
       close stack tStackName
@@ -11825,6 +11835,12 @@ on revIDETogglePalette pPaletteName
    unlock messages
    unlock screen
 end revIDETogglePalette
+
+-- OXT-Beyond: true while the start-up's splash is on the screen, the
+-- time the IDE's palettes are kept at a blendLevel of 99 for
+function revIDEStartupSplashIsOpen
+   return there is a stack "revSplash" and the mode of stack "revSplash" is not 0
+end revIDEStartupSplashIsOpen
 
 on revIDETogglePaintAndDrawTools
    local tToolsOnShow
