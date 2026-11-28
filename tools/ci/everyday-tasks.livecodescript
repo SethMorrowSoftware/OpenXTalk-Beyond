@@ -43,7 +43,7 @@ script "oxt_everyday"
 -- <name> ok | FAILED <why>, DONE). OXT_TOUR_ONLY names tasks; the tasks
 -- before a named one that it needs (the stack, its controls) run too.
 
-constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,shortcut-copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,import-image-system-dialog,finish"
+constant kTasks = "start,new-stack,window-menu,appbrowser-watch,make-button,make-field,make-checkbox,make-radio,make-option-menu,make-scrollbar,make-graphic,make-label,inspector-name,inspector-label,inspector-colour,inspector-text-size,inspector-stack-name,script-type-apply,script-compile-error,script-fix-apply,browse-runs-it,message-box-line,message-box-lines,message-box-shortcut,select-move-undo,undo-twice-redoes,delete-undo,copy-paste,shortcut-copy-paste,duplicate,group,ungroup,align,new-card,project-browser-cards,go-card,delete-card,save-as,appbrowser-still-open,appbrowser-open,appbrowser-names,appbrowser-expand,appbrowser-select,appbrowser-script,appbrowser-collapse,close-reopen,save-again,revert-to-saved,save-as-second-name,se-find-replace,se-gutter-follows,debug-breakpoint,dictionary-search,import-image,image-as-icon,geometry-manager,preferences-change,quick-start-first-lesson,quick-start-dropped-shows,standalone-stopped-build,standalone-mc-stack-file,standalone-built-and-run,standalone-engine-missing,tools-palette-shown,import-image-system-dialog,finish"
 -- (the names the tasks give what they make)
 constant kStack = "Everyday Stack"
 constant kFile = "everyday.oxtstack"
@@ -1462,6 +1462,119 @@ on ed_se_find_replace
    edShotStack tSE, "29-se-replaced"
    edCloseScriptEditors
 end ed_se_find_replace
+
+-- The Script Editor's line numbers follow its script as it scrolls, after
+-- an Up arrow that moved the caret without scrolling too. The editor used
+-- to flip a flag on every Up arrow and drop every scroll while the flag
+-- was set, so after one such press the numbers stayed where they were as
+-- the script scrolled under them, until another Up arrow or a click
+-- (Skids, openxtalk.org p=26981, p=26991). The button's script is made
+-- long enough to scroll for this step and given back after it; the Up
+-- arrow and the scroll are the messages the engine sends for a key and a
+-- wheel (a scroll set by script is a scroll all the same: the engine
+-- sends scrollBarDrag for it, and the editor drops one that moved
+-- nothing)
+on ed_se_gutter_follows
+   local tButton, tOld, tLong, tLine, tSE, tField, tGutter, tError
+   put edOkay() into tButton
+   put the script of tButton into tOld
+   repeat with tLine = 1 to 300
+      put "-- gutter line" && tLine & return after tLong
+   end repeat
+   set the script of tButton to tOld & return & tLong
+   try
+      put edOpenScript(tButton) into tSE
+      put edSeField(tSE) into tField
+      put the long id of field "Numbers" of group "Gutter" of group "Editor" of card "Main" of stack tSE into tGutter
+      if not edWaitFor("the text of pAx contains " & quote & "gutter line 300" & quote, 5000, tField) then
+         throw "the Script Editor did not show the long script:" && the number of lines of the text of tField && "lines"
+      end if
+      -- a scroll before any Up arrow: the numbers follow it
+      edScrollScript tField, tGutter, 400, "before an Up arrow"
+      edScrollScript tField, tGutter, 0, "back to the top"
+      -- an Up arrow on line 3, which moves the caret and scrolls nothing
+      select after char 2 of line 3 of tField
+      send "rawKeyDown 65362" to tField
+      wait 100 milliseconds with messages
+      if the vScroll of tField is not 0 then throw "the Up arrow on line 3 scrolled the script to" && the vScroll of tField
+      edScrollScript tField, tGutter, 400, "after one Up arrow"
+      edScrollScript tField, tGutter, 800, "after one Up arrow, a second scroll"
+      -- and an odd number again: three presses
+      set the vScroll of tField to 0
+      send "scrollBarDrag 0" to tField
+      select after char 2 of line 3 of tField
+      repeat 3 times
+         send "rawKeyDown 65362" to tField
+      end repeat
+      wait 100 milliseconds with messages
+      edScrollScript tField, tGutter, 600, "after three Up arrows"
+      edShotStack tSE, "29b-se-gutter-follows"
+   catch tError
+      edCloseScriptEditors
+      set the script of tButton to tOld
+      throw tError
+   end try
+   edCloseScriptEditors
+   set the script of tButton to tOld
+end ed_se_gutter_follows
+
+-- the script scrolled to pScroll as a wheel does it, and the line numbers
+-- waited for until they are there too
+command edScrollScript pField, pGutter, pScroll, pWhen
+   set the vScroll of pField to pScroll
+   send "scrollBarDrag" && the vScroll of pField to pField
+   if not edWaitFor("the vScroll of pAx = " & the vScroll of pField, 2000, pGutter) then
+      throw "the line numbers did not follow the script" && pWhen & ": the script at" && \
+            the vScroll of pField & ", the numbers at" && the vScroll of pGutter
+   end if
+end edScrollScript
+
+-- The Tools palette is seen when it is shown. While the IDE starts, the
+-- palette, the menu bar and the Message Box open at a blendLevel of 99
+-- (their preOpenStack, while the Home stack's cREVLaunching is true) and
+-- are made solid as the splash closes. A Mac shows nothing of a window at
+-- 99, so a palette left there was ticked in the Tools menu and not on the
+-- screen, and picking Tools > Tools Palette again opened it at 99 again
+-- (richmond62, openxtalk.org p=26724, p=26730, macOS 12). Here the
+-- start-up is made to look unfinished, as it was left then: the palette
+-- picked from its menu item twice must come back solid, and the IDE's
+-- after-start check must make a shown palette left at 99 solid
+on ed_tools_palette_shown
+   local tTools, tWasLaunching, tError
+   put revIDEPaletteToStackName("tools") into tTools
+   put the cREVLaunching of stack "Home" into tWasLaunching
+   try
+      set the cREVLaunching of stack "Home" to true
+      if revIDEPaletteIsVisible("tools") then
+         edMenu "Tools", "Tools Palette"
+         if not edWaitFor("not revIDEPaletteIsVisible(" & quote & "tools" & quote & ")", 3000) then
+            throw "Tools > Tools Palette did not close the shown palette"
+         end if
+      end if
+      edMenu "Tools", "Tools Palette"
+      if not edWaitFor("revIDEPaletteIsVisible(" & quote & "tools" & quote & ")", 3000) then
+         throw "Tools > Tools Palette did not show the palette"
+      end if
+      if the blendLevel of stack tTools is not 0 then
+         throw "Tools > Tools Palette showed the palette at a blendLevel of" && the blendLevel of stack tTools
+      end if
+      set the cREVLaunching of stack "Home" to tWasLaunching
+      -- a shown palette left at the start-up's blendLevel
+      set the blendLevel of stack tTools to 99
+      send "revInternal__ShowStartupPalettes" to stack "Home"
+      if the blendLevel of stack tTools is not 0 then
+         throw "the check after start-up left the shown palette at a blendLevel of" && the blendLevel of stack tTools
+      end if
+      if the cREVLaunching of stack "Home" is not false then
+         throw "the check after start-up left the IDE marked as starting"
+      end if
+      edShotStack tTools, "60-tools-palette-shown"
+   catch tError
+      set the blendLevel of stack tTools to 0
+      set the cREVLaunching of stack "Home" to tWasLaunching
+      throw tError
+   end try
+end ed_tools_palette_shown
 
 -- a combo box of the Find dialog clicked, all its text selected (Ctrl or
 -- Cmd+A) and pText typed. The keys go where the keyboard focus is: on the

@@ -469,6 +469,10 @@ on tCloseSplashFully
    revInternal__InitialiseTools
    if there is a stack "revMenuBar" then set the blendlevel of stack "revMenuBar" to 0
    if there is a stack "Message Box" then set the blendlevel of stack "Message Box" to 0
+   -- OXT-Beyond: and once more a second later, for a palette shown at
+   -- the start-up's blendLevel of 99 after these lines ran
+   -- (revInternal__ShowStartupPalettes)
+   send "revInternal__ShowStartupPalettes" to me in 1 second
    
    -- OXT-Beyond: the web IDE opens Home, its welcome stack, unless the
    -- user turned that off there (revWebIDELibrary)
@@ -484,6 +488,36 @@ on tCloseSplashFully
    
    revInternal__Log "End"
 end tCloseSplashFully
+
+-- OXT-Beyond: the Tools palette, the menu bar and the Message Box open
+-- at a blendLevel of 99 while the IDE starts (their preOpenStack), so
+-- that they come up together when the splash closes. A palette left at
+-- 99 is on the screen and cannot be seen: on a Mac its window shows
+-- nothing, so Tools > Tools Palette is ticked and no palette is there
+-- (richmond62, openxtalk.org p=26724, p=26730: "fairly random", on
+-- macOS 12). Once the IDE has started, each of them that is open and
+-- shown is made solid, and the start-up is marked over, which is what
+-- their preOpenStack asks. A palette that is hidden or closed is left as
+-- it is.
+on revInternal__ShowStartupPalettes
+   if there is a stack "revSplash" and the mode of stack "revSplash" is not 0 then
+      -- still starting: tCloseSplashFully has not run yet
+      send "revInternal__ShowStartupPalettes" to me in 1 second
+      exit revInternal__ShowStartupPalettes
+   end if
+   set the cREVLaunching of stack "Home" to false
+   local tStack
+   repeat for each item tPalette in "tools,menubar,message box"
+      put revIDEPaletteToStackName(tPalette) into tStack
+      if tStack is empty or there is not a stack tStack then next repeat
+      if the mode of stack tStack is 0 or not the visible of stack tStack then next repeat
+      if the blendLevel of stack tStack is not 0 then
+         revInternal__Log "Message", tStack && "was shown at a blendLevel of" && \
+               the blendLevel of stack tStack & "; made solid"
+         set the blendLevel of stack tStack to 0
+      end if
+   end repeat
+end revInternal__ShowStartupPalettes
 
 on revInternal__setSplashStatus pMessage
       revInternal__Log "Message", pMessage

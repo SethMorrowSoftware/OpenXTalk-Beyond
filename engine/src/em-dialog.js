@@ -710,7 +710,81 @@ mergeInto(LibraryManager.library, {
             }
         },
 
+        // OXT-Beyond: the kinds of file Safari on an iPhone or an iPad
+        // shows itself. Given one as a download (a link with a download
+        // name), it shows the file IN THE PAGE'S OWN TAB, so the stack is
+        // gone and the page must be loaded again (CamelCaps, openxtalk.org
+        // p=26900: a card saved as a PDF on an iPad). There each such file
+        // goes to the Share sheet instead, named as it is, where Save to
+        // Files is (what he found works, p=26908), or where the Share
+        // sheet cannot take it, to a new tab. Every other browser, and
+        // every other kind of file, is given the download as before.
+        _shownInTab: {
+            'pdf': true, 'txt': true, 'csv': true, 'html': true, 'htm': true,
+            'json': true, 'xml': true, 'svg': true, 'png': true, 'jpg': true,
+            'jpeg': true, 'gif': true, 'webp': true, 'bmp': true, 'mp3': true,
+            'wav': true, 'm4a': true, 'mp4': true, 'webm': true,
+        },
+
+        // True in a browser on an iPhone or an iPad (an iPad has said it
+        // is a Mac since iPadOS 13; a Mac has no touch screen), as
+        // LiveCodeEvents decides it
+        _isAppleMobile: function() {
+            var platform = navigator.platform || '';
+            return /^(iPhone|iPad|iPod)/.test(platform) ||
+                (/^Mac/.test(platform) && navigator.maxTouchPoints > 1);
+        },
+
+        _sharesInstead: function(path) {
+            var name = path.substring(path.lastIndexOf('/') + 1);
+            var dot = name.lastIndexOf('.');
+            var extension = dot >= 0 ? name.substring(dot + 1).toLowerCase() : '';
+            return LiveCodeDialog._isAppleMobile() && LiveCodeDialog._shownInTab[extension] === true;
+        },
+
+        // Gives the file to the Share sheet, or opens it in a new tab;
+        // either needs a tap, so without one the user is asked first
+        // (openWithClick). Never the page's own tab.
+        _share: function(path) {
+            var name = path.substring(path.lastIndexOf('/') + 1);
+            // the file as it is now, as a download takes it: the engine goes
+            // on while the user is asked, and may write or delete the file
+            var blob;
+            try {
+                blob = LiveCodeDialog._blobOf(path);
+            } catch (e) {
+                return false;
+            }
+            var give = function() {
+                var file = null;
+                try {
+                    file = new File([blob], name, {'type': blob.type});
+                } catch (e) {
+                }
+                if (file && navigator.share && navigator.canShare &&
+                        navigator.canShare({'files': [file]})) {
+                    navigator.share({'files': [file]}).catch(function(e) {
+                        // (AbortError: the user closed the sheet)
+                        if (!e || e.name !== 'AbortError') {
+                            console.error('could not share ' + path + ': ' + e);
+                        }
+                    });
+                    return true;
+                }
+                var url = URL.createObjectURL(blob);
+                var opened = window.open(url, '_blank');
+                setTimeout(function() {
+                    URL.revokeObjectURL(url);
+                }, 60000);
+                return !!opened;
+            };
+            return LiveCodeDialog.openWithClick(give, 'Save this file?', name) != 0;
+        },
+
         _download: function(path) {
+            if (LiveCodeDialog._sharesInstead(path)) {
+                return LiveCodeDialog._share(path);
+            }
             try {
                 var url = URL.createObjectURL(LiveCodeDialog._blobOf(path));
                 var link = document.createElement('a');

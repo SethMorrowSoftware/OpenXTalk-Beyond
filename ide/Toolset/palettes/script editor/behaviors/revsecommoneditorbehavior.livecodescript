@@ -152,10 +152,6 @@ constant kPlaceholderDefaultBackgroundColor = "240,240,240"
 # 2017-08-01 bhall2001 previous vScroll position of the Editor field
 local sVScroll
 
-# 2017-08-01 bhall2001 Toggles between true/false on each up arrow key pressed
-# Note: up arrow key sends 2 scrollBarDrag messages. Used as flag
-# to process only 1 of the messages.
-local sSkipUpArrow = false
 
 # OK-2009-01-17 : Bug 7169
 command setDirty pObject, pValue
@@ -2501,10 +2497,17 @@ on scrollBarDrag
    
    # 2017-JUL-28 bhall2001
    # update only when vScroll changes. Mouse wheel scrolling sends
-   # vScrolls that don't change. Up arrow causes 2 scrollBarDrag message
-   # so we skip the message when up arrow flag is set.
+   # vScrolls that don't change.
+   # OXT-Beyond: an Up arrow's second scrollBarDrag has the vScroll of
+   # its first, so this test is the only one it needs. A flag used to
+   # skip it, flipped on EVERY Up arrow, scrolled or not: after an odd
+   # number of presses that moved the caret without scrolling it stayed
+   # set, and every scroll after it (wheel, scroll bar, keys) left the
+   # line numbers behind until an Up arrow flipped it back or a click
+   # updated the gutter (Skids, openxtalk.org p=26981, p=26991: "the row
+   # numbers just freeze", since LiveCode 8.1)
    put the vScroll of the target into tVScroll
-   if (tVScroll = sVScroll) or sSkipUpArrow then exit scrollBarDrag
+   if tVScroll = sVScroll then exit scrollBarDrag
    
    lock screen
    put tVScroll into sVScroll
@@ -2952,10 +2955,6 @@ on rawKeyDown pKey
          put "right" into tKeyName
          break
       case kKeyUpArrow
-         # 2017-JUL-28 bhall2001
-         # when scrolling on up arrow, scrollBarDrag is sent twice. Set
-         # flag to update on every other up arrow message
-         put not sSkipUpArrow into sSkipUpArrow
          put "up" into tKeyName
          break
       case kKeyDownArrow
